@@ -131,6 +131,8 @@ async function main() {
       description: 'Basic features for individuals',
       monthlyPrice: 0.0,
       yearlyPrice: 0.0,
+      monthlyProviderPlanId: 'plan_mock_monthly',
+      yearlyProviderPlanId: 'plan_mock_yearly',
       limits: {
         create: [
           { key: 'max_projects', value: 1 },

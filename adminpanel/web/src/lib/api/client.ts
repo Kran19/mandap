@@ -38,15 +38,16 @@ export async function clearAuthCookies() {
 export async function setAuthCookies(accessToken: string, refreshToken: string) {
   try {
     const cookieStore = await cookies();
+    const isSecure = process.env.HTTPS_ENABLED === 'true';
     cookieStore.set('accessToken', accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecure,
       sameSite: 'lax',
       path: '/',
     });
     cookieStore.set('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecure,
       sameSite: 'lax',
       path: '/',
     });

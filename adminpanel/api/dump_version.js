@@ -1,0 +1,1 @@
+import { PrismaClient } from '@prisma/client'; const prisma = new PrismaClient(); async function main() { const versions = await prisma.projectVersion.findMany({ where: { projectId: '0588dbb0-8065-4f73-b6be-88064a250518' }, orderBy: { versionNumber: 'desc' }, take: 1 }); console.log(JSON.stringify(versions, null, 2)); process.exit(0); } main();

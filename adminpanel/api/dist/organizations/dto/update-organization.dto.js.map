@@ -1,0 +1,1 @@
+{"version":3,"file":"update-organization.dto.js","sourceRoot":"","sources":["../../../src/organizations/dto/update-organization.dto.ts"],"names":[],"mappings":";;;;;;;;;AAAA,OAAO,EAAE,UAAU,EAAE,UAAU,EAAE,QAAQ,EAAE,SAAS,EAAE,MAAM,iBAAiB,CAAC;AAE9E,MAAM,OAAO,qBAAqB;IAKhC,IAAI,CAAU;CACf;AADC;IAJC,QAAQ,EAAE;IACV,UAAU,EAAE;IACZ,UAAU,EAAE;IACZ,SAAS,CAAC,GAAG,CAAC;;mDACD"}

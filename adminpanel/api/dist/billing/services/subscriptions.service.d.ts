@@ -1,0 +1,87 @@
+import { PrismaService } from '../../prisma.service.js';
+import { Prisma } from '@prisma/client';
+export declare class SubscriptionsService {
+    private prisma;
+    constructor(prisma: PrismaService);
+    activateSubscription(tx: Prisma.TransactionClient, organizationId: string, planId: string, provider: string, providerSubscriptionId: string): Promise<{
+        id: string;
+        status: import("@prisma/client").$Enums.SubscriptionStatus;
+        createdAt: Date;
+        updatedAt: Date;
+        organizationId: string;
+        planId: string;
+        provider: string;
+        providerSubscriptionId: string | null;
+        billingStatus: string | null;
+        accessStatus: string | null;
+        currentPeriodStart: Date | null;
+        currentPeriodEnd: Date | null;
+        gracePeriodEndsAt: Date | null;
+        cancelledAt: Date | null;
+    }>;
+    markPastDue(tx: Prisma.TransactionClient, subscriptionId: string): Promise<{
+        id: string;
+        status: import("@prisma/client").$Enums.SubscriptionStatus;
+        createdAt: Date;
+        updatedAt: Date;
+        organizationId: string;
+        planId: string;
+        provider: string;
+        providerSubscriptionId: string | null;
+        billingStatus: string | null;
+        accessStatus: string | null;
+        currentPeriodStart: Date | null;
+        currentPeriodEnd: Date | null;
+        gracePeriodEndsAt: Date | null;
+        cancelledAt: Date | null;
+    } | null>;
+    expire(tx: Prisma.TransactionClient, subscriptionId: string): Promise<{
+        id: string;
+        status: import("@prisma/client").$Enums.SubscriptionStatus;
+        createdAt: Date;
+        updatedAt: Date;
+        organizationId: string;
+        planId: string;
+        provider: string;
+        providerSubscriptionId: string | null;
+        billingStatus: string | null;
+        accessStatus: string | null;
+        currentPeriodStart: Date | null;
+        currentPeriodEnd: Date | null;
+        gracePeriodEndsAt: Date | null;
+        cancelledAt: Date | null;
+    } | null>;
+    cancel(tx: Prisma.TransactionClient, subscriptionId: string): Promise<{
+        id: string;
+        status: import("@prisma/client").$Enums.SubscriptionStatus;
+        createdAt: Date;
+        updatedAt: Date;
+        organizationId: string;
+        planId: string;
+        provider: string;
+        providerSubscriptionId: string | null;
+        billingStatus: string | null;
+        accessStatus: string | null;
+        currentPeriodStart: Date | null;
+        currentPeriodEnd: Date | null;
+        gracePeriodEndsAt: Date | null;
+        cancelledAt: Date | null;
+    } | null>;
+    establishTrial(tx: Prisma.TransactionClient, providerSubscriptionId: string): Promise<{
+        id: string;
+        status: import("@prisma/client").$Enums.SubscriptionStatus;
+        createdAt: Date;
+        updatedAt: Date;
+        organizationId: string;
+        planId: string;
+        provider: string;
+        providerSubscriptionId: string | null;
+        billingStatus: string | null;
+        accessStatus: string | null;
+        currentPeriodStart: Date | null;
+        currentPeriodEnd: Date | null;
+        gracePeriodEndsAt: Date | null;
+        cancelledAt: Date | null;
+    } | null>;
+    private createEvent;
+}

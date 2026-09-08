@@ -194,7 +194,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           labelText: 'Phone Number *',
           prefixIcon: Icons.phone_outlined,
           keyboardType: TextInputType.phone,
-          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-\s]'))],
+          maxLength: 10,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         ),
         const SizedBox(height: 14),
         PremiumAuthTextField(

@@ -210,9 +210,8 @@ class _Mandap3DViewState extends State<Mandap3DView> {
           widget.controller.deleteNode(pickedNodeId);
         } else if (hitEdgeId != null) {
           widget.controller.deleteEdge(hitEdgeId);
-        } else if (hitZoneId != null) {
-          widget.controller.deleteZone(hitZoneId);
         }
+
         // Prevent orbit-camera drag on pointer move after a delete tap
         _lastPointerPos = null;
         setState(() {});

@@ -271,9 +271,6 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
           final hitEdge = _hitTestEdge(screenPos);
           if (hitEdge != null) {
             controller.deleteEdge(hitEdge);
-          } else {
-            final hitZone = _hitTestZone(screenPos);
-            if (hitZone != null) controller.deleteZone(hitZone);
           }
         }
         
@@ -352,17 +349,6 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
         newX: _snapCursor!.x,
         newZ: _snapCursor!.z,
       );
-    } else if (controller.mode == EditorMode.addFlooring || controller.mode == EditorMode.addStage) {
-      if (_zoneDragStartWorld != null && _zoneDragEndWorld != null) {
-        final type = controller.mode == EditorMode.addFlooring ? ZoneType.flooring : ZoneType.stage;
-        controller.addZone(
-          type: type,
-          x1: _zoneDragStartWorld!.x,
-          y1: _zoneDragStartWorld!.z,
-          x2: _zoneDragEndWorld!.x,
-          y2: _zoneDragEndWorld!.z,
-        );
-      }
     }
     setState(() {
       _snapCursor = null;
@@ -420,16 +406,6 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
     return null;
   }
 
-  String? _hitTestZone(Offset screenPos) {
-    final world = _transform.screenToWorld(screenPos);
-    for (final zone in controller.layout.zones.reversed) {
-      if (world.x >= zone.left && world.x <= zone.right &&
-          world.z >= zone.top && world.z <= zone.bottom) {
-        return zone.id;
-      }
-    }
-    return null;
-  }
 
   // ── Fit view ────────────────────────────────────────────────────────────────
 

@@ -12,11 +12,9 @@ import '../domain/value_objects/mandap_calculation_result.dart';
 import '../domain/entities/mandap_zone.dart';
 import 'commands/add_edge_command.dart';
 import 'commands/add_node_command.dart';
-import 'commands/add_zone_command.dart';
 import 'commands/command_history.dart';
 import 'commands/delete_edge_command.dart';
 import 'commands/delete_node_command.dart';
-import 'commands/delete_zone_command.dart';
 import 'commands/mandap_command.dart';
 import 'commands/move_node_command.dart';
 import 'commands/update_node_dimensions_command.dart';
@@ -251,24 +249,6 @@ class MandapEditorController extends ChangeNotifier {
     return node.id;
   }
 
-  /// Adds a custom polygonal zone (flooring or stage).
-  void addZone({
-    required ZoneType type,
-    required double x1,
-    required double y1,
-    required double x2,
-    required double y2,
-  }) {
-    final cmd = AddZoneCommand.create(
-      type: type,
-      x1: x1,
-      y1: y1,
-      x2: x2,
-      y2: y2,
-    );
-    layout = history.executeCommand(cmd, layout);
-    _recalculate();
-  }
 
   /// Adds an edge between [startNodeId] and [endNodeId].
   /// Returns false if either node does not exist.
@@ -329,14 +309,6 @@ class MandapEditorController extends ChangeNotifier {
   /// Deletes a specific edge by ID.
   void deleteEdge(EdgeId edgeId) => _deleteEdge(edgeId);
 
-  /// Deletes a specific zone by ID.
-  void deleteZone(String zoneId) {
-    final zone = layout.zones.where((z) => z.id == zoneId).firstOrNull;
-    if (zone == null) return;
-    final cmd = DeleteZoneCommand(zoneId: zoneId, snapshot: zone);
-    layout = history.executeCommand(cmd, layout);
-    _recalculate();
-  }
 
   void _deleteNode(NodeId nodeId) {
     final node = layout.getNode(nodeId);

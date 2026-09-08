@@ -26,7 +26,7 @@ class AddTrussCommand implements MandapCommand {
 
   @override
   MandapLayout execute(MandapLayout layout) {
-    final uuid = const Uuid();
+    final uuid = Uuid();
     final ts = DateTime.now().microsecondsSinceEpoch;
 
     final n1Id = NodeId('truss_n1_$ts');

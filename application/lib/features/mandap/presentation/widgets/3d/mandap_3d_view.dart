@@ -99,6 +99,17 @@ class _Mandap3DViewState extends State<Mandap3DView> {
           )
         : null;
 
+    String? hitZoneId;
+    if (planeIntersection != null) {
+      for (final zone in widget.controller.layout.zones.reversed) {
+        if (planeIntersection.x >= zone.left && planeIntersection.x <= zone.right &&
+            planeIntersection.z >= zone.top && planeIntersection.z <= zone.bottom) {
+          hitZoneId = zone.id;
+          break;
+        }
+      }
+    }
+
     switch (widget.controller.mode) {
       case EditorMode.view:
       case EditorMode.select:
@@ -199,6 +210,8 @@ class _Mandap3DViewState extends State<Mandap3DView> {
           widget.controller.deleteNode(pickedNodeId);
         } else if (hitEdgeId != null) {
           widget.controller.deleteEdge(hitEdgeId);
+        } else if (hitZoneId != null) {
+          widget.controller.deleteZone(hitZoneId);
         }
         // Prevent orbit-camera drag on pointer move after a delete tap
         _lastPointerPos = null;

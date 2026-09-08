@@ -269,7 +269,12 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
           controller.deleteNode(hitNode);
         } else {
           final hitEdge = _hitTestEdge(screenPos);
-          if (hitEdge != null) controller.deleteEdge(hitEdge);
+          if (hitEdge != null) {
+            controller.deleteEdge(hitEdge);
+          } else {
+            final hitZone = _hitTestZone(screenPos);
+            if (hitZone != null) controller.deleteZone(hitZone);
+          }
         }
         
       case EditorMode.addFlooring:
@@ -410,6 +415,17 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
         endNode.z,
       )) {
         return edge.id;
+      }
+    }
+    return null;
+  }
+
+  String? _hitTestZone(Offset screenPos) {
+    final world = _transform.screenToWorld(screenPos);
+    for (final zone in controller.layout.zones.reversed) {
+      if (world.x >= zone.left && world.x <= zone.right &&
+          world.z >= zone.top && world.z <= zone.bottom) {
+        return zone.id;
       }
     }
     return null;

@@ -16,6 +16,7 @@ import 'commands/add_zone_command.dart';
 import 'commands/command_history.dart';
 import 'commands/delete_edge_command.dart';
 import 'commands/delete_node_command.dart';
+import 'commands/delete_zone_command.dart';
 import 'commands/mandap_command.dart';
 import 'commands/move_node_command.dart';
 import 'commands/update_node_dimensions_command.dart';
@@ -327,6 +328,15 @@ class MandapEditorController extends ChangeNotifier {
 
   /// Deletes a specific edge by ID.
   void deleteEdge(EdgeId edgeId) => _deleteEdge(edgeId);
+
+  /// Deletes a specific zone by ID.
+  void deleteZone(String zoneId) {
+    final zone = layout.zones.where((z) => z.id == zoneId).firstOrNull;
+    if (zone == null) return;
+    final cmd = DeleteZoneCommand(zoneId: zoneId, snapshot: zone);
+    layout = history.executeCommand(cmd, layout);
+    _recalculate();
+  }
 
   void _deleteNode(NodeId nodeId) {
     final node = layout.getNode(nodeId);

@@ -261,6 +261,12 @@ class MandapLayout {
     return MandapLayout(nodes: nodes, edges: updated, zones: zones);
   }
 
+  /// Returns a new layout without the zone identified by [zoneId].
+  MandapLayout withoutZone(String zoneId) {
+    final updatedZones = zones.where((z) => z.id != zoneId).toList();
+    return MandapLayout(nodes: nodes, edges: edges, zones: updatedZones);
+  }
+
   /// Returns a new layout with all edges referencing [nodeId] removed,
   /// then the node itself removed. Safe composite operation.
   MandapLayout withoutNodeAndConnectedEdges(NodeId nodeId) {

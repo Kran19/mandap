@@ -120,48 +120,45 @@ class _ComponentWizardScreenState extends State<ComponentWizardScreen> {
               : null,
         ),
         Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final crossCount = constraints.maxWidth > 600 ? 4 : 2;
-                return GridView.count(
-                  crossAxisCount: crossCount,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 0.85,
-                  children: [
-                    _buildComponentCard(
-                      type: _ComponentType.truss,
-                      icon: Icons.architecture,
-                      label: 'TRUSS',
-                      description: 'Horizontal roof / portal truss system',
-                      gradient: const [Color(0xFF6366F1), Color(0xFF4338CA)],
-                    ),
-                    _buildComponentCard(
-                      type: _ComponentType.pipe,
-                      icon: Icons.vertical_align_top_rounded,
-                      label: 'PIPE',
-                      description: 'Vertical support pipe / pole element',
-                      gradient: const [Color(0xFF0EA5E9), Color(0xFF0369A1)],
-                    ),
-                    _buildComponentCard(
-                      type: _ComponentType.flooring,
-                      icon: Icons.square_foot_rounded,
-                      label: 'FLOORING',
-                      description: 'Event carpet / platform floor surface',
-                      gradient: const [Color(0xFF10B981), Color(0xFF065F46)],
-                    ),
-                    _buildComponentCard(
-                      type: _ComponentType.stage,
-                      icon: Icons.theater_comedy_rounded,
-                      label: 'STAGE',
-                      description: 'Raised stage structure',
-                      gradient: const [Color(0xFFF59E0B), Color(0xFFB45309)],
-                    ),
-                  ],
-                );
-              },
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                children: [
+                  _buildCapsuleCard(
+                    type: _ComponentType.truss,
+                    icon: Icons.architecture,
+                    label: 'TRUSS',
+                    description: 'Horizontal roof / portal truss system',
+                    gradient: const [Color(0xFF6366F1), Color(0xFF4338CA)],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildCapsuleCard(
+                    type: _ComponentType.pipe,
+                    icon: Icons.vertical_align_top_rounded,
+                    label: 'PIPE',
+                    description: 'Vertical support pipe / pole element',
+                    gradient: const [Color(0xFF0EA5E9), Color(0xFF0284C7)],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildCapsuleCard(
+                    type: _ComponentType.flooring,
+                    icon: Icons.square_foot_rounded,
+                    label: 'FLOORING',
+                    description: 'Event carpet / platform floor surface',
+                    gradient: const [Color(0xFF10B981), Color(0xFF059669)],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildCapsuleCard(
+                    type: _ComponentType.stage,
+                    icon: Icons.theater_comedy_rounded,
+                    label: 'STAGE',
+                    description: 'Raised stage platform structure',
+                    gradient: const [Color(0xFFF59E0B), Color(0xFFD97706)],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -169,57 +166,108 @@ class _ComponentWizardScreenState extends State<ComponentWizardScreen> {
     );
   }
 
-  Widget _buildComponentCard({
+  Widget _buildCapsuleCard({
     required _ComponentType type,
     required IconData icon,
     required String label,
     required String description,
     required List<Color> gradient,
   }) {
-    return InkWell(
-      onTap: () => setState(() => _selected = type),
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: gradient,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => setState(() => _selected = type),
+        borderRadius: BorderRadius.circular(32),
+        splashColor: Colors.white.withValues(alpha: 0.2),
+        highlightColor: Colors.white.withValues(alpha: 0.1),
+        child: Container(
+          height: 92,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(32),
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: gradient,
+            ),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.22),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: gradient[0].withValues(alpha: 0.38),
+                blurRadius: 18,
+                offset: const Offset(0, 7),
+              ),
+            ],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: gradient[0].withOpacity(0.4),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 52, color: Colors.white),
-            const SizedBox(height: 16),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
+          child: Row(
+            children: [
+              // Capsule Icon Badge
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.18),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Icon(icon, size: 28, color: Colors.white),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              description,
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.75),
-                fontSize: 12,
+              const SizedBox(width: 18),
+
+              // Title and Description
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.82),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w400,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+
+              const SizedBox(width: 12),
+
+              // Trailing Arrow Circle
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.18),
+                ),
+                child: const Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 20,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

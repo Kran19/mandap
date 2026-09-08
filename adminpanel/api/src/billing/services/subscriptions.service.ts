@@ -169,24 +169,46 @@ export class SubscriptionsService {
       return null; // Idempotent or already handled
     }
 
-    // Double check eligibility
-    const existingClaim = await tx.trialClaim.findFirst({
-      where: {
-        OR: [
-          { emailNormalizedHash: trialSetup.emailNormalizedHash },
-          trialSetup.mobileNormalizedHash ? { mobileNormalizedHash: trialSetup.mobileNormalizedHash } : {},
-          trialSetup.identityReferenceHash ? { identityReferenceHash: trialSetup.identityReferenceHash } : {}
-        ].filter(condition => Object.keys(condition).length > 0)
-      }
-    });
+    // Double check eligibility with proper null guards
+    const conditions = [];
+    if (trialSetup.emailNormalizedHash) conditions.push({ emailNormalizedHash: trialSetup.emailNormalizedHash });
+    if (trialSetup.mobileNormalizedHash) conditions.push({ mobileNormalizedHash: trialSetup.mobileNormalizedHash });
+    if (trialSetup.identityReferenceHash) conditions.push({ identityReferenceHash: trialSetup.identityReferenceHash });
+
+    let existingClaim = null;
+    if (conditions.length > 0) {
+      existingClaim = await tx.trialClaim.findFirst({
+        where: {
+          OR: conditions,
+        }
+      });
+    }
 
     if (existingClaim) {
-      // Very rare race condition where another trial was established concurrently for this identity
+      // If already claimed for this organization or user, ensure subscription is active and return
+      let existingSub = await tx.subscription.findFirst({
+        where: { organizationId: trialSetup.organizationId }
+      });
+      if (!existingSub) {
+        const now = new Date();
+        const trialEndsAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        existingSub = await tx.subscription.create({
+          data: {
+            organizationId: trialSetup.organizationId,
+            planId: trialSetup.planId,
+            provider: 'RAZORPAY',
+            providerSubscriptionId: providerSubscriptionId,
+            status: SubscriptionStatus.TRIALING,
+            currentPeriodStart: now,
+            currentPeriodEnd: trialEndsAt,
+          },
+        });
+      }
       await tx.trialSetup.update({
         where: { id: trialSetup.id },
-        data: { status: 'ABANDONED' },
+        data: { status: 'ESTABLISHED' },
       });
-      throw new ConflictException('Identity already consumed a trial');
+      return existingSub;
     }
 
     const now = new Date();

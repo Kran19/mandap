@@ -7,6 +7,7 @@ export declare class TrialController {
     private readonly prisma;
     private readonly subscriptionsService;
     private readonly paymentProvider;
+    private readonly logger;
     constructor(trialEligibility: TrialEligibilityService, prisma: PrismaService, subscriptionsService: SubscriptionsService, paymentProvider: PaymentProvider);
     setupTrial(req: any, organizationId: string, planId: string, identityReference: string, idempotencyKey: string): Promise<import("@prisma/client/runtime/library").JsonValue | {
         trialSetupId: string;

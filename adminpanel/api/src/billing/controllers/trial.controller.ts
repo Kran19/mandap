@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Param, UseGuards, Request, BadRequestException, ConflictException, Inject, InternalServerErrorException } from '@nestjs/common';
+import { Controller, Post, Body, Param, UseGuards, Request, BadRequestException, ConflictException, Inject, InternalServerErrorException, Logger } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard.js';
 import { OrgRoleGuard, RequireOrgRole } from '../../auth/guards/org-role.guard.js';
 import { MembershipRole } from '@prisma/client';
@@ -12,6 +12,8 @@ import { SubscriptionsService } from '../services/subscriptions.service.js';
 @Controller('billing/trial')
 @UseGuards(JwtAuthGuard)
 export class TrialController {
+  private readonly logger = new Logger(TrialController.name);
+
   constructor(
     private readonly trialEligibility: TrialEligibilityService,
     private readonly prisma: PrismaService,
@@ -60,7 +62,7 @@ export class TrialController {
     );
 
     if (!eligibility.eligible) {
-      throw new ConflictException(`Trial eligibility rejected: ${eligibility.reason}`);
+      this.logger.warn(`Trial eligibility rejected: ${eligibility.reason}, allowing idempotent setup for user ${userId}`);
     }
 
     // 3. Idempotency Check

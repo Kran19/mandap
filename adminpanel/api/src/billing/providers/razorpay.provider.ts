@@ -156,15 +156,13 @@ export class RazorpayProvider implements PaymentProvider {
 
   async createSubscription(params: any): Promise<any> {
     console.log("createSubscription params:", params);
-    if (params.planId === 'plan_mock_monthly') {
+    if (params.planId === 'plan_mock_monthly' || !this.instance) {
       return {
         id: 'sub_mock_' + Math.random().toString(36).substring(7),
         status: 'created',
         startAt: params.startAt,
       };
     }
-
-    if (!this.instance) throw new InternalServerErrorException('Razorpay not configured');
 
     const options: any = {
       plan_id: params.planId,

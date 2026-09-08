@@ -9,7 +9,6 @@ import '../domain/entities/truss_catalog.dart';
 import '../domain/entities/truss_inventory.dart';
 import '../domain/services/mandap_calculation_engine.dart';
 import '../domain/value_objects/mandap_calculation_result.dart';
-import '../domain/entities/mandap_zone.dart';
 import 'commands/add_edge_command.dart';
 import 'commands/add_node_command.dart';
 import 'commands/command_history.dart';

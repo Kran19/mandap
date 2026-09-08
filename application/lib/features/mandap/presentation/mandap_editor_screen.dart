@@ -392,13 +392,42 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
     });
   }
 
+  double _lastScale = 1.0;
+
+  void _onScaleStart(ScaleStartDetails details) {
+    _lastScale = 1.0;
+  }
+
   void _onScaleUpdate(ScaleUpdateDetails details) {
-    if (details.scale != 1.0) {
-      setState(() {
-        _transform = _transform.zoom(details.scale, details.localFocalPoint);
-      });
+    if (details.pointerCount > 1 && details.scale != 1.0) {
+      // Pinch to zoom: compute incremental frame-to-frame delta to avoid exponential runaway
+      final double currentScale = details.scale;
+      final double scaleDelta = (_lastScale > 0.0) ? (currentScale / _lastScale) : 1.0;
+      _lastScale = currentScale;
+
+      // Low sensitivity factor (0.4) prevents wild jumps, giving smooth, controllable zooming
+      const double zoomSensitivity = 0.40;
+      final double dampedFactor = 1.0 + (scaleDelta - 1.0) * zoomSensitivity;
+
+      if (dampedFactor > 0.0 && (dampedFactor - 1.0).abs() > 0.0001) {
+        setState(() {
+          _transform = _transform.zoom(dampedFactor, details.localFocalPoint);
+          _transform = _transform.pan(
+            details.focalPointDelta.dx,
+            details.focalPointDelta.dy,
+          );
+        });
+      } else if (details.focalPointDelta != Offset.zero) {
+        setState(() {
+          _transform = _transform.pan(
+            details.focalPointDelta.dx,
+            details.focalPointDelta.dy,
+          );
+        });
+      }
     } else {
-      // Single-finger pan
+      // Single-finger pan: reset scale baseline so pinch starts smoothly
+      _lastScale = details.scale;
       if (controller.mode == EditorMode.view) {
         setState(() {
           _transform = _transform.pan(
@@ -408,6 +437,10 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
         });
       }
     }
+  }
+
+  void _onScaleEnd(ScaleEndDetails details) {
+    _lastScale = 1.0;
   }
 
   // ── Hit testing ────────────────────────────────────────────────────────────
@@ -994,7 +1027,7 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
         return Listener(
           onPointerSignal: (pointerSignal) {
             if (pointerSignal is PointerScrollEvent && controller.mode == EditorMode.view) {
-              final zoomDelta = pointerSignal.scrollDelta.dy > 0 ? 0.9 : 1.1;
+              final zoomDelta = pointerSignal.scrollDelta.dy > 0 ? 0.95 : 1.05;
               setState(() {
                 _transform = _transform.zoom(zoomDelta, pointerSignal.localPosition);
               });
@@ -1012,9 +1045,9 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
                 ? _onPanUpdate
                 : null,
             onPanEnd: (controller.mode == EditorMode.move || controller.mode == EditorMode.addFlooring || controller.mode == EditorMode.addStage) ? _onPanEnd : null,
-            onScaleUpdate: controller.mode == EditorMode.view
-                ? _onScaleUpdate
-                : null,
+            onScaleStart: controller.mode == EditorMode.view ? _onScaleStart : null,
+            onScaleUpdate: controller.mode == EditorMode.view ? _onScaleUpdate : null,
+            onScaleEnd: controller.mode == EditorMode.view ? _onScaleEnd : null,
             child: CustomPaint(
               painter: Mandap2DInteractivePainter(
                 layout: controller.layout,

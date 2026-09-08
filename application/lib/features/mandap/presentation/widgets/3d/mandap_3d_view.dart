@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:vector_math/vector_math_64.dart' as v64;
 import '../../../domain/entities/mandap_layout.dart';
 import '../../../domain/entities/mandap_node.dart';
@@ -30,6 +31,8 @@ class Mandap3DView extends StatefulWidget {
 
 class _Mandap3DViewState extends State<Mandap3DView> {
   Offset? _lastPointerPos;
+  final Map<int, Offset> _activePointers = {};
+  double? _lastPinchDistance;
 
   MandapLayout? _lastLayout;
   MandapCalculationResult? _lastResult;
@@ -70,6 +73,14 @@ class _Mandap3DViewState extends State<Mandap3DView> {
   }
 
   void _onPointerDown(PointerDownEvent details, Size canvasSize) {
+    _activePointers[details.pointer] = details.localPosition;
+    if (_activePointers.length == 2) {
+      final pts = _activePointers.values.toList();
+      _lastPinchDistance = (pts[0] - pts[1]).distance;
+      return;
+    }
+    if (_activePointers.length > 2) return;
+
     _lastPointerPos = details.localPosition;
     final ray = widget.controller3D.createCameraRay(
       details.localPosition,
@@ -229,6 +240,23 @@ class _Mandap3DViewState extends State<Mandap3DView> {
   }
 
   void _onPointerMove(PointerMoveEvent details, Size canvasSize) {
+    _activePointers[details.pointer] = details.localPosition;
+
+    if (_activePointers.length >= 2) {
+      final pts = _activePointers.values.toList();
+      final currentDistance = (pts[0] - pts[1]).distance;
+      if (_lastPinchDistance != null && _lastPinchDistance! > 10.0) {
+        final scaleRatio = currentDistance / _lastPinchDistance!;
+        // Soft, gentle sensitivity for 3D camera zoom:
+        const double sensitivity3D = 0.40;
+        final zoomFactor = 1.0 - (scaleRatio - 1.0) * sensitivity3D;
+        widget.controller3D.zoomCamera(zoomFactor);
+      }
+      _lastPinchDistance = currentDistance;
+      _lastPointerPos = null;
+      return;
+    }
+
     if (_lastPointerPos == null) return;
     final delta = details.localPosition - _lastPointerPos!;
     _lastPointerPos = details.localPosition;
@@ -388,13 +416,18 @@ class _Mandap3DViewState extends State<Mandap3DView> {
       }
     }
 
+    _activePointers.remove(details.pointer);
+    if (_activePointers.length < 2) {
+      _lastPinchDistance = null;
+    }
+
     setState(() {
       widget.controller3D.isDraggingHandle = false;
       widget.controller3D.isDraggingNode = false;
       widget.controller3D.activeHandleNodeId = null;
       widget.controller3D.activeHandleEdgeId = null;
       widget.controller3D.dragPreviewLengthFeet = null;
-      _lastPointerPos = null;
+      _lastPointerPos = _activePointers.isEmpty ? null : _activePointers.values.first;
     });
   }
 
@@ -409,6 +442,17 @@ class _Mandap3DViewState extends State<Mandap3DView> {
           onPointerDown: (d) => _onPointerDown(d, canvasSize),
           onPointerMove: (d) => _onPointerMove(d, canvasSize),
           onPointerUp: _onPointerUp,
+          onPointerCancel: (d) {
+            _activePointers.remove(d.pointer);
+            if (_activePointers.length < 2) _lastPinchDistance = null;
+            if (_activePointers.isEmpty) _lastPointerPos = null;
+          },
+          onPointerSignal: (signal) {
+            if (signal is PointerScrollEvent) {
+              final zoomDelta = signal.scrollDelta.dy > 0 ? 1.05 : 0.95;
+              widget.controller3D.zoomCamera(zoomDelta);
+            }
+          },
           child: AnimatedBuilder(
             animation: Listenable.merge([
               widget.controller,

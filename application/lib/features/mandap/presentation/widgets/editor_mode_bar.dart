@@ -1,21 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../application/editor_mode.dart';
-
 import '../../domain/entities/mandap_node.dart';
-import 'package:flutter/gestures.dart';
 
-/// Bottom toolbar showing the active [EditorMode] and allowing mode switching.
-///
-/// Designed for Android-phone widths (360–412 dp). Uses icon+label buttons
-/// in a horizontal scroll so text is never truncated.
+/// Bottom toolbar showing only the [Delete] mode toggle and [Add Component] button.
 class EditorModeBar extends StatelessWidget {
   final EditorMode currentMode;
   final NodeType pendingNodeType;
   final ValueChanged<EditorMode> onModeChanged;
   final ValueChanged<NodeType>? onNodeTypeChanged;
-  /// If set, the bar shows an 'Add Component' button that navigates to
-  /// /component-wizard?projectId=[projectId].
   final String? projectId;
 
   const EditorModeBar({
@@ -27,183 +20,142 @@ class EditorModeBar extends StatelessWidget {
     this.projectId,
   });
 
-  static const _modes = [
-    EditorMode.view,
-    EditorMode.select,
-    EditorMode.move,
-    EditorMode.addNode,
-    EditorMode.addPole,
-    EditorMode.addEdge,
-    EditorMode.addFlooring,
-    EditorMode.addStage,
-    EditorMode.delete,
-  ];
-
-  static const _icons = {
-    EditorMode.view: Icons.pan_tool_alt_outlined,
-    EditorMode.select: Icons.touch_app_outlined,
-    EditorMode.move: Icons.open_with,
-    EditorMode.addNode: Icons.add_location_alt_outlined,
-    EditorMode.addPole: Icons.vertical_align_bottom,
-    EditorMode.addEdge: Icons.timeline,
-    EditorMode.addFlooring: Icons.layers_outlined,
-    EditorMode.addStage: Icons.table_restaurant_outlined,
-    EditorMode.delete: Icons.delete_outline,
-  };
-
-  static const _colors = {
-    EditorMode.view: Color(0xFF475569),
-    EditorMode.select: Color(0xFF2563EB),
-    EditorMode.move: Color(0xFF7C3AED),
-    EditorMode.addNode: Color(0xFF16A34A),
-    EditorMode.addPole: Color(0xFF10B981),
-    EditorMode.addEdge: Color(0xFF0891B2),
-    EditorMode.addFlooring: Color(0xFFD97706),
-    EditorMode.addStage: Color(0xFFEA580C),
-    EditorMode.delete: Color(0xFFDC2626),
-  };
-
   @override
   Widget build(BuildContext context) {
+    final isDelete = currentMode == EditorMode.delete;
+
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
         color: Color(0xFF0F172A),
         border: Border(top: BorderSide(color: Color(0xFF1E293B), width: 1)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 0,
-        runSpacing: 0,
-        children: [
-            ..._modes.map(
-              (mode) => _ModeButton(
-                mode: mode,
-                isActive: mode == currentMode,
-                icon: _icons[mode]!,
-                activeColor: _colors[mode]!,
-                onTap: () {
-                  if (mode == currentMode && mode != EditorMode.view) {
-                    onModeChanged(EditorMode.view);
-                  } else {
-                    onModeChanged(mode);
-                  }
-                },
-              ),
-            ),
-            if (currentMode == EditorMode.addNode && onNodeTypeChanged != null) ...[
-              const SizedBox(width: 8),
-              Container(
-                height: 32,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: DropdownButton<NodeType>(
-                  value: pendingNodeType,
-                  dropdownColor: const Color(0xFF1E293B),
-                  underline: const SizedBox(),
-                  icon: const Icon(Icons.arrow_drop_down, color: Colors.white70),
-                  items: const [
-                    DropdownMenuItem(value: NodeType.corner, child: Text('Truss Node', style: TextStyle(color: Colors.white, fontSize: 11))),
-                    DropdownMenuItem(value: NodeType.pole, child: Text('User Pole', style: TextStyle(color: Colors.white, fontSize: 11))),
-                    DropdownMenuItem(value: NodeType.stage, child: Text('Stage', style: TextStyle(color: Colors.white, fontSize: 11))),
-                    DropdownMenuItem(value: NodeType.carpet, child: Text('Carpet', style: TextStyle(color: Colors.white, fontSize: 11))),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) onNodeTypeChanged!(v);
-                  },
-                ),
-              ),
-            ],
-            if (projectId != null) ...[
-              const SizedBox(width: 6),
-              GestureDetector(
-                onTap: () => context.go('/component-wizard?projectId=$projectId'),
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF6366F1).withOpacity(0.4),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.add_circle_outline, size: 16, color: Colors.white),
-                      SizedBox(width: 5),
-                      Text('Add', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      );
-  }
-}
-
-class _ModeButton extends StatelessWidget {
-  final EditorMode mode;
-  final bool isActive;
-  final IconData icon;
-  final Color activeColor;
-  final VoidCallback onTap;
-
-  const _ModeButton({
-    required this.mode,
-    required this.isActive,
-    required this.icon,
-    required this.activeColor,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
-        margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isActive
-              ? activeColor.withValues(alpha: 0.18)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isActive ? activeColor : const Color(0xFF334155),
-            width: isActive ? 1.5 : 1,
-          ),
-        ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: SafeArea(
+        top: false,
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isActive ? activeColor : const Color(0xFF94A3B8),
+            // Delete Mode Button
+            Expanded(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    if (isDelete) {
+                      onModeChanged(EditorMode.select);
+                    } else {
+                      onModeChanged(EditorMode.delete);
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(14),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: isDelete
+                          ? const Color(0xFFDC2626).withValues(alpha: 0.22)
+                          : const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isDelete
+                            ? const Color(0xFFEF4444)
+                            : const Color(0xFF334155),
+                        width: isDelete ? 1.8 : 1.0,
+                      ),
+                      boxShadow: isDelete
+                          ? [
+                              BoxShadow(
+                                color:
+                                    const Color(0xFFDC2626).withValues(alpha: 0.35),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          isDelete
+                              ? Icons.delete_forever_rounded
+                              : Icons.delete_outline_rounded,
+                          color: isDelete
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFFF87171),
+                          size: 22,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          isDelete ? 'Delete (Active)' : 'Delete',
+                          style: TextStyle(
+                            color: isDelete
+                                ? const Color(0xFFEF4444)
+                                : Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
-            const SizedBox(width: 5),
-            Text(
-              mode.shortLabel,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                color: isActive ? activeColor : const Color(0xFF94A3B8),
+
+            const SizedBox(width: 14),
+
+            // Add Component Button
+            Expanded(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    if (projectId != null && projectId!.isNotEmpty) {
+                      context.go('/component-wizard?projectId=$projectId');
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    height: 50,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF6366F1).withValues(alpha: 0.45),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.add_circle_outline_rounded,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Add',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ],

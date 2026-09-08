@@ -89,12 +89,12 @@ void main() {
         // Verify within defined numerical tolerance
         expect(
           (actualX - expectedX).abs(),
-          lessThan(1e-6),
+          lessThan(1e-9),
           reason: 'X coordinate precision lost in round-trip projection',
         );
         expect(
           (actualZ - expectedZ).abs(),
-          lessThan(1e-6),
+          lessThan(1e-9),
           reason: 'Z coordinate precision lost in round-trip projection',
         );
       }

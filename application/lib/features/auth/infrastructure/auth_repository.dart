@@ -10,6 +10,31 @@ class SessionData {
   const SessionData({this.accessToken, this.refreshToken});
 }
 
+/// Result of a login attempt.
+/// Either [otpRequired] is true (with [challengeId]) or [errorMessage] is set.
+class LoginResult {
+  final bool otpRequired;
+  final String? challengeId;
+  final String? errorMessage;
+  final bool success;
+
+  const LoginResult._({
+    this.otpRequired = false,
+    this.challengeId,
+    this.errorMessage,
+    this.success = false,
+  });
+
+  factory LoginResult.otpChallenge(String challengeId) =>
+      LoginResult._(otpRequired: true, challengeId: challengeId);
+
+  factory LoginResult.authenticated() =>
+      const LoginResult._(success: true);
+
+  factory LoginResult.error(String message) =>
+      LoginResult._(errorMessage: message);
+}
+
 abstract class AuthTokenProvider {
   Future<String?> getAccessToken();
   Future<void> clearTokens();
@@ -18,12 +43,12 @@ abstract class AuthTokenProvider {
 
 class AuthRepository implements AuthTokenProvider {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  
+
   static const String _accessTokenKey = 'mandap_access_token';
   static const String _refreshTokenKey = 'mandap_refresh_token';
 
   SessionData _currentSession = const SessionData();
-  
+
   final String baseUrl;
 
   AuthRepository({required this.baseUrl});
@@ -47,7 +72,7 @@ class AuthRepository implements AuthTokenProvider {
   Future<void> clearTokens() async {
     await _secureStorage.delete(key: _accessTokenKey);
     await _secureStorage.delete(key: _refreshTokenKey);
-    
+
     _currentSession = const SessionData();
   }
 
@@ -84,34 +109,71 @@ class AuthRepository implements AuthTokenProvider {
         final data = jsonDecode(response.body);
         final newAccess = data['accessToken'];
         final newRefresh = data['refreshToken'];
-        
+
         await saveTokens(newAccess, newRefresh ?? currentRefresh);
         return true;
       }
     } catch (_) {
       // Network error during refresh, retain tokens for retry
-      return false; // Typically handled by AuthBlocked + retain local db
+      return false;
     }
 
     await clearTokens();
     return false;
   }
 
-  Future<String?> login(String email, String password) async {
+  // ── V2 Phone Auth ────────────────────────────────────────────────────────
+
+  /// Step 1: Submit phone + password. Returns a [LoginResult].
+  /// If [LoginResult.otpRequired] is true, pass [LoginResult.challengeId] to [verifyLoginOtp].
+  Future<LoginResult> login(String phone, String password) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/auth/login'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password}),
-      );
+        body: jsonEncode({'phone': phone, 'password': password}),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+
+        if (data['otpRequired'] == true) {
+          return LoginResult.otpChallenge(data['challengeId'] as String);
+        }
+
+        // Legacy email-only account that doesn't yet have a phone
+        await saveTokens(data['accessToken'], data['refreshToken']);
+        return LoginResult.authenticated();
+      } else {
+        final errorData = jsonDecode(response.body);
+        final message = errorData['message'] is List
+            ? (errorData['message'] as List).join(', ')
+            : errorData['message'] ?? 'Login failed';
+        return LoginResult.error(message as String);
+      }
+    } catch (_) {
+      return LoginResult.error('Network error. Please try again.');
+    }
+  }
+
+  /// Step 2: Submit the OTP challenge. On success, stores tokens and returns null.
+  Future<String?> verifyLoginOtp(String challengeId, String otp) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/login/verify-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'challengeId': challengeId, 'otp': otp}),
+      ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         await saveTokens(data['accessToken'], data['refreshToken']);
-        return null;
+        return null; // success
       } else {
         final errorData = jsonDecode(response.body);
-        return errorData['message'] is List ? errorData['message'].join(', ') : errorData['message'] ?? 'Login failed';
+        return errorData['message'] is List
+            ? (errorData['message'] as List).join(', ')
+            : errorData['message'] ?? 'OTP verification failed';
       }
     } catch (_) {
       return 'Network error. Please try again.';
@@ -119,11 +181,11 @@ class AuthRepository implements AuthTokenProvider {
   }
 
   Future<String?> register({
-    required String email, 
+    required String phone,
     required String password,
+    String? email,
     String? firstName,
     String? lastName,
-    String? phone,
     String? gender,
     String? aadhaarNumber,
     String? aadhaarFrontUrl,
@@ -131,11 +193,11 @@ class AuthRepository implements AuthTokenProvider {
   }) async {
     try {
       final body = {
-        'email': email, 
+        'phone': phone,
         'password': password,
+        if (email != null && email.isNotEmpty) 'email': email,
         if (firstName != null) 'firstName': firstName,
         if (lastName != null) 'lastName': lastName,
-        if (phone != null) 'phone': phone,
         if (gender != null) 'gender': gender,
         if (aadhaarNumber != null) 'aadhaarNumber': aadhaarNumber,
         if (aadhaarFrontUrl != null) 'aadhaarFrontUrl': aadhaarFrontUrl,
@@ -149,18 +211,19 @@ class AuthRepository implements AuthTokenProvider {
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        await saveTokens(data['accessToken'], data['refreshToken']);
-        return null; // null means success
+        return null; // null means success, user should now login
       } else {
         final errorData = jsonDecode(response.body);
-        // NestJS ValidationPipe sometimes returns an array of messages
-        return errorData['message'] is List ? errorData['message'].join(', ') : errorData['message'] ?? 'Registration failed';
+        return errorData['message'] is List
+            ? (errorData['message'] as List).join(', ')
+            : errorData['message'] ?? 'Registration failed';
       }
     } catch (e) {
       return 'Network error. Please try again.';
     }
   }
+
+  // ── Misc / Legacy methods ─────────────────────────────────────────────────
 
   Future<String?> uploadFile(String filePath) async {
     try {
@@ -188,7 +251,9 @@ class AuthRepository implements AuthTokenProvider {
         body: jsonEncode({'token': token}),
       );
       return response.statusCode == 200 || response.statusCode == 201;
-    } catch (_) { return false; }
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<bool> sendMobileOtp(String phone) async {
@@ -201,7 +266,9 @@ class AuthRepository implements AuthTokenProvider {
         body: jsonEncode({'phone': phone}),
       );
       return response.statusCode == 200 || response.statusCode == 201;
-    } catch (_) { return false; }
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<bool> verifyMobileOtp(String phone, String code) async {
@@ -214,7 +281,9 @@ class AuthRepository implements AuthTokenProvider {
         body: jsonEncode({'phone': phone, 'code': code}),
       );
       return response.statusCode == 200 || response.statusCode == 201;
-    } catch (_) { return false; }
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<bool> verifyIdentity(String identityReference) async {
@@ -227,7 +296,9 @@ class AuthRepository implements AuthTokenProvider {
         body: jsonEncode({'identityReference': identityReference}),
       );
       return response.statusCode == 200 || response.statusCode == 201;
-    } catch (_) { return false; }
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<AuthUser?> getMe() async {
@@ -252,7 +323,6 @@ class AuthRepository implements AuthTokenProvider {
         }
       }
     } catch (_) {
-      // Network error or other exception
       return null;
     }
     return null;

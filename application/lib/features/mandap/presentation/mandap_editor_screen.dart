@@ -568,6 +568,7 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
               EditorModeBar(
                 currentMode: controller.mode,
                 pendingNodeType: controller.pendingNodeType,
+                projectId: widget.projectId,
                 onModeChanged: (m) {
                   controller.setMode(m);
                   setState(() => _snapCursor = null);

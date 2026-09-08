@@ -16,6 +16,7 @@ import '../../features/projects/presentation/projects_dashboard_screen.dart';
 
 // Placeholder screen imports - these will be built out in later steps
 import '../../features/mandap/presentation/mandap_editor_screen.dart';
+import '../../features/projects/presentation/component_wizard_screen.dart';
 
 class PlaceholderScreen extends StatelessWidget {
   final String title;
@@ -89,7 +90,7 @@ class AppRouter {
             }
           }
           // If trying to access protected App routes, Enforce Entitlement Guard
-          final isAppRoute = path.startsWith('/projects') || path.startsWith('/editor');
+          final isAppRoute = path.startsWith('/projects') || path.startsWith('/editor') || path.startsWith('/component-wizard');
 
           if (current.destination != AppDestination.projects && isAppRoute) {
              // Block application access until onboarding/entitlement is complete
@@ -169,6 +170,13 @@ class AppRouter {
           builder: (context, state) {
             final projectId = state.uri.queryParameters['projectId'] ?? 'new';
             return MandapEditorScreen(projectId: projectId);
+          },
+        ),
+        GoRoute(
+          path: '/component-wizard',
+          builder: (context, state) {
+            final projectId = state.uri.queryParameters['projectId'] ?? 'new';
+            return ComponentWizardScreen(projectId: projectId);
           },
         ),
       ],

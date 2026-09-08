@@ -17,6 +17,7 @@ import { ProjectsModule } from './projects/projects.module.js';
 import { TerminusModule } from '@nestjs/terminus';
 import { HealthController } from './common/health.controller.js';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
+import { RedisModule } from './redis/redis.module.js';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
       }),
     }),
     PrismaModule,
+    RedisModule,
     AuthModule,
     LoggerModule.forRoot({
       pinoHttp: {

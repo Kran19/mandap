@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../application/editor_mode.dart';
 
 import '../../domain/entities/mandap_node.dart';
@@ -13,6 +14,9 @@ class EditorModeBar extends StatelessWidget {
   final NodeType pendingNodeType;
   final ValueChanged<EditorMode> onModeChanged;
   final ValueChanged<NodeType>? onNodeTypeChanged;
+  /// If set, the bar shows an 'Add Component' button that navigates to
+  /// /component-wizard?projectId=[projectId].
+  final String? projectId;
 
   const EditorModeBar({
     super.key,
@@ -20,6 +24,7 @@ class EditorModeBar extends StatelessWidget {
     required this.pendingNodeType,
     required this.onModeChanged,
     this.onNodeTypeChanged,
+    this.projectId,
   });
 
   static const _modes = [
@@ -112,7 +117,38 @@ class EditorModeBar extends StatelessWidget {
                   },
                 ),
               ),
-            ]
+            ],
+            if (projectId != null) ...[
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: () => context.go('/component-wizard?projectId=$projectId'),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6366F1).withOpacity(0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add_circle_outline, size: 16, color: Colors.white),
+                      SizedBox(width: 5),
+                      Text('Add', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       );

@@ -261,6 +261,47 @@ describe('Free Trial & AutoPay (e2e)', () => {
 
       expect(res.status).toBe(409);
     });
+
+    it('Same phone with different identity → rejected', async () => {
+      const phoneEmail = `phone_${runId}@trial.com`;
+      const resOwner = await request(app.getHttpServer()).post('/api/v1/auth/register').send({ email: phoneEmail, password: 'PassWord123!', firstName: 'Phone', lastName: 'Trial', phone: `+91999999${runId.toString().slice(-4)}` });
+      const pToken = resOwner.body.data?.accessToken || resOwner.body.accessToken;
+      await prisma.user.updateMany({ where: { email: phoneEmail }, data: { emailVerifiedAt: new Date() } });
+      const resOrg = await request(app.getHttpServer()).post('/api/v1/organizations').set('Authorization', `Bearer ${pToken}`).send({ name: `Phone Org`, slug: `p-org-${runId}` });
+      const pOrgId = resOrg.body.data?.id ?? resOrg.body.id;
+
+      const res = await request(app.getHttpServer())
+        .post(`/api/v1/billing/trial/${pOrgId}/setup`)
+        .set('Authorization', `Bearer ${pToken}`)
+        .send({
+          planId,
+          identityReference: `different_id_ref_${runId}`,
+          idempotencyKey: `idem_phone_${runId}`
+        });
+
+      expect(res.status).toBe(409);
+      expect(res.body.message).toContain('MOBILE_ALREADY_USED');
+    });
+
+    it('No email + valid phone/identity → eligibility works', async () => {
+      const noEmailPhone = `+919999995555`;
+      const resOwner = await request(app.getHttpServer()).post('/api/v1/auth/register').send({ password: 'PassWord123!', firstName: 'No', lastName: 'Email', phone: noEmailPhone });
+      const neToken = resOwner.body.data?.accessToken || resOwner.body.accessToken;
+      await prisma.user.updateMany({ where: { phone: noEmailPhone }, data: { mobileVerifiedAt: new Date(), emailVerifiedAt: new Date() } });
+      const resOrg = await request(app.getHttpServer()).post('/api/v1/organizations').set('Authorization', `Bearer ${neToken}`).send({ name: `NoEmail Org`, slug: `ne-org-${runId}` });
+      const neOrgId = resOrg.body.data?.id ?? resOrg.body.id;
+
+      const res = await request(app.getHttpServer())
+        .post(`/api/v1/billing/trial/${neOrgId}/setup`)
+        .set('Authorization', `Bearer ${neToken}`)
+        .send({
+          planId,
+          identityReference: `id_ref_ne_${runId}`,
+          idempotencyKey: `idem_ne_${runId}`
+        });
+
+      expect(res.status).toBe(201);
+    });
   });
 
   describe('2. Concurrent Eligibility & Idempotency Races', () => {

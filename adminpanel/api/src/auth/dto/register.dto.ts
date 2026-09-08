@@ -2,8 +2,8 @@ import { IsEmail, IsNotEmpty, IsString, MinLength, MaxLength, IsOptional } from 
 
 export class RegisterDto {
   @IsEmail({}, { message: 'Please provide a valid email address.' })
-  @IsNotEmpty()
-  email!: string;
+  @IsOptional()
+  email?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -20,8 +20,8 @@ export class RegisterDto {
   lastName?: string;
 
   @IsString()
-  @IsOptional()
-  phone?: string;
+  @IsNotEmpty({ message: 'Phone number is required.' })
+  phone!: string;
 
   @IsString()
   @IsOptional()

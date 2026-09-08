@@ -7,6 +7,8 @@ import { RefreshDto } from './dto/refresh.dto.js';
 import * as argon2 from 'argon2';
 import * as crypto from 'crypto';
 import { UserStatus } from '@prisma/client';
+import { normalizePhone } from '../utils/phone.util.js';
+import { OtpService } from './otp.service.js';
 
 export interface TokenPayload {
   sub: string;
@@ -17,13 +19,23 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private otpService: OtpService,
   ) {}
 
   async register(dto: RegisterDto) {
-    const email = dto.email.trim().toLowerCase();
-    const existing = await this.prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      throw new BadRequestException('Email already in use.');
+    let email = dto.email?.trim().toLowerCase();
+    const phone = normalizePhone(dto.phone!);
+
+    if (email) {
+      const existingEmail = await this.prisma.user.findUnique({ where: { email } });
+      if (existingEmail) {
+        throw new BadRequestException('Email already in use.');
+      }
+    }
+
+    const existingPhone = await this.prisma.user.findUnique({ where: { phone } });
+    if (existingPhone) {
+      throw new BadRequestException('Phone number already in use.');
     }
 
     const passwordHash = await argon2.hash(dto.password);
@@ -35,7 +47,7 @@ export class AuthService {
           passwordHash,
           firstName: dto.firstName,
           lastName: dto.lastName,
-          phone: dto.phone,
+          phone,
           gender: dto.gender,
           aadhaarNumber: dto.aadhaarNumber,
           aadhaarFrontUrl: dto.aadhaarFrontUrl,
@@ -43,9 +55,10 @@ export class AuthService {
         },
       });
 
+      const orgName = email ? `${email.split('@')[0]}'s Workspace` : `Workspace ${u.id.substring(0, 8)}`;
       const org = await tx.organization.create({
         data: {
-          name: `${email.split('@')[0]}'s Workspace`,
+          name: orgName,
           slug: crypto.randomUUID(), // unique slug
         }
       });
@@ -61,12 +74,21 @@ export class AuthService {
       return u;
     });
 
-    return this.generateAuthResponse(user.id);
+    return { success: true, message: 'User registered successfully. Please login to verify phone.' };
   }
 
   async login(dto: LoginDto) {
-    const email = dto.email.trim().toLowerCase();
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    let user;
+    
+    if (dto.phone) {
+      const phone = normalizePhone(dto.phone);
+      user = await this.prisma.user.findUnique({ where: { phone } });
+    } else if (dto.email) {
+      const email = dto.email.trim().toLowerCase();
+      user = await this.prisma.user.findUnique({ where: { email } });
+    } else {
+      throw new BadRequestException('Provide phone or email to login.');
+    }
 
     if (!user || user.status !== UserStatus.ACTIVE) {
       // Do not reveal whether account exists vs bad password/status
@@ -78,12 +100,32 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials.');
     }
 
+    if (user.phone) {
+      // New phone flow
+      const challengeId = await this.otpService.generateAndSendOtp(user.id, user.phone);
+      return { otpRequired: true, challengeId };
+    } else {
+      // Existing email-only users can still login, but should be prompted by frontend to migrate
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      });
+      return this.generateAuthResponse(user.id);
+    }
+  }
+
+  async verifyLoginOtp(challengeId: string, otp: string) {
+    const userId = await this.otpService.verifyOtp(challengeId, otp);
+    
     await this.prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
+      where: { id: userId },
+      data: { 
+        lastLoginAt: new Date(),
+        mobileVerifiedAt: new Date(), 
+      },
     });
 
-    return this.generateAuthResponse(user.id);
+    return this.generateAuthResponse(userId);
   }
 
   async refresh(dto: RefreshDto) {

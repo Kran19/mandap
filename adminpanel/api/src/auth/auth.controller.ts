@@ -37,6 +37,12 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  @Post('login/verify-otp')
+  @HttpCode(HttpStatus.OK)
+  verifyLoginOtp(@Body() dto: VerifyOtpDto) {
+    return this.authService.verifyLoginOtp(dto.challengeId, dto.otp);
+  }
+
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   refresh(@Body() dto: RefreshDto) {

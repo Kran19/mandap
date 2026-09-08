@@ -13,6 +13,8 @@ export class OtpService {
   private readonly OTP_TTL_SECONDS = 300;
   private readonly MAX_ATTEMPTS = 5;
 
+  private readonly inMemoryFallback = new Map<string, { data: string; expiresAt: number }>();
+
   constructor(
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     @Inject('SMS_PROVIDER') private readonly smsProvider: SmsProvider,
@@ -34,9 +36,19 @@ export class OtpService {
       expiresAt: new Date(Date.now() + this.OTP_TTL_SECONDS * 1000).toISOString(),
     };
 
-    await this.redis.set(key, JSON.stringify(data), 'EX', this.OTP_TTL_SECONDS);
+    const serialized = JSON.stringify(data);
+    try {
+      await this.redis.set(key, serialized, 'EX', this.OTP_TTL_SECONDS);
+    } catch (err) {
+      this.logger.warn(`Redis set failed, falling back to memory: ${err}`);
+      this.inMemoryFallback.set(key, {
+        data: serialized,
+        expiresAt: Date.now() + this.OTP_TTL_SECONDS * 1000,
+      });
+    }
 
     // Send the SMS
+    this.logger.log(`[OTP GENERATED] Phone: ${phone} | OTP: ${otp}`);
     await this.smsProvider.sendSms(phone, `Your MANDAP verification code is: ${otp}. It expires in 5 minutes.`);
     
     return challengeId;
@@ -45,8 +57,20 @@ export class OtpService {
   async verifyOtp(challengeId: string, otp: string): Promise<string> {
     const key = `login_challenge:${challengeId}`;
     
-    // We use a multi block to avoid race conditions on attemptCount and consumption
-    const rawData = await this.redis.get(key);
+    let rawData: string | null = null;
+    try {
+      rawData = await this.redis.get(key);
+    } catch (err) {
+      this.logger.warn(`Redis get failed, falling back to memory: ${err}`);
+    }
+
+    if (!rawData) {
+      const fallback = this.inMemoryFallback.get(key);
+      if (fallback && fallback.expiresAt > Date.now()) {
+        rawData = fallback.data;
+      }
+    }
+
     if (!rawData) {
       throw new UnauthorizedException('OTP challenge expired or invalid');
     }
@@ -66,12 +90,20 @@ export class OtpService {
       const expiresAt = new Date(data.expiresAt).getTime();
       const remainingTtl = Math.max(1, Math.floor((expiresAt - Date.now()) / 1000));
       
-      await this.redis.set(key, JSON.stringify(data), 'EX', remainingTtl);
+      const updated = JSON.stringify(data);
+      try {
+        await this.redis.set(key, updated, 'EX', remainingTtl);
+      } catch (_) {
+        this.inMemoryFallback.set(key, { data: updated, expiresAt });
+      }
       throw new UnauthorizedException('Invalid OTP');
     }
 
-    // OTP is valid, consume it (delete from Redis to prevent reuse)
-    await this.redis.del(key);
+    // OTP is valid, consume it (delete from Redis and memory to prevent reuse)
+    try {
+      await this.redis.del(key);
+    } catch (_) {}
+    this.inMemoryFallback.delete(key);
 
     return data.userId;
   }

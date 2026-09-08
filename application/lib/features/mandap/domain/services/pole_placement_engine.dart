@@ -75,12 +75,15 @@ class PolePlacementEngine {
 
     // 1. Structural corner nodes receive poles
     for (final node in layout.nodes.values) {
+      if (node.type == NodeType.stage || node.type == NodeType.carpet) {
+        continue;
+      }
       result.add(
         PolePlacement(
           id: 'pole_node_${node.id.value}',
           x: node.x,
           z: node.z,
-          reason: PoleReason.corner,
+          reason: node.type == NodeType.pole ? PoleReason.manual : PoleReason.corner,
           sourceNodeId: node.id,
         ),
       );

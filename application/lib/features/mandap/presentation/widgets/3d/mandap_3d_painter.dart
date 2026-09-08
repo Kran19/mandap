@@ -185,7 +185,7 @@ class Mandap3DPainter extends CustomPainter {
 
   void _paintPolymorphicNodes(Canvas canvas, Offset? Function(v64.Vector3) project) {
     for (final node in layout.nodes.values) {
-      if (node.type == NodeType.corner || node.type == NodeType.junction || node.type == NodeType.openEnd || node.type == NodeType.generatedSupport) {
+      if (node.type == NodeType.corner || node.type == NodeType.junction || node.type == NodeType.openEnd || node.type == NodeType.generatedSupport || node.type == NodeType.pole) {
         continue;
       }
 
@@ -236,10 +236,6 @@ class Mandap3DPainter extends CustomPainter {
         final strokePaint = Paint()..color = (isSelected ? const Color(0xFF2563EB) : Colors.white24)..style = PaintingStyle.stroke..strokeWidth = isSelected ? 2.0 : 1.0;
 
         _draw3DBox(canvas, project, worldCornersBase, worldCornersTop, paint, strokePaint, drawSides: node.type == NodeType.stage);
-      } else if (node.type == NodeType.pole) {
-        final paint = Paint()..color = const Color(0xFFF59E0B).withValues(alpha: 0.6)..style = PaintingStyle.fill;
-        final strokePaint = Paint()..color = (isSelected ? const Color(0xFF2563EB) : const Color(0xFFD97706))..style = PaintingStyle.stroke..strokeWidth = isSelected ? 2.0 : 1.0;
-        _draw3DBox(canvas, project, worldCornersBase, worldCornersTop, paint, strokePaint, drawSides: true);
       }
     }
   }
@@ -277,54 +273,26 @@ class Mandap3DPainter extends CustomPainter {
   }
 
   void _paintPoles(Canvas canvas, Offset? Function(v64.Vector3) project) {
-    final chordPaint = Paint()
-      ..color = const Color(0xFF94A3B8) // Silver/Aluminum
-      ..strokeWidth = 5.0
+    final polePaintOuter = Paint()
+      ..color = const Color(0xFF64748B) // Darker border/shadow
+      ..strokeWidth = 14.0
       ..strokeCap = StrokeCap.round;
 
-    final webPaint = Paint()
-      ..color = const Color(0xFF64748B) // Slightly darker for inner webbing
-      ..strokeWidth = 2.5
+    final polePaintInner = Paint()
+      ..color = const Color(0xFFCBD5E1) // Lighter core
+      ..strokeWidth = 8.0
       ..strokeCap = StrokeCap.round;
 
     final height = controller.mandapHeight;
-    const halfW = 0.5; // 1 ft total width
 
     for (final pole in result.poles) {
-      // 4 corners of the box truss
-      final offsets = [
-        v64.Vector3(-halfW, 0, -halfW),
-        v64.Vector3(halfW, 0, -halfW),
-        v64.Vector3(halfW, 0, halfW),
-        v64.Vector3(-halfW, 0, halfW),
-      ];
-
       final baseWorld = v64.Vector3(pole.x, 0.0, pole.z);
       
-      // Draw zigzag webbing on each of the 4 faces
-      for (int i = 0; i < 4; i++) {
-        final offA = offsets[i];
-        final offB = offsets[(i + 1) % 4];
-
-        // Draw diagonals every 2 feet
-        for (double y = 0; y < height; y += 2.0) {
-          final p1 = project(baseWorld + offA + v64.Vector3(0, y, 0));
-          final p2 = project(baseWorld + offB + v64.Vector3(0, math.min(y + 2.0, height), 0));
-          if (p1 != null && p2 != null) canvas.drawLine(p1, p2, webPaint);
-          
-          final p3 = project(baseWorld + offB + v64.Vector3(0, y, 0));
-          final p4 = project(baseWorld + offA + v64.Vector3(0, math.min(y + 2.0, height), 0));
-          if (p3 != null && p4 != null) canvas.drawLine(p3, p4, webPaint);
-        }
-      }
-
-      // Draw the 4 vertical chords
-      for (final off in offsets) {
-        final pBase = project(baseWorld + off);
-        final pTop = project(baseWorld + off + v64.Vector3(0, height, 0));
-        if (pBase != null && pTop != null) {
-          canvas.drawLine(pBase, pTop, chordPaint);
-        }
+      final pBase = project(baseWorld);
+      final pTop = project(baseWorld + v64.Vector3(0, height, 0));
+      if (pBase != null && pTop != null) {
+        canvas.drawLine(pBase, pTop, polePaintOuter);
+        canvas.drawLine(pBase, pTop, polePaintInner);
       }
     }
   }

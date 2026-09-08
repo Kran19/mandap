@@ -9,9 +9,8 @@ import 'features/projects/infrastructure/projects_repository.dart';
 import 'core/network/api_client.dart';
 import 'features/projects/infrastructure/project_version_repository.dart';
 
-// Change this to your computer's local IP (found via ipconfig)
-// Your phone and computer must be on the same WiFi network.
-const String _kApiBaseUrl = 'http://192.168.1.6:3001/api/v1';
+// Production API URL
+const String _kApiBaseUrl = 'http://187.127.158.24:5000/api/v1';
 
 void main() {
   runApp(const MandapApp());

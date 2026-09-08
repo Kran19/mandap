@@ -1,4 +1,4 @@
-﻿-- CreateEnum
+-- CreateEnum
 CREATE TYPE "TrialStatus" AS ENUM ('REQUESTED', 'ESTABLISHED', 'CANCELLED', 'CONVERTED', 'EXPIRED');
 
 -- AlterEnum

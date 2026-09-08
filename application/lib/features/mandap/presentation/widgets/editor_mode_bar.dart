@@ -78,7 +78,13 @@ class EditorModeBar extends StatelessWidget {
                 isActive: mode == currentMode,
                 icon: _icons[mode]!,
                 activeColor: _colors[mode]!,
-                onTap: () => onModeChanged(mode),
+                onTap: () {
+                  if (mode == currentMode && mode != EditorMode.view) {
+                    onModeChanged(EditorMode.view);
+                  } else {
+                    onModeChanged(mode);
+                  }
+                },
               ),
             ),
             if (currentMode == EditorMode.addNode && onNodeTypeChanged != null) ...[

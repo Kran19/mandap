@@ -1,0 +1,42 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: mandap
+      POSTGRES_PASSWORD: mandap_password
+      POSTGRES_DB: mandap_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build: ./api
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      DATABASE_URL: "postgresql://mandap:mandap_password@db:5432/mandap_db" 
+      NODE_ENV: "production"
+      PORT: "5000"
+      FRONTEND_URL: "http://187.127.158.24:5050"
+      JWT_SECRET: "tX9kL4mP2vR8sW5y"
+      JWT_ACCESS_SECRET: "hB7nC3qF1jZ6dK9p"
+      JWT_REFRESH_SECRET: "mN2vX5bC8zL1kH4j"
+    depends_on:
+      - db
+
+  web:
+    build: ./web
+    restart: always
+    ports:
+      - "5050:3000"
+    environment:
+      API_URL: "http://api:5000"
+      NEXT_PUBLIC_API_URL: "http://187.127.158.24:5000"
+      HTTPS_ENABLED: "false"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

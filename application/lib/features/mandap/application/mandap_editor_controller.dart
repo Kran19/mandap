@@ -340,6 +340,30 @@ class MandapEditorController extends ChangeNotifier {
     _recalculate();
   }
 
+  /// Deletes a specific zone (flooring, stage) by ID.
+  void deleteZone(String zoneId) {
+    final updatedZones = layout.zones.where((z) => z.id != zoneId).toList();
+    layout = MandapLayout(
+      nodes: layout.nodes,
+      edges: layout.edges,
+      zones: updatedZones,
+    );
+    _recalculate();
+    notifyListeners();
+  }
+
+  /// Clears the entire layout of all components.
+  void clearAll() {
+    layout = const MandapLayout(nodes: {}, edges: {}, zones: []);
+    selectedEdgeId = null;
+    selectedNodeId = null;
+    pendingEdgeStartNodeId = null;
+    isCustomLayout = true;
+    history.clear();
+    _recalculate();
+    notifyListeners();
+  }
+
   // ── Inventory scenario ─────────────────────────────────────────────────────
 
   /// Toggles stock shortage test scenario.

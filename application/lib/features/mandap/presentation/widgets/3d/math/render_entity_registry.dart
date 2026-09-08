@@ -100,37 +100,22 @@ class RenderEntityRegistry {
   /// Performs 3D raycast picking to find the closest handle entity.
   NodeId? pickHandle({
     required v64.Ray cameraRay,
-    double hitRadiusFeet = 4.0,
+    double hitRadiusFeet = 7.0,
   }) {
     NodeId? closestNodeId;
     double minDistance = hitRadiusFeet;
 
-    final rayOriginX = cameraRay.origin.x;
-    final rayOriginZ = cameraRay.origin.z;
-    final rayDirX = cameraRay.direction.x;
-    final rayDirZ = cameraRay.direction.z;
-    final dirLengthSq = rayDirX * rayDirX + rayDirZ * rayDirZ;
+    final rayOrigin = cameraRay.origin;
+    final rayDir = cameraRay.direction.normalized();
 
     for (final handle in _handles.values) {
-      final hX = handle.position.x;
-      final hZ = handle.position.z;
+      final pos = handle.position;
+      final v = pos - rayOrigin;
+      final t = v.dot(rayDir);
+      if (t < 0.0) continue; // Behind camera
 
-      double dist;
-      if (dirLengthSq < 1e-6) {
-        dist = math.sqrt((hX - rayOriginX) * (hX - rayOriginX) +
-            (hZ - rayOriginZ) * (hZ - rayOriginZ));
-      } else {
-        // Distance from point (hX, hZ) to line in XZ plane
-        final cross = (hX - rayOriginX) * rayDirZ - (hZ - rayOriginZ) * rayDirX;
-        dist = cross.abs() / math.sqrt(dirLengthSq);
-
-        // Check if the Y intersection is within the pole's vertical bounds (0 to 10 ft)
-        // We add some margin (-5 to 15) to make tapping easier
-        final t = ((hX - rayOriginX) * rayDirX + (hZ - rayOriginZ) * rayDirZ) /
-            dirLengthSq;
-        final hitY = cameraRay.origin.y + t * cameraRay.direction.y;
-        if (hitY < -5.0 || hitY > 15.0) continue;
-      }
+      final proj = rayOrigin + rayDir * t;
+      final dist = (pos - proj).length;
 
       if (dist <= minDistance) {
         minDistance = dist;
@@ -141,7 +126,74 @@ class RenderEntityRegistry {
     return closestNodeId;
   }
 
-  /// Performs 3D raycast picking to find the closest beam entity.
+  /// Performs 3D ray-to-segment distance picking directly in 3D for beam entities.
+  EdgeId? pickBeamWithRay({
+    required v64.Ray cameraRay,
+    double maxHitDistanceFeet = 7.0,
+  }) {
+    EdgeId? closestEdgeId;
+    double minDistance = maxHitDistanceFeet;
+
+    final rayOrigin = cameraRay.origin;
+    final rayDir = cameraRay.direction.normalized();
+
+    for (final beam in _beams.values) {
+      final p1 = beam.start;
+      final p2 = beam.end;
+      final segDir = p2 - p1;
+      final segLengthSq = segDir.length2;
+
+      if (segLengthSq < 1e-6) {
+        final v = p1 - rayOrigin;
+        final t = v.dot(rayDir);
+        if (t < 0) continue;
+        final proj = rayOrigin + rayDir * t;
+        final d = (p1 - proj).length;
+        if (d <= minDistance) {
+          minDistance = d;
+          closestEdgeId = beam.edgeId;
+        }
+        continue;
+      }
+
+      final w0 = rayOrigin - p1;
+      final a = rayDir.dot(rayDir); // 1.0
+      final b = rayDir.dot(segDir);
+      final c = segLengthSq;
+      final d = rayDir.dot(w0);
+      final e = segDir.dot(w0);
+
+      final denom = a * c - b * b;
+      double sc, tc;
+
+      if (denom < 1e-6) {
+        tc = 0.0;
+        sc = d / a;
+      } else {
+        tc = (a * e - b * d) / denom;
+        tc = tc.clamp(0.0, 1.0);
+        sc = (b * tc - d) / a;
+      }
+
+      if (sc < 0.0) {
+        sc = 0.0;
+        tc = (e / c).clamp(0.0, 1.0);
+      }
+
+      final closestOnRay = rayOrigin + rayDir * sc;
+      final closestOnSeg = p1 + segDir * tc;
+      final dist = (closestOnRay - closestOnSeg).length;
+
+      if (dist <= minDistance) {
+        minDistance = dist;
+        closestEdgeId = beam.edgeId;
+      }
+    }
+
+    return closestEdgeId;
+  }
+
+  /// Performs 3D raycast picking to find the closest beam entity via plane intersection.
   EdgeId? pickBeam({
     required v64.Vector3 planeIntersectionPoint,
     double maxHitDistanceFeet = 4.0,

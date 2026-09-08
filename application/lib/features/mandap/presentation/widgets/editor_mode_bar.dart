@@ -10,6 +10,7 @@ class EditorModeBar extends StatelessWidget {
   final ValueChanged<EditorMode> onModeChanged;
   final ValueChanged<NodeType>? onNodeTypeChanged;
   final String? projectId;
+  final VoidCallback? onDeletePressed;
 
   const EditorModeBar({
     super.key,
@@ -18,6 +19,7 @@ class EditorModeBar extends StatelessWidget {
     required this.onModeChanged,
     this.onNodeTypeChanged,
     this.projectId,
+    this.onDeletePressed,
   });
 
   @override
@@ -41,10 +43,14 @@ class EditorModeBar extends StatelessWidget {
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: () {
-                    if (isDelete) {
-                      onModeChanged(EditorMode.select);
+                    if (onDeletePressed != null) {
+                      onDeletePressed!();
                     } else {
-                      onModeChanged(EditorMode.delete);
+                      if (isDelete) {
+                        onModeChanged(EditorMode.select);
+                      } else {
+                        onModeChanged(EditorMode.delete);
+                      }
                     }
                   },
                   borderRadius: BorderRadius.circular(14),

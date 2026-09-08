@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../auth/application/bootstrap_coordinator.dart';
 import '../../../core/presentation/responsive_layout.dart';
 import '../infrastructure/projects_repository.dart';
+import '../infrastructure/local_project_store.dart';
 import '../../../core/network/api_client.dart';
 
 class ProjectsDashboardScreen extends StatefulWidget {
@@ -486,49 +487,54 @@ class _ProjectCardState extends State<_ProjectCard> {
                         ),
                       ),
                     ),
-                    if (_isHovered)
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(20),
-                            onTap: () async {
-                              final confirm = await showDialog<bool>(
-                                context: context,
-                                builder: (ctx) => const _DeleteConfirmationDialog(),
-                              );
-                              if (confirm != true) return;
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () async {
+                            final coordinator = context.read<BootstrapCoordinator>();
+                            final projectsRepo = context.read<ProjectsRepository>();
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => const _DeleteConfirmationDialog(),
+                            );
+                            if (confirm != true) return;
 
-                              final coordinator = context.read<BootstrapCoordinator>();
-                              final projectsRepo = context.read<ProjectsRepository>();
-                              try {
-                                await projectsRepo.deleteProject(
-                                  coordinator.current.user!.organizationId!,
-                                  widget.project.id,
-                                );
-                                widget.onDelete();
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                    content: Text('Failed to delete project: $e'),
-                                    backgroundColor: Colors.red.shade700,
-                                  ));
-                                }
+                            try {
+                              await projectsRepo.deleteProject(
+                                coordinator.current.user!.organizationId!,
+                                widget.project.id,
+                              );
+                              await LocalProjectStore().deleteProjectState(widget.project.id);
+                              widget.onDelete();
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                  content: Text('Failed to delete project: $e'),
+                                  backgroundColor: Colors.red.shade700,
+                                ));
                               }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.3),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.white),
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.55),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white24, width: 1),
+                            ),
+                            child: const Icon(
+                              Icons.delete_outline_rounded,
+                              size: 18,
+                              color: Colors.redAccent,
                             ),
                           ),
                         ),
                       ),
+                    ),
                   ],
                 ),
               ),

@@ -519,6 +519,163 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
     return false; // cancel
   }
 
+  void _handleDeletePressed() {
+    final hasSelection =
+        controller.selectedEdgeId != null || controller.selectedNodeId != null;
+    if (hasSelection) {
+      controller.deleteSelected();
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Item deleted'),
+          duration: Duration(seconds: 1),
+          backgroundColor: Color(0xFFEF4444),
+        ),
+      );
+      return;
+    }
+
+    // If already in delete mode, toggle off to view mode
+    if (controller.mode == EditorMode.delete) {
+      controller.setMode(EditorMode.view);
+      return;
+    }
+
+    final hasItems = controller.layout.nodes.isNotEmpty ||
+        controller.layout.edges.isNotEmpty ||
+        controller.layout.zones.isNotEmpty;
+
+    if (!hasItems) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Canvas is empty — nothing to delete'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E293B),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Text(
+                'Delete Options',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.touch_app_rounded, color: Color(0xFFEF4444)),
+                ),
+                title: const Text(
+                  'Tap to Delete Elements',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text(
+                  'Tap any pillar, beam, or flooring to delete it',
+                  style: TextStyle(color: Colors.white60, fontSize: 12),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  controller.setMode(EditorMode.delete);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Delete Mode: Tap any element to delete it'),
+                      duration: Duration(seconds: 3),
+                      backgroundColor: Color(0xFFEF4444),
+                    ),
+                  );
+                },
+              ),
+              const Divider(color: Colors.white10),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.delete_sweep_rounded, color: Colors.redAccent),
+                ),
+                title: const Text(
+                  'Clear All Components',
+                  style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text(
+                  'Remove all pillars, beams, and zones from canvas',
+                  style: TextStyle(color: Colors.white60, fontSize: 12),
+                ),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (dCtx) => AlertDialog(
+                      backgroundColor: const Color(0xFF1E293B),
+                      title: const Text('Clear Entire Design?', style: TextStyle(color: Colors.white)),
+                      content: const Text(
+                        'All pillars, beams, and flooring will be removed.',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dCtx, false),
+                          child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                          onPressed: () => Navigator.pop(dCtx, true),
+                          child: const Text('Clear All', style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirm == true) {
+                    controller.clearAll();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Canvas cleared'),
+                          backgroundColor: Color(0xFFEF4444),
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
@@ -585,6 +742,7 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
                 onNodeTypeChanged: (t) {
                   controller.setPendingNodeType(t);
                 },
+                onDeletePressed: _handleDeletePressed,
               ),
             ],
           ),

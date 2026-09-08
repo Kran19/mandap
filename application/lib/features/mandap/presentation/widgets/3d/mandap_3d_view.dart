@@ -85,30 +85,34 @@ class _Mandap3DViewState extends State<Mandap3DView> {
       0.0,
     );
 
-    if (planeIntersection == null && groundIntersection == null) return;
-
     final pickedNodeId = widget.controller3D.registry.pickHandle(
       cameraRay: ray,
-      hitRadiusFeet: 4.0,
+      hitRadiusFeet: 7.0,
     );
 
-    final hitEdgeId = planeIntersection != null
+    final hitEdgeId = widget.controller3D.registry.pickBeamWithRay(
+      cameraRay: ray,
+      maxHitDistanceFeet: 7.0,
+    ) ?? (planeIntersection != null
         ? widget.controller3D.registry.pickBeam(
             planeIntersectionPoint: planeIntersection,
-            maxHitDistanceFeet: 4.0,
+            maxHitDistanceFeet: 6.0,
           )
-        : null;
+        : null);
 
     String? hitZoneId;
-    if (planeIntersection != null) {
+    final zonePoint = planeIntersection ?? groundIntersection;
+    if (zonePoint != null) {
       for (final zone in widget.controller.layout.zones.reversed) {
-        if (planeIntersection.x >= zone.left && planeIntersection.x <= zone.right &&
-            planeIntersection.z >= zone.top && planeIntersection.z <= zone.bottom) {
+        if (zonePoint.x >= zone.left && zonePoint.x <= zone.right &&
+            zonePoint.z >= zone.top && zonePoint.z <= zone.bottom) {
           hitZoneId = zone.id;
           break;
         }
       }
     }
+
+    if (pickedNodeId == null && hitEdgeId == null && planeIntersection == null && groundIntersection == null) return;
 
     switch (widget.controller.mode) {
       case EditorMode.view:
@@ -208,8 +212,13 @@ class _Mandap3DViewState extends State<Mandap3DView> {
       case EditorMode.delete:
         if (pickedNodeId != null) {
           widget.controller.deleteNode(pickedNodeId);
+          widget.controller.clearSelection();
         } else if (hitEdgeId != null) {
           widget.controller.deleteEdge(hitEdgeId);
+          widget.controller.clearSelection();
+        } else if (hitZoneId != null) {
+          widget.controller.deleteZone(hitZoneId);
+          widget.controller.clearSelection();
         }
 
         // Prevent orbit-camera drag on pointer move after a delete tap

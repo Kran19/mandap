@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/presentation/responsive_layout.dart';
+import '../../auth/application/bootstrap_coordinator.dart';
+import '../infrastructure/projects_repository.dart';
+import 'projects_dashboard_screen.dart';
 import '../../mandap/application/commands/add_component_commands.dart';
 import '../../mandap/application/mandap_editor_controller.dart';
 import '../../mandap/domain/entities/mandap_layout.dart';
@@ -36,6 +40,32 @@ class _ComponentWizardScreenState extends State<ComponentWizardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      bottomNavigationBar: _selected == null
+          ? AppBottomNavBar(
+              currentIndex: 0,
+              onTabSelected: (index) async {
+                if (index == 0) {
+                  // Already on Design/Components
+                } else if (index == 1) {
+                  context.go('/projects');
+                } else if (index == 2) {
+                  final coordinator = context.read<BootstrapCoordinator>();
+                  final user = coordinator.current.user;
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => SettingsDialog(
+                      orgName: user?.organizationId,
+                      planName: 'Active Plan',
+                    ),
+                  );
+                } else if (index == 3) {
+                  final coordinator = context.read<BootstrapCoordinator>();
+                  await coordinator.authRepository.clearTokens();
+                  await coordinator.bootstrap();
+                }
+              },
+            )
+          : null,
       body: Stack(
         children: [
           // Dark premium background
@@ -85,7 +115,9 @@ class _ComponentWizardScreenState extends State<ComponentWizardScreen> {
         _buildHeader(
           title: 'Add Component',
           subtitle: 'Choose the type of structure to design',
-          onBack: () => context.go('/editor?projectId=${widget.projectId}'),
+          onBack: (widget.projectId != 'new' && widget.projectId.isNotEmpty)
+              ? () => context.go('/editor?projectId=${widget.projectId}')
+              : null,
         ),
         Expanded(
           child: Padding(
@@ -217,17 +249,19 @@ class _ComponentWizardScreenState extends State<ComponentWizardScreen> {
   Widget _buildHeader({
     required String title,
     required String subtitle,
-    required VoidCallback onBack,
+    VoidCallback? onBack,
   }) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-            onPressed: onBack,
-          ),
-          const SizedBox(width: 12),
+          if (onBack != null) ...[
+            IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+              onPressed: onBack,
+            ),
+            const SizedBox(width: 8),
+          ],
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -368,7 +402,10 @@ class _MeasurementFormBase extends StatelessWidget {
 /// Persists [layout] to the local store for [projectId] and marks it DIRTY.
 /// The editor screen will pick up this change when it loads and trigger sync.
 /// Does NOT mark as CLEAN or trigger a network call — that is the sync service's job.
-Future<void> _persistLayout(BuildContext context, String projectId, MandapLayout layout) async {
+/// Persists [layout] to the local store for [projectId] and marks it DIRTY.
+/// The editor screen will pick up this change when it loads and trigger sync.
+/// Does NOT mark as CLEAN or trigger a network call — that is the sync service's job.
+Future<void> _persistLayout(String projectId, MandapLayout layout) async {
   final store = LocalProjectStore();
   await store.saveLayout(projectId, layout);
 
@@ -381,6 +418,28 @@ Future<void> _persistLayout(BuildContext context, String projectId, MandapLayout
     dirty: true,
   );
   await store.saveMetadata(meta);
+}
+
+Future<String> _ensureProjectId(BuildContext context, String currentProjectId) async {
+  if (currentProjectId != 'new' && currentProjectId.trim().isNotEmpty) {
+    return currentProjectId;
+  }
+  try {
+    final coordinator = context.read<BootstrapCoordinator>();
+    final projectsRepo = context.read<ProjectsRepository>();
+    final orgId = coordinator.current.user?.organizationId;
+    if (orgId != null) {
+      final project = await projectsRepo.createProject(
+        orgId,
+        'New Project',
+        null,
+      );
+      return project.id;
+    }
+  } catch (e) {
+    print('Failed to create project on server: $e');
+  }
+  return 'proj_${DateTime.now().millisecondsSinceEpoch}';
 }
 
 Widget _numberField(TextEditingController ctrl, String label, {String? hint}) {
@@ -447,11 +506,30 @@ class _TrussMeasurementFormState extends State<_TrussMeasurementForm> {
       return;
     }
     setState(() => _isLoading = true);
-    final spec = TrussSpecification(width: w, depth: d, elevation: e);
-    final controller = context.read<MandapEditorController>();
-    controller.executeCommand(AddTrussCommand(spec: spec));
-    await _persistLayout(context, widget.projectId, controller.layout);
-    if (mounted) context.go('/editor?projectId=${widget.projectId}');
+    try {
+      final effectiveId = await _ensureProjectId(context, widget.projectId);
+      if (!mounted) return;
+      final store = LocalProjectStore();
+      final existingLayout = await store.getLayout(effectiveId);
+      if (!mounted) return;
+
+      final controller = MandapEditorController();
+      if (existingLayout != null) {
+        controller.layout = existingLayout;
+      }
+      final spec = TrussSpecification(width: w, depth: d, elevation: e);
+      controller.executeCommand(AddTrussCommand(spec: spec));
+      await _persistLayout(effectiveId, controller.layout);
+      if (mounted) context.go('/editor?projectId=$effectiveId');
+    } catch (err) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error adding truss: $err')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -500,11 +578,30 @@ class _PipeMeasurementFormState extends State<_PipeMeasurementForm> {
       return;
     }
     setState(() => _isLoading = true);
-    final spec = PoleSpecification(height: h, x: x, z: z, diameter: dia);
-    final controller = context.read<MandapEditorController>();
-    controller.executeCommand(AddPoleCommand(spec: spec));
-    await _persistLayout(context, widget.projectId, controller.layout);
-    if (mounted) context.go('/editor?projectId=${widget.projectId}');
+    try {
+      final effectiveId = await _ensureProjectId(context, widget.projectId);
+      if (!mounted) return;
+      final store = LocalProjectStore();
+      final existingLayout = await store.getLayout(effectiveId);
+      if (!mounted) return;
+
+      final controller = MandapEditorController();
+      if (existingLayout != null) {
+        controller.layout = existingLayout;
+      }
+      final spec = PoleSpecification(height: h, x: x, z: z, diameter: dia);
+      controller.executeCommand(AddPoleCommand(spec: spec));
+      await _persistLayout(effectiveId, controller.layout);
+      if (mounted) context.go('/editor?projectId=$effectiveId');
+    } catch (err) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error adding pipe: $err')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -554,11 +651,30 @@ class _FlooringMeasurementFormState extends State<_FlooringMeasurementForm> {
       return;
     }
     setState(() => _isLoading = true);
-    final spec = FlooringSpecification(width: w, depth: d, x: x, z: z);
-    final controller = context.read<MandapEditorController>();
-    controller.executeCommand(AddCarpetCommand(spec: spec));
-    await _persistLayout(context, widget.projectId, controller.layout);
-    if (mounted) context.go('/editor?projectId=${widget.projectId}');
+    try {
+      final effectiveId = await _ensureProjectId(context, widget.projectId);
+      if (!mounted) return;
+      final store = LocalProjectStore();
+      final existingLayout = await store.getLayout(effectiveId);
+      if (!mounted) return;
+
+      final controller = MandapEditorController();
+      if (existingLayout != null) {
+        controller.layout = existingLayout;
+      }
+      final spec = FlooringSpecification(width: w, depth: d, x: x, z: z);
+      controller.executeCommand(AddCarpetCommand(spec: spec));
+      await _persistLayout(effectiveId, controller.layout);
+      if (mounted) context.go('/editor?projectId=$effectiveId');
+    } catch (err) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error adding flooring: $err')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -610,11 +726,30 @@ class _StageMeasurementFormState extends State<_StageMeasurementForm> {
       return;
     }
     setState(() => _isLoading = true);
-    final spec = StageSpecification(width: w, depth: d, height: h, x: x, z: z);
-    final controller = context.read<MandapEditorController>();
-    controller.executeCommand(AddStageCommand(spec: spec));
-    await _persistLayout(context, widget.projectId, controller.layout);
-    if (mounted) context.go('/editor?projectId=${widget.projectId}');
+    try {
+      final effectiveId = await _ensureProjectId(context, widget.projectId);
+      if (!mounted) return;
+      final store = LocalProjectStore();
+      final existingLayout = await store.getLayout(effectiveId);
+      if (!mounted) return;
+
+      final controller = MandapEditorController();
+      if (existingLayout != null) {
+        controller.layout = existingLayout;
+      }
+      final spec = StageSpecification(width: w, depth: d, height: h, x: x, z: z);
+      controller.executeCommand(AddStageCommand(spec: spec));
+      await _persistLayout(effectiveId, controller.layout);
+      if (mounted) context.go('/editor?projectId=$effectiveId');
+    } catch (err) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error adding stage: $err')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override

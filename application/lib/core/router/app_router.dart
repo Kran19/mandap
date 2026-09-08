@@ -81,7 +81,7 @@ class AppRouter {
                AppDestination.verifyMobile => '/verify-mobile',
                AppDestination.verifyIdentity => '/verify-identity',
                AppDestination.authorizeBilling => '/billing/trial',
-               AppDestination.projects => '/projects',
+               AppDestination.projects => '/component-wizard',
                AppDestination.blocked => '/blocked',
                _ => '/',
             };
@@ -109,7 +109,7 @@ class AppRouter {
                case AppDestination.authorizeBilling:
                  return '/billing/trial';
                case AppDestination.projects:
-                 return '/projects';
+                 return '/component-wizard';
                case AppDestination.blocked:
                  return '/blocked';
                default:

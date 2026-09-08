@@ -128,7 +128,7 @@ class _ProjectsDashboardScreenState extends State<ProjectsDashboardScreen>
   void _showSettings() {
     showDialog(
       context: context,
-      builder: (ctx) => _SettingsDialog(orgName: _orgName, planName: _planName),
+      builder: (ctx) => SettingsDialog(orgName: _orgName, planName: _planName),
     );
   }
 
@@ -405,13 +405,15 @@ class _ProjectsDashboardScreenState extends State<ProjectsDashboardScreen>
       sidebar: sidebar,
       mobileAppBar: const AppMobileHeader(),
       mobileBottomBar: AppBottomNavBar(
-        currentIndex: 0,
+        currentIndex: 1,
         onTabSelected: (index) async {
           if (index == 0) {
-            // Already on projects
+            context.go('/component-wizard');
           } else if (index == 1) {
-            _showSettings();
+            // Already on projects
           } else if (index == 2) {
+            _showSettings();
+          } else if (index == 3) {
             await coordinator.authRepository.clearTokens();
             await coordinator.bootstrap();
           }
@@ -789,10 +791,10 @@ class _DialogField extends StatelessWidget {
   }
 }
 
-class _SettingsDialog extends StatelessWidget {
+class SettingsDialog extends StatelessWidget {
   final String? orgName;
   final String? planName;
-  const _SettingsDialog({this.orgName, this.planName});
+  const SettingsDialog({super.key, this.orgName, this.planName});
 
   @override
   Widget build(BuildContext context) {
@@ -818,11 +820,11 @@ class _SettingsDialog extends StatelessWidget {
                 style: GoogleFonts.outfit(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
           ]),
           const SizedBox(height: 24),
-          _SettingsItem(label: 'Organization', value: orgName ?? 'Unknown', icon: Icons.business_rounded),
+          SettingsItem(label: 'Organization', value: orgName ?? 'Unknown', icon: Icons.business_rounded),
           const SizedBox(height: 12),
-          _SettingsItem(label: 'Current Plan', value: planName ?? 'Free Plan', icon: Icons.bolt_rounded),
+          SettingsItem(label: 'Current Plan', value: planName ?? 'Free Plan', icon: Icons.bolt_rounded),
           const SizedBox(height: 12),
-          _SettingsItem(label: 'Theme', value: 'Dark Mode', icon: Icons.dark_mode_rounded),
+          SettingsItem(label: 'Theme', value: 'Dark Mode', icon: Icons.dark_mode_rounded),
           const SizedBox(height: 28),
           Align(
             alignment: Alignment.centerRight,
@@ -843,11 +845,11 @@ class _SettingsDialog extends StatelessWidget {
   }
 }
 
-class _SettingsItem extends StatelessWidget {
+class SettingsItem extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
-  const _SettingsItem({required this.label, required this.value, required this.icon});
+  const SettingsItem({super.key, required this.label, required this.value, required this.icon});
 
   @override
   Widget build(BuildContext context) {

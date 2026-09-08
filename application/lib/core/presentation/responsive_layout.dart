@@ -77,6 +77,10 @@ class AppBottomNavBar extends StatelessWidget {
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
+            icon: Icon(Icons.add_box_rounded),
+            label: 'Design',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.grid_view_rounded),
             label: 'Projects',
           ),

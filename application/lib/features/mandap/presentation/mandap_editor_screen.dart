@@ -7,7 +7,6 @@ import '../application/mandap_editor_controller.dart';
 import '../domain/entities/edge_id.dart';
 import '../domain/entities/mandap_preset.dart';
 import '../domain/entities/node_id.dart';
-import '../domain/entities/mandap_zone.dart';
 import '../domain/entities/mandap_node.dart';
 import '../domain/entities/mandap_layout.dart';
 import 'top_view_2d/mandap_2d_interactive_painter.dart';
@@ -83,13 +82,41 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
     controller.addListener(_onControllerUpdate);
     controller3D.fitCamera(controller.layout);
     
-    // Defer the fetch until after init so we can use context
+    // Fast path: Immediately load local layout cache so screen renders instantly (<5ms)
+    _loadLocalLayoutFast();
+
+    // Defer network sync until after init so we can use context
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadProjectData();
     });
   }
 
+  Future<void> _loadLocalLayoutFast() async {
+    try {
+      final store = LocalProjectStore();
+      final local = await store.getLayout(widget.projectId);
+      if (local != null && mounted) {
+        setState(() {
+          controller.layout = local;
+          _lastNotifiedLayout = local;
+          _isLoading = false;
+        });
+        controller3D.fitCamera(local);
+      }
+    } catch (_) {}
+  }
+
   Future<void> _loadProjectData() async {
+    if (widget.projectId == 'new' || widget.projectId.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _projectName = 'New Project';
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+
     try {
       final coordinator = context.read<BootstrapCoordinator>();
       final repo = context.read<ProjectsRepository>();
@@ -109,29 +136,38 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
       }
 
       final store = LocalProjectStore();
+      final existingMeta = await store.getMetadata(widget.projectId);
+      final isLocallyDirty = existingMeta?.dirty == true;
 
-      // ── Step 1: Always fetch the latest version from the server ──────────
-      // This is the source of truth. Both laptop and phone must show the same
-      // design. Local cache is only a fallback for offline/no-versions cases.
+      // ── Step 1: Fetch remote versions if not locally dirty ──────────
       try {
-        final versions = await versionRepo.getVersions(orgId, widget.projectId);
-        final latestRemote = versions.isNotEmpty ? versions.first : null;
+        if (!isLocallyDirty) {
+          final versions = await versionRepo.getVersions(orgId, widget.projectId);
+          final latestRemote = versions.isNotEmpty ? versions.first : null;
 
-        if (latestRemote != null && latestRemote.layoutData != null) {
-          // Server has data — always use it, overwriting any stale local cache
-          controller.layout = LayoutSerializer.fromJson(latestRemote.layoutData!);
-          _lastNotifiedLayout = controller.layout;
-          await store.saveLayout(widget.projectId, controller.layout);
-          final meta = LocalProjectSyncMetadata(
-            projectId: widget.projectId,
-            baseVersionId: latestRemote.id,
-            syncState: SyncState.CLEAN,
-            dirty: false,
-            lastSyncedAt: DateTime.now(),
-          );
-          await store.saveMetadata(meta);
+          if (latestRemote != null && latestRemote.layoutData != null) {
+            // Server has data — use it
+            controller.layout = LayoutSerializer.fromJson(latestRemote.layoutData!);
+            _lastNotifiedLayout = controller.layout;
+            await store.saveLayout(widget.projectId, controller.layout);
+            final meta = LocalProjectSyncMetadata(
+              projectId: widget.projectId,
+              baseVersionId: latestRemote.id,
+              syncState: SyncState.CLEAN,
+              dirty: false,
+              lastSyncedAt: DateTime.now(),
+            );
+            await store.saveMetadata(meta);
+          } else {
+            // No remote version yet (brand-new project) — fall back to local cache
+            final localLayout = await store.getLayout(widget.projectId);
+            if (localLayout != null) {
+              controller.layout = localLayout;
+              _lastNotifiedLayout = localLayout;
+            }
+          }
         } else {
-          // No remote version yet (brand-new project) — fall back to local cache
+          // Project has pending local changes (e.g. freshly created from wizard)
           final localLayout = await store.getLayout(widget.projectId);
           if (localLayout != null) {
             controller.layout = localLayout;
@@ -139,14 +175,11 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
           }
         }
       } on RateLimitedException {
-        // 429: Too many requests. Fall back to local cache so the user can still
-        // work. The sync service will handle saving when they hit Save.
         print('[Editor] Rate limited loading versions — using local cache');
         final localLayout = await store.getLayout(widget.projectId);
         if (localLayout != null) controller.layout = localLayout;
       } catch (fetchErr) {
-        // Any other network failure — still try local cache
-        print('[Editor] Failed to fetch remote layout: $fetchErr — using local cache');
+        print('[Editor] Remote layout check: $fetchErr — using local cache');
         final localLayout = await store.getLayout(widget.projectId);
         if (localLayout != null) {
           controller.layout = localLayout;
@@ -174,7 +207,7 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
       print('Error loading project: $e\n$s');
       if (mounted) {
         setState(() {
-          _projectName = 'Err: ${e.toString().split('\n').first}';
+          _projectName = _projectName ?? 'Project';
           _isLoading = false;
         });
       }

@@ -3,18 +3,27 @@ import { JwtService } from '@nestjs/jwt';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshDto } from './dto/refresh.dto.js';
+import { OtpService } from './otp.service.js';
 export interface TokenPayload {
     sub: string;
 }
 export declare class AuthService {
     private prisma;
     private jwtService;
-    constructor(prisma: PrismaService, jwtService: JwtService);
+    private otpService;
+    constructor(prisma: PrismaService, jwtService: JwtService, otpService: OtpService);
     register(dto: RegisterDto): Promise<{
-        accessToken: string;
-        refreshToken: string;
+        success: boolean;
+        message: string;
     }>;
     login(dto: LoginDto): Promise<{
+        accessToken: string;
+        refreshToken: string;
+    } | {
+        otpRequired: boolean;
+        challengeId: string;
+    }>;
+    verifyLoginOtp(challengeId: string, otp: string): Promise<{
         accessToken: string;
         refreshToken: string;
     }>;

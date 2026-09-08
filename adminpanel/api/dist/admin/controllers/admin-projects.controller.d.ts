@@ -6,19 +6,19 @@ export declare class AdminProjectsController {
     findAll(actor: any, query: AdminProjectQueryDto): Promise<{
         data: ({
             organization: {
-                id: string;
                 name: string;
+                id: string;
                 slug: string;
             };
             _count: {
                 versions: number;
             };
         } & {
+            name: string;
             id: string;
             status: import("@prisma/client").$Enums.ProjectStatus;
             createdAt: Date;
             updatedAt: Date;
-            name: string;
             organizationId: string;
             description: string | null;
             currentVersionId: string | null;
@@ -33,8 +33,8 @@ export declare class AdminProjectsController {
     }>;
     findOne(actor: any, id: string): Promise<{
         organization: {
-            id: string;
             name: string;
+            id: string;
             slug: string;
         };
         _count: {
@@ -50,11 +50,11 @@ export declare class AdminProjectsController {
             layoutData: import("@prisma/client/runtime/library").JsonValue | null;
         }[];
     } & {
+        name: string;
         id: string;
         status: import("@prisma/client").$Enums.ProjectStatus;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         organizationId: string;
         description: string | null;
         currentVersionId: string | null;

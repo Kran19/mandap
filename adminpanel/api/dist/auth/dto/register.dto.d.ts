@@ -1,9 +1,9 @@
 export declare class RegisterDto {
-    email: string;
+    email?: string;
     password: string;
     firstName?: string;
     lastName?: string;
-    phone?: string;
+    phone: string;
     gender?: string;
     aadhaarNumber?: string;
     aadhaarFrontUrl?: string;

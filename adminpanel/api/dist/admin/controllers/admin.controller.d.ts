@@ -16,10 +16,10 @@ export declare class AdminController {
                 action: string;
             }[];
         } & {
+            name: import("@prisma/client").$Enums.AdminRole;
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            name: import("@prisma/client").$Enums.AdminRole;
             isActive: boolean;
             description: string | null;
         })[];

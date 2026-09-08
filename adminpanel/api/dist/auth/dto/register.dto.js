@@ -21,7 +21,7 @@ export class RegisterDto {
 }
 __decorate([
     IsEmail({}, { message: 'Please provide a valid email address.' }),
-    IsNotEmpty(),
+    IsOptional(),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "email", void 0);
 __decorate([
@@ -43,7 +43,7 @@ __decorate([
 ], RegisterDto.prototype, "lastName", void 0);
 __decorate([
     IsString(),
-    IsOptional(),
+    IsNotEmpty({ message: 'Phone number is required.' }),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "phone", void 0);
 __decorate([

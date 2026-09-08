@@ -6,7 +6,7 @@ export declare class AdminMembershipsController {
     findAll(actor: any, orgId: string, query: AdminMembershipQueryDto): Promise<{
         data: ({
             user: {
-                email: string;
+                email: string | null;
                 id: string;
                 status: import("@prisma/client").$Enums.UserStatus;
             };

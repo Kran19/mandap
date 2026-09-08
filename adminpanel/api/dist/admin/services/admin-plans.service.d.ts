@@ -24,11 +24,11 @@ export declare class AdminPlansService {
                 value: number;
             }[];
         } & {
+            name: string;
             id: string;
             status: string;
             createdAt: Date;
             updatedAt: Date;
-            name: string;
             slug: string;
             description: string | null;
             monthlyPrice: import("@prisma/client/runtime/library").Decimal;
@@ -61,11 +61,11 @@ export declare class AdminPlansService {
             value: number;
         }[];
     } & {
+        name: string;
         id: string;
         status: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         slug: string;
         description: string | null;
         monthlyPrice: import("@prisma/client/runtime/library").Decimal;
@@ -92,11 +92,11 @@ export declare class AdminPlansService {
             value: number;
         }[];
     } & {
+        name: string;
         id: string;
         status: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         slug: string;
         description: string | null;
         monthlyPrice: import("@prisma/client/runtime/library").Decimal;
@@ -123,11 +123,11 @@ export declare class AdminPlansService {
             value: number;
         }[];
     } & {
+        name: string;
         id: string;
         status: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         slug: string;
         description: string | null;
         monthlyPrice: import("@prisma/client/runtime/library").Decimal;

@@ -8,7 +8,7 @@ export declare class JwtStrategy extends JwtStrategy_base {
     private prisma;
     constructor(prisma: PrismaService);
     validate(payload: TokenPayload): Promise<{
-        email: string;
+        email: string | null;
         firstName: string | null;
         lastName: string | null;
         phone: string | null;

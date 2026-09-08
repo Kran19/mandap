@@ -16,6 +16,7 @@ import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshDto } from './dto/refresh.dto.js';
 import { VerifyEmailDto, SendOtpDto, VerifyOtpDto, VerifyIdentityDto } from './dto/verification.dto.js';
+import { VerifyLoginOtpDto } from './dto/verify-otp.dto.js';
 import { UseInterceptors, UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -35,6 +36,9 @@ let AuthController = class AuthController {
     }
     login(dto) {
         return this.authService.login(dto);
+    }
+    verifyLoginOtp(dto) {
+        return this.authService.verifyLoginOtp(dto.challengeId, dto.otp);
     }
     refresh(dto) {
         return this.authService.refresh(dto);
@@ -92,6 +96,14 @@ __decorate([
     __metadata("design:paramtypes", [LoginDto]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "login", null);
+__decorate([
+    Post('login/verify-otp'),
+    HttpCode(HttpStatus.OK),
+    __param(0, Body()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [VerifyLoginOtpDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "verifyLoginOtp", null);
 __decorate([
     Post('refresh'),
     HttpCode(HttpStatus.OK),

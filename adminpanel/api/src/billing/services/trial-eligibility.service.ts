@@ -40,7 +40,7 @@ export class TrialEligibilityService {
   }
 
   public async checkEligibility(
-    emailNormalizedHash: string,
+    emailNormalizedHash: string | null,
     mobileNormalizedHash: string | null,
     identityReferenceHash: string | null,
     paymentFingerprint: string | null

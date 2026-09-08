@@ -1,6 +1,6 @@
 import { IsNotEmpty, IsString } from 'class-validator';
 
-export class VerifyOtpDto {
+export class VerifyLoginOtpDto {
   @IsString()
   @IsNotEmpty()
   challengeId!: string;

@@ -10,11 +10,11 @@ export declare class OrganizationsController {
     private readonly membershipsService;
     constructor(organizationsService: OrganizationsService, membershipsService: MembershipsService);
     create(req: any, dto: CreateOrganizationDto): Promise<{
+        name: string;
         id: string;
         status: import("@prisma/client").$Enums.OrganizationStatus;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         slug: string;
     }>;
     findAll(req: any): Promise<{
@@ -38,7 +38,7 @@ export declare class OrganizationsController {
     }>;
     getMembers(organizationId: string): Promise<{
         userId: string;
-        email: string;
+        email: string | null;
         firstName: string | null;
         lastName: string | null;
         status: import("@prisma/client").$Enums.UserStatus;

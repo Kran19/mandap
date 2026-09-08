@@ -6,7 +6,7 @@ export declare class MembershipsService {
     constructor(prisma: PrismaService);
     getMembers(organizationId: string): Promise<{
         userId: string;
-        email: string;
+        email: string | null;
         firstName: string | null;
         lastName: string | null;
         status: import("@prisma/client").$Enums.UserStatus;

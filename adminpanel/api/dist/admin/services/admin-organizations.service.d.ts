@@ -16,10 +16,10 @@ export declare class AdminOrganizationsService {
     }>;
     findAll(actorUserId: string, query: AdminOrganizationQueryDto): Promise<{
         data: {
+            name: string;
             id: string;
             status: import("@prisma/client").$Enums.OrganizationStatus;
             createdAt: Date;
-            name: string;
             slug: string;
         }[];
         meta: {
@@ -29,10 +29,10 @@ export declare class AdminOrganizationsService {
         };
     }>;
     updateOrganization(actorUserId: string, organizationId: string, dto: AdminUpdateOrganizationDto): Promise<{
+        name: string;
         id: string;
         status: import("@prisma/client").$Enums.OrganizationStatus;
         createdAt: Date;
-        name: string;
         slug: string;
     }>;
 }

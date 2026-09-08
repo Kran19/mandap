@@ -5,10 +5,10 @@ export declare class AdminOrganizationsController {
     constructor(adminOrganizationsService: AdminOrganizationsService);
     findAll(user: any, query: AdminOrganizationQueryDto): Promise<{
         data: {
+            name: string;
             id: string;
             status: import("@prisma/client").$Enums.OrganizationStatus;
             createdAt: Date;
-            name: string;
             slug: string;
         }[];
         meta: {
@@ -27,10 +27,10 @@ export declare class AdminOrganizationsController {
         createdAt: Date;
     }>;
     updateOrganization(user: any, id: string, dto: AdminUpdateOrganizationDto): Promise<{
+        name: string;
         id: string;
         status: import("@prisma/client").$Enums.OrganizationStatus;
         createdAt: Date;
-        name: string;
         slug: string;
     }>;
 }

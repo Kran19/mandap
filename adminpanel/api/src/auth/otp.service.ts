@@ -1,7 +1,7 @@
-import { Injectable, Inject, Logger, BadRequestException, UnauthorizedException, TooManyRequestsException } from '@nestjs/common';
+import { Injectable, Inject, Logger, BadRequestException, UnauthorizedException, HttpException, HttpStatus } from '@nestjs/common';
 import { REDIS_CLIENT } from '../redis/redis.module.js';
-import Redis from 'ioredis';
-import { SmsProvider } from './sms/sms.provider.js';
+import { Redis } from 'ioredis';
+import type { SmsProvider } from './sms/sms.provider.js';
 import { randomUUID } from 'crypto';
 import * as argon2 from 'argon2';
 
@@ -54,7 +54,7 @@ export class OtpService {
     const data = JSON.parse(rawData);
 
     if (data.attemptCount >= this.MAX_ATTEMPTS) {
-      throw new TooManyRequestsException('Maximum OTP attempts exceeded');
+      throw new HttpException('Maximum OTP attempts exceeded', HttpStatus.TOO_MANY_REQUESTS);
     }
 
     const isValid = await argon2.verify(data.otpHash, otp);

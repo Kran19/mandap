@@ -45,7 +45,7 @@ let TrialController = class TrialController {
             if (!user.phone) {
                 throw new BadRequestException('Mobile verification required');
             }
-            const emailNormalizedHash = this.trialEligibility.hashIdentity(this.trialEligibility.normalizeEmail(user.email));
+            const emailNormalizedHash = user.email ? this.trialEligibility.hashIdentity(this.trialEligibility.normalizeEmail(user.email)) : null;
             const mobileNormalizedHash = this.trialEligibility.hashIdentity(this.trialEligibility.normalizeMobile(user.phone));
             const identityReferenceHash = this.trialEligibility.hashIdentity(identityReference);
             const eligibility = await this.trialEligibility.checkEligibility(emailNormalizedHash, mobileNormalizedHash, identityReferenceHash, null);

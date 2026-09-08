@@ -7,7 +7,7 @@ export declare class AdminUsersService {
     constructor(prisma: PrismaService, auditService: AdminAuditService);
     findAll(query: AdminUserQueryDto): Promise<{
         data: {
-            email: string;
+            email: string | null;
             firstName: string | null;
             lastName: string | null;
             id: string;
@@ -21,7 +21,7 @@ export declare class AdminUsersService {
         };
     }>;
     findOne(id: string): Promise<{
-        email: string;
+        email: string | null;
         firstName: string | null;
         lastName: string | null;
         id: string;
@@ -30,7 +30,7 @@ export declare class AdminUsersService {
         createdAt: Date;
     }>;
     updateUser(actorId: string, id: string, dto: AdminUpdateUserDto): Promise<{
-        email: string;
+        email: string | null;
         firstName: string | null;
         lastName: string | null;
         id: string;

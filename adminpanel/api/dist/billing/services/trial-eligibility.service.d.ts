@@ -8,7 +8,7 @@ export declare class TrialEligibilityService {
     normalizeEmail(email: string): string;
     normalizeMobile(mobile: string): string;
     hashIdentity(value: string): string;
-    checkEligibility(emailNormalizedHash: string, mobileNormalizedHash: string | null, identityReferenceHash: string | null, paymentFingerprint: string | null): Promise<{
+    checkEligibility(emailNormalizedHash: string | null, mobileNormalizedHash: string | null, identityReferenceHash: string | null, paymentFingerprint: string | null): Promise<{
         eligible: boolean;
         reason?: string;
     }>;

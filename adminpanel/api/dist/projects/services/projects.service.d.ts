@@ -15,11 +15,11 @@ export declare class ProjectsService {
     private readonly entitlementService;
     constructor(prisma: PrismaService, entitlementService: EntitlementService);
     create(actorId: string, orgId: string, dto: CreateProjectDto): Promise<{
+        name: string;
         id: string;
         status: import("@prisma/client").$Enums.ProjectStatus;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         organizationId: string;
         description: string | null;
         currentVersionId: string | null;
@@ -28,11 +28,11 @@ export declare class ProjectsService {
     }>;
     findAll(orgId: string, page?: number, limit?: number): Promise<{
         data: {
+            name: string;
             id: string;
             status: import("@prisma/client").$Enums.ProjectStatus;
             createdAt: Date;
             updatedAt: Date;
-            name: string;
             organizationId: string;
             description: string | null;
             currentVersionId: string | null;
@@ -46,11 +46,11 @@ export declare class ProjectsService {
         };
     }>;
     findOne(orgId: string, projectId: string): Promise<{
+        name: string;
         id: string;
         status: import("@prisma/client").$Enums.ProjectStatus;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         organizationId: string;
         description: string | null;
         currentVersionId: string | null;
@@ -58,11 +58,11 @@ export declare class ProjectsService {
         archivedAt: Date | null;
     }>;
     update(actorId: string, orgId: string, projectId: string, dto: UpdateProjectDto): Promise<{
+        name: string;
         id: string;
         status: import("@prisma/client").$Enums.ProjectStatus;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         organizationId: string;
         description: string | null;
         currentVersionId: string | null;
@@ -70,11 +70,11 @@ export declare class ProjectsService {
         archivedAt: Date | null;
     }>;
     archive(actorId: string, orgId: string, projectId: string): Promise<{
+        name: string;
         id: string;
         status: import("@prisma/client").$Enums.ProjectStatus;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         organizationId: string;
         description: string | null;
         currentVersionId: string | null;
@@ -82,11 +82,11 @@ export declare class ProjectsService {
         archivedAt: Date | null;
     }>;
     restore(actorId: string, orgId: string, projectId: string): Promise<{
+        name: string;
         id: string;
         status: import("@prisma/client").$Enums.ProjectStatus;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         organizationId: string;
         description: string | null;
         currentVersionId: string | null;
@@ -94,11 +94,11 @@ export declare class ProjectsService {
         archivedAt: Date | null;
     }>;
     remove(actorId: string, orgId: string, projectId: string): Promise<{
+        name: string;
         id: string;
         status: import("@prisma/client").$Enums.ProjectStatus;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         organizationId: string;
         description: string | null;
         currentVersionId: string | null;

@@ -4,6 +4,7 @@ import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshDto } from './dto/refresh.dto.js';
 import { VerifyEmailDto, SendOtpDto, VerifyOtpDto, VerifyIdentityDto } from './dto/verification.dto.js';
+import { VerifyLoginOtpDto } from './dto/verify-otp.dto.js';
 import { UseInterceptors, UploadedFile, ParseFilePipe, MaxFileSizeValidator, FileTypeValidator } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 // @ts-ignore
@@ -39,7 +40,7 @@ export class AuthController {
 
   @Post('login/verify-otp')
   @HttpCode(HttpStatus.OK)
-  verifyLoginOtp(@Body() dto: VerifyOtpDto) {
+  verifyLoginOtp(@Body() dto: VerifyLoginOtpDto) {
     return this.authService.verifyLoginOtp(dto.challengeId, dto.otp);
   }
 

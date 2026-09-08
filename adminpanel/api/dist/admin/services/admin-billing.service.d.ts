@@ -10,19 +10,19 @@ export declare class AdminBillingService {
     findAllSubscriptions(actorId: string, query: AdminBillingQueryDto): Promise<{
         data: ({
             organization: {
+                name: string;
                 id: string;
                 status: import("@prisma/client").$Enums.OrganizationStatus;
                 createdAt: Date;
                 updatedAt: Date;
-                name: string;
                 slug: string;
             };
             plan: {
+                name: string;
                 id: string;
                 status: string;
                 createdAt: Date;
                 updatedAt: Date;
-                name: string;
                 slug: string;
                 description: string | null;
                 monthlyPrice: import("@prisma/client/runtime/library").Decimal;
@@ -55,19 +55,19 @@ export declare class AdminBillingService {
     }>;
     findOneSubscription(actorId: string, id: string): Promise<{
         organization: {
+            name: string;
             id: string;
             status: import("@prisma/client").$Enums.OrganizationStatus;
             createdAt: Date;
             updatedAt: Date;
-            name: string;
             slug: string;
         };
         plan: {
+            name: string;
             id: string;
             status: string;
             createdAt: Date;
             updatedAt: Date;
-            name: string;
             slug: string;
             description: string | null;
             monthlyPrice: import("@prisma/client/runtime/library").Decimal;
@@ -104,7 +104,7 @@ export declare class AdminBillingService {
     findAllOrders(actorId: string, query: AdminBillingQueryDto): Promise<{
         data: ({
             user: {
-                email: string;
+                email: string | null;
                 firstName: string | null;
                 lastName: string | null;
                 phone: string | null;
@@ -123,11 +123,11 @@ export declare class AdminBillingService {
                 updatedAt: Date;
             } | null;
             organization: {
+                name: string;
                 id: string;
                 status: import("@prisma/client").$Enums.OrganizationStatus;
                 createdAt: Date;
                 updatedAt: Date;
-                name: string;
                 slug: string;
             };
         } & {
@@ -154,7 +154,7 @@ export declare class AdminBillingService {
     }>;
     findOneOrder(actorId: string, id: string): Promise<{
         user: {
-            email: string;
+            email: string | null;
             firstName: string | null;
             lastName: string | null;
             phone: string | null;
@@ -173,11 +173,11 @@ export declare class AdminBillingService {
             updatedAt: Date;
         } | null;
         organization: {
+            name: string;
             id: string;
             status: import("@prisma/client").$Enums.OrganizationStatus;
             createdAt: Date;
             updatedAt: Date;
-            name: string;
             slug: string;
         };
         payments: {
@@ -225,11 +225,11 @@ export declare class AdminBillingService {
     findAllPayments(actorId: string, query: AdminBillingQueryDto): Promise<{
         data: ({
             organization: {
+                name: string;
                 id: string;
                 status: import("@prisma/client").$Enums.OrganizationStatus;
                 createdAt: Date;
                 updatedAt: Date;
-                name: string;
                 slug: string;
             };
             order: {
@@ -273,11 +273,11 @@ export declare class AdminBillingService {
     }>;
     findOnePayment(actorId: string, id: string): Promise<{
         organization: {
+            name: string;
             id: string;
             status: import("@prisma/client").$Enums.OrganizationStatus;
             createdAt: Date;
             updatedAt: Date;
-            name: string;
             slug: string;
         };
         order: {

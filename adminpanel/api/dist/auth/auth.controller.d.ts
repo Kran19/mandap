@@ -3,6 +3,7 @@ import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshDto } from './dto/refresh.dto.js';
 import { VerifyEmailDto, SendOtpDto, VerifyOtpDto, VerifyIdentityDto } from './dto/verification.dto.js';
+import { VerifyLoginOtpDto } from './dto/verify-otp.dto.js';
 import type { User } from '@prisma/client';
 import { PrismaService } from '../prisma.service.js';
 export declare class AuthController {
@@ -10,10 +11,17 @@ export declare class AuthController {
     private readonly prisma;
     constructor(authService: AuthService, prisma: PrismaService);
     register(dto: RegisterDto): Promise<{
-        accessToken: string;
-        refreshToken: string;
+        success: boolean;
+        message: string;
     }>;
     login(dto: LoginDto): Promise<{
+        accessToken: string;
+        refreshToken: string;
+    } | {
+        otpRequired: boolean;
+        challengeId: string;
+    }>;
+    verifyLoginOtp(dto: VerifyLoginOtpDto): Promise<{
         accessToken: string;
         refreshToken: string;
     }>;
@@ -24,7 +32,7 @@ export declare class AuthController {
     logout(dto: RefreshDto): Promise<void>;
     getMe(reqUser: User): Promise<{
         id: string;
-        email: string;
+        email: string | null;
         firstName: string | null;
         lastName: string | null;
         status: import("@prisma/client").$Enums.UserStatus;

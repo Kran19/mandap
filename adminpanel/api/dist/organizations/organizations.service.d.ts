@@ -5,11 +5,11 @@ export declare class OrganizationsService {
     private prisma;
     constructor(prisma: PrismaService);
     createOrganization(userId: string, dto: CreateOrganizationDto): Promise<{
+        name: string;
         id: string;
         status: import("@prisma/client").$Enums.OrganizationStatus;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         slug: string;
     }>;
     getUserOrganizations(userId: string): Promise<{

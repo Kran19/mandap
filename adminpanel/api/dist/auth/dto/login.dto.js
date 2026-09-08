@@ -7,16 +7,22 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, IsOptional } from 'class-validator';
 export class LoginDto {
     email;
+    phone;
     password;
 }
 __decorate([
     IsEmail({}, { message: 'Please provide a valid email address.' }),
-    IsNotEmpty(),
+    IsOptional(),
     __metadata("design:type", String)
 ], LoginDto.prototype, "email", void 0);
+__decorate([
+    IsString(),
+    IsOptional(),
+    __metadata("design:type", String)
+], LoginDto.prototype, "phone", void 0);
 __decorate([
     IsString(),
     IsNotEmpty(),

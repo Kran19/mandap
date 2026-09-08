@@ -5,7 +5,7 @@ export declare class AdminUsersController {
     constructor(usersService: AdminUsersService);
     findAll(query: AdminUserQueryDto): Promise<{
         data: {
-            email: string;
+            email: string | null;
             firstName: string | null;
             lastName: string | null;
             id: string;
@@ -19,7 +19,7 @@ export declare class AdminUsersController {
         };
     }>;
     findOne(id: string): Promise<{
-        email: string;
+        email: string | null;
         firstName: string | null;
         lastName: string | null;
         id: string;
@@ -28,7 +28,7 @@ export declare class AdminUsersController {
         createdAt: Date;
     }>;
     updateUser(actor: any, id: string, dto: AdminUpdateUserDto): Promise<{
-        email: string;
+        email: string | null;
         firstName: string | null;
         lastName: string | null;
         id: string;

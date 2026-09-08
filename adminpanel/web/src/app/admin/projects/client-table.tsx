@@ -50,7 +50,7 @@ export function ProjectsClientTable({ initialData, search }: { initialData: Pagi
     },
     {
       header: 'Created',
-      cell: (project: Project) => new Date(project.createdAt).toLocaleDateString(),
+      cell: (project: Project) => new Date(project.createdAt).toLocaleDateString('en-GB'),
     },
     {
       header: 'Actions',

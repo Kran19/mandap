@@ -9,6 +9,9 @@ enum PoleReason {
 
   /// Generated intermediate support to satisfy max unsupported span rule (<= 30 ft).
   generatedMaxSpan,
+
+  /// Manually placed pole by user.
+  manual,
 }
 
 /// Represents a vertical support pole placement in the layout.

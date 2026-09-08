@@ -55,7 +55,7 @@ export function UsersClientTable({ initialData, search }: { initialData: Paginat
     },
     {
       header: 'Created',
-      cell: (user: User) => new Date(user.createdAt).toLocaleDateString(),
+      cell: (user: User) => new Date(user.createdAt).toLocaleDateString('en-GB'),
     },
     {
       header: 'Actions',

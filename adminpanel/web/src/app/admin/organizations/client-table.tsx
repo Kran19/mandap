@@ -55,7 +55,7 @@ export function OrganizationsClientTable({ initialData, search }: { initialData:
     },
     {
       header: 'Created',
-      cell: (org: Organization) => new Date(org.createdAt).toLocaleDateString(),
+      cell: (org: Organization) => new Date(org.createdAt).toLocaleDateString('en-GB'),
     },
     {
       header: 'Actions',

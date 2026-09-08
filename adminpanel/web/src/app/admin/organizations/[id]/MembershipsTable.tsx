@@ -90,7 +90,7 @@ export default function MembershipsTable({
     },
     {
       header: 'Joined At',
-      cell: (member: OrganizationMember) => new Date(member.createdAt).toLocaleDateString(),
+      cell: (member: OrganizationMember) => new Date(member.createdAt).toLocaleDateString('en-GB'),
     },
     {
       header: 'Actions',

@@ -13,6 +13,7 @@ COPY . .
 RUN npx prisma generate
 RUN npm run build
 RUN npm prune --production --legacy-peer-deps
+RUN npx prisma generate
 
 FROM base AS runner
 ENV NODE_ENV=production

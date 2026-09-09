@@ -1,4 +1,4 @@
-FROM node:20-bookworm-slim AS base
+FROM node:22-bookworm-slim AS base
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
@@ -6,8 +6,7 @@ FROM base AS deps
 COPY package*.json ./
 RUN npm ci --legacy-peer-deps
 
-FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
+FROM deps AS builder
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build

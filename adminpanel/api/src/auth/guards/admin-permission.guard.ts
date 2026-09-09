@@ -1,7 +1,7 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException, SetMetadata } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../prisma.service.js';
-import { UserStatus } from '@prisma/client';
+import { UserStatus, AdminRole } from '@prisma/client';
 
 export const REQUIRE_ADMIN_PERMISSION_KEY = 'requireAdminPermission';
 export const RequireAdminPermission = (...permissions: string[]) => SetMetadata(REQUIRE_ADMIN_PERMISSION_KEY, permissions);
@@ -47,8 +47,18 @@ export class AdminPermissionGuard implements CanActivate {
       throw new ForbiddenException('Admin role is missing or inactive.');
     }
 
+    // Super Admin has unrestricted access to all admin operations
+    if (membership.role.name === AdminRole.SUPER_ADMIN || (membership.role.name as string) === 'SUPER_ADMIN') {
+      return true;
+    }
+
     const userPermissions = membership.role.permissions.map(p => p.action);
     
+    // Wildcard permission grants all
+    if (userPermissions.includes('*') || userPermissions.includes('ALL')) {
+      return true;
+    }
+
     // Check if the user has ALL required permissions for this route
     const hasAllPermissions = requiredPermissions.every(p => userPermissions.includes(p));
     

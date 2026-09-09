@@ -7,7 +7,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service.js';
 import { AdminAuditService } from './admin-audit.service.js';
 import { UserStatus } from '@prisma/client';
@@ -97,6 +97,40 @@ let AdminUsersService = class AdminUsersService {
             }
             await this.auditService.log(actorId, 'USER_STATUS_CHANGED', 'User', id, null, { status: user.status }, { status }, tx);
             return updatedUser;
+        });
+    }
+    async deleteUser(actorId, id) {
+        if (actorId === id) {
+            throw new BadRequestException('You cannot delete your own admin account.');
+        }
+        const user = await this.prisma.user.findUnique({
+            where: { id },
+        });
+        if (!user) {
+            throw new NotFoundException('User not found');
+        }
+        return this.prisma.$transaction(async (tx) => {
+            await tx.trialClaim.deleteMany({ where: { userId: id } });
+            await tx.trialSetup.deleteMany({ where: { userId: id } });
+            await tx.order.updateMany({
+                where: { userId: id },
+                data: { userId: null },
+            });
+            await tx.refreshSession.deleteMany({ where: { userId: id } });
+            const deletedUser = await tx.user.delete({
+                where: { id },
+            });
+            await this.auditService.log(actorId, 'USER_DELETED', 'User', id, {
+                deletedEmail: user.email,
+                deletedName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+            }, {
+                id: user.id,
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                status: user.status,
+            }, null, tx);
+            return { success: true, id: deletedUser.id };
         });
     }
 };

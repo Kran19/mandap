@@ -69,6 +69,7 @@ export default function Sidebar({ user, open, setOpen }: SidebarProps) {
         { name: 'Roles', href: '/admin/roles', icon: Shield, permission: AdminPermissions.ROLES_READ },
         { name: 'Permissions', href: '/admin/permissions', icon: Key, permission: AdminPermissions.ROLES_READ }, // Fallback to ROLES_READ if PERMISSIONS_READ isn't separate
         { name: 'Audit Logs', href: '/admin/audit-logs', icon: Activity, permission: AdminPermissions.AUDIT_LOGS_READ },
+        { name: 'Settings', href: '/admin/settings', icon: Settings },
       ],
     }
   ];

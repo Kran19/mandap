@@ -10,7 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { Controller, Get, Param, Patch, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Patch, Delete, Body, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard.js';
 import { AdminPermissionGuard, RequireAdminPermission } from '../../auth/guards/admin-permission.guard.js';
 import { AdminPermissions } from '../constants/admin-permissions.js';
@@ -30,6 +30,9 @@ let AdminUsersController = class AdminUsersController {
     }
     async updateUser(actor, id, dto) {
         return this.usersService.updateUser(actor.id, id, dto);
+    }
+    async deleteUser(actor, id) {
+        return this.usersService.deleteUser(actor.id, id);
     }
 };
 __decorate([
@@ -58,6 +61,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, AdminUpdateUserDto]),
     __metadata("design:returntype", Promise)
 ], AdminUsersController.prototype, "updateUser", null);
+__decorate([
+    Delete(':id'),
+    RequireAdminPermission(AdminPermissions.USERS_WRITE),
+    __param(0, CurrentUser()),
+    __param(1, Param('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], AdminUsersController.prototype, "deleteUser", null);
 AdminUsersController = __decorate([
     Controller('admin/users'),
     UseGuards(JwtAuthGuard, AdminPermissionGuard),

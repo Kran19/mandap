@@ -37,4 +37,8 @@ export declare class AdminUsersService {
         status: import("@prisma/client").$Enums.UserStatus;
         createdAt: Date;
     }>;
+    deleteUser(actorId: string, id: string): Promise<{
+        success: boolean;
+        id: string;
+    }>;
 }

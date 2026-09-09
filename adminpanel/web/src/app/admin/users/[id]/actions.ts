@@ -20,3 +20,20 @@ export async function updateUserStatus(userId: string, status: string) {
     return { error: error.message || 'Failed to update user status.' };
   }
 }
+
+export async function deleteUser(userId: string) {
+  try {
+    await fetchApi(`/api/v1/admin/users/${userId}`, {
+      method: 'DELETE',
+    });
+    
+    revalidatePath('/admin/users');
+    return { success: true };
+  } catch (error: any) {
+    if (error.status === 403) {
+      return { error: 'You do not have permission to delete users.' };
+    }
+    return { error: error.message || 'Failed to delete user.' };
+  }
+}
+

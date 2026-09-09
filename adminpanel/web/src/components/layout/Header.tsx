@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Menu, LogOut } from 'lucide-react';
+import { Menu, LogOut, Settings } from 'lucide-react';
 import { CurrentAdminUser } from '@/types';
 
 interface HeaderProps {
@@ -40,9 +41,16 @@ export default function Header({ user, setSidebarOpen }: HeaderProps) {
       <div className="flex items-center space-x-4">
         {user && (
           <div className="flex items-center">
-            <span className="text-sm font-medium text-gray-700 mr-4">
-              {user.firstName} {user.lastName} ({user.email})
-            </span>
+            <Link
+              href="/admin/settings"
+              className="flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors mr-4"
+              title="Account Settings"
+            >
+              <Settings className="w-4 h-4 text-gray-400" />
+              <span>
+                {user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Admin'} ({user.email})
+              </span>
+            </Link>
           </div>
         )}
         <button

@@ -145,6 +145,7 @@ export interface CurrentAdminUser {
   email: string;
   firstName: string | null;
   lastName: string | null;
+  phone?: string | null;
   status: UserStatus;
   roles: AdminRoleModel[];
 }

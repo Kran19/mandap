@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Patch, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Patch, Delete, Body, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard.js';
 import { AdminPermissionGuard, RequireAdminPermission } from '../../auth/guards/admin-permission.guard.js';
 import { AdminPermissions } from '../constants/admin-permissions.js';
@@ -32,4 +32,14 @@ export class AdminUsersController {
   ) {
     return this.usersService.updateUser(actor.id, id, dto);
   }
+
+  @Delete(':id')
+  @RequireAdminPermission(AdminPermissions.USERS_WRITE)
+  async deleteUser(
+    @CurrentUser() actor: any,
+    @Param('id') id: string,
+  ) {
+    return this.usersService.deleteUser(actor.id, id);
+  }
 }
+

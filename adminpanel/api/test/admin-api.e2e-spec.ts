@@ -211,6 +211,43 @@ describe('Admin APIs (e2e)', () => {
     });
   });
 
+  describe('User Deletion Lifecycle', () => {
+    it('Restricted admin CANNOT delete user (USERS_WRITE required) -> 403 Forbidden', async () => {
+      const response = await request(app.getHttpServer())
+        .delete(`/api/v1/admin/users/${normalUser.id}`)
+        .set('Authorization', `Bearer ${restrictedAdminToken}`);
+
+      expect(response.status).toBe(403);
+    });
+
+    it('Admin cannot delete their own account -> 400 Bad Request', async () => {
+      const response = await request(app.getHttpServer())
+        .delete(`/api/v1/admin/users/${superAdminUser.id}`)
+        .set('Authorization', `Bearer ${superAdminToken}`);
+
+      expect(response.status).toBe(400);
+    });
+
+    it('Super admin can delete a user and generate audit log', async () => {
+      const response = await request(app.getHttpServer())
+        .delete(`/api/v1/admin/users/${normalUser.id}`)
+        .set('Authorization', `Bearer ${superAdminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+
+      // Verify user no longer exists
+      const found = await prisma.user.findUnique({ where: { id: normalUser.id } });
+      expect(found).toBeNull();
+
+      // Verify audit log
+      const audit = await prisma.auditLog.findFirst({
+        where: { adminId: superAdminUser.id, action: 'USER_DELETED', resourceId: normalUser.id },
+      });
+      expect(audit).toBeDefined();
+    });
+  });
+
   describe('Validation Constraints', () => {
     it('Creating a plan with duplicate slug -> 409 Conflict', async () => {
       const planDto = {

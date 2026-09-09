@@ -7,6 +7,7 @@ import { DataTable } from '@/components/tables/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import Link from 'next/link';
 import { Search } from 'lucide-react';
+import { deleteUser } from './actions';
 
 export function UsersClientTable({ initialData, search }: { initialData: PaginatedResponse<User>, search: string }) {
   const router = useRouter();
@@ -14,6 +15,8 @@ export function UsersClientTable({ initialData, search }: { initialData: Paginat
   const searchParams = useSearchParams();
   
   const [searchInput, setSearchInput] = useState(search);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const createQueryString = useCallback(
     (name: string, value: string) => {
@@ -35,6 +38,28 @@ export function UsersClientTable({ initialData, search }: { initialData: Paginat
 
   const handlePageChange = (page: number) => {
     router.push(pathname + '?' + createQueryString('page', page.toString()));
+  };
+
+  const handleDeleteUser = async (user: User) => {
+    const displayName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email || user.id;
+    if (!window.confirm(`Are you sure you want to permanently delete user "${displayName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingId(user.id);
+    setActionError(null);
+    try {
+      const res = await deleteUser(user.id);
+      if (res?.error) {
+        setActionError(res.error);
+      } else {
+        router.refresh();
+      }
+    } catch (err: any) {
+      setActionError(err.message || 'Failed to delete user.');
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const columns = [
@@ -60,15 +85,38 @@ export function UsersClientTable({ initialData, search }: { initialData: Paginat
     {
       header: 'Actions',
       cell: (user: User) => (
-        <Link href={`/admin/users/${user.id}`} className="text-sm text-blue-600 hover:text-blue-900">
-          View
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href={`/admin/users/${user.id}`} className="text-sm text-blue-600 hover:text-blue-900 font-medium">
+            View
+          </Link>
+          <button
+            type="button"
+            onClick={() => handleDeleteUser(user)}
+            disabled={deletingId === user.id}
+            className="text-sm text-red-600 hover:text-red-900 font-medium disabled:opacity-50"
+          >
+            {deletingId === user.id ? 'Deleting...' : 'Delete'}
+          </button>
+        </div>
       ),
     }
   ];
 
   return (
     <div className="space-y-4">
+      {actionError && (
+        <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 flex justify-between items-center">
+          <span>{actionError}</span>
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            className="text-xs font-semibold text-red-800 hover:text-red-950 ml-4 underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <form onSubmit={handleSearch} className="flex gap-2 max-w-sm">
         <div className="relative flex-1">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">

@@ -5,14 +5,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
 FROM base AS deps
 COPY package*.json ./
 COPY prisma ./prisma/
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
 RUN npm run build
-RUN npm prune --production
+RUN npm prune --production --legacy-peer-deps
 
 FROM base AS runner
 ENV NODE_ENV=production

@@ -30,9 +30,16 @@ class Mandap3DController extends ChangeNotifier {
   double dragStartOffsetZ = 0.0;
 
   /// Default visual mandap height in feet.
-  final double mandapHeight;
+  double mandapHeight;
 
   Mandap3DController({this.mandapHeight = 10.0});
+
+  void setMandapHeight(double h) {
+    if (h > 0 && h != mandapHeight) {
+      mandapHeight = h;
+      notifyListeners();
+    }
+  }
 
   /// Fits camera view dynamically based on the bounding box of [layout].
   void fitCamera(MandapLayout layout) {

@@ -1,18 +1,42 @@
 import 'package:meta/meta.dart';
 
+/// Configuration style for the roof canopy topology.
+enum TrussConfiguration {
+  fivePoint,
+  sixPoint,
+}
+
 /// Formal measurement specification for a Truss structure.
 /// Passed from the UI measurement wizard into [TrussGenerator].
 /// The generator is responsible for converting this into [MandapLayout] topology.
 @immutable
 class TrussSpecification {
-  /// Width of the truss perimeter (X-axis) in feet.
+  /// Total width of the truss perimeter (X-axis) in feet.
   final double width;
 
-  /// Depth of the truss perimeter (Z-axis) in feet.
+  /// Total depth of the truss perimeter (Z-axis) in feet.
   final double depth;
 
-  /// Height/elevation of the top chord above ground in feet.
-  final double elevation;
+  /// Overall height of the vertical tower in feet.
+  final double height;
+
+  /// Width of the central tower cross-section in feet.
+  final double towerWidth;
+
+  /// Depth of the central tower cross-section in feet.
+  final double towerDepth;
+
+  /// Elevation of the main horizontal truss / canopy roof in feet.
+  final double roofElevation;
+
+  /// Structural separation between top and bottom chords in feet.
+  final double profileHeight;
+
+  /// Inventory segment block length in feet (e.g., 10ft spans).
+  final double memberSegmentLength;
+
+  /// The topological layout style of the roof (5-point vs 6-point).
+  final TrussConfiguration configuration;
 
   /// Optional label (e.g., "Main Stage Truss")
   final String? label;
@@ -20,11 +44,22 @@ class TrussSpecification {
   const TrussSpecification({
     required this.width,
     required this.depth,
-    required this.elevation,
+    required this.height,
+    this.towerWidth = 2.0,
+    this.towerDepth = 2.0,
+    required this.roofElevation,
+    this.profileHeight = 1.0,
+    this.memberSegmentLength = 10.0,
+    this.configuration = TrussConfiguration.fivePoint,
     this.label,
   })  : assert(width > 0, 'Truss width must be positive'),
         assert(depth > 0, 'Truss depth must be positive'),
-        assert(elevation >= 0, 'Truss elevation cannot be negative');
+        assert(height > 0, 'Tower height must be positive'),
+        assert(towerWidth > 0, 'Tower width must be positive'),
+        assert(towerDepth > 0, 'Tower depth must be positive'),
+        assert(roofElevation >= 0 && roofElevation <= height, 'Roof elevation must be between 0 and tower height'),
+        assert(profileHeight > 0, 'Profile height must be positive'),
+        assert(memberSegmentLength > 0, 'Member segment length must be positive');
 }
 
 /// Formal measurement specification for a Pipe (vertical support pole).

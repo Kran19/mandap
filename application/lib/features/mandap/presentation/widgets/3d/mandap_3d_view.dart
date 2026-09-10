@@ -127,7 +127,6 @@ class _Mandap3DViewState extends State<Mandap3DView> {
 
     switch (widget.controller.mode) {
       case EditorMode.view:
-      case EditorMode.select:
       case EditorMode.addFlooring:
       case EditorMode.addStage:
         if (pickedNodeId != null) {
@@ -140,6 +139,7 @@ class _Mandap3DViewState extends State<Mandap3DView> {
         setState(() {});
         break;
 
+      case EditorMode.select:
       case EditorMode.move:
         if (widget.controller.selectedEdgeId != null) {
           final edge = widget.controller.layout.getEdge(widget.controller.selectedEdgeId!);
@@ -185,7 +185,12 @@ class _Mandap3DViewState extends State<Mandap3DView> {
             });
             return;
           }
+        } else if (hitEdgeId != null) {
+          widget.controller.selectEdge(hitEdgeId);
+        } else {
+          widget.controller.clearSelection();
         }
+        setState(() {});
         break;
 
       case EditorMode.addNode:
@@ -453,27 +458,43 @@ class _Mandap3DViewState extends State<Mandap3DView> {
               widget.controller3D.zoomCamera(zoomDelta);
             }
           },
-          child: AnimatedBuilder(
-            animation: Listenable.merge([
-              widget.controller,
-              widget.controller3D,
-            ]),
-            builder: (context, child) {
-              return CustomPaint(
-                size: canvasSize,
-                painter: Mandap3DPainter(
-                  layout: widget.controller.layout,
-                  result: widget.controller.result,
-                  controller: widget.controller3D,
-                  selectedEdgeId: widget.controller.selectedEdgeId,
-                  selectedNodeId: widget.controller.selectedNodeId,
-                  pendingEdgeSourceId: widget.controller.pendingEdgeStartNodeId,
-                  activeHandleNodeId: widget.controller3D.activeHandleNodeId,
-                  dragPreviewLengthFeet:
-                      widget.controller3D.dragPreviewLengthFeet,
-                ),
-              );
-            },
+          child: Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF0A1F14), // Deep twilight garden sky
+                  Color(0xFF132A13), // Garden lawn midtone
+                  Color(0xFF1B4332), // Rich emerald lawn
+                  Color(0xFF2D6A4F), // Vibrant outdoor grass ground
+                ],
+              ),
+            ),
+            child: AnimatedBuilder(
+              animation: Listenable.merge([
+                widget.controller,
+                widget.controller3D,
+              ]),
+              builder: (context, child) {
+                return CustomPaint(
+                  size: canvasSize,
+                  painter: Mandap3DPainter(
+                    layout: widget.controller.layout,
+                    result: widget.controller.result,
+                    controller: widget.controller3D,
+                    selectedEdgeId: widget.controller.selectedEdgeId,
+                    selectedNodeId: widget.controller.selectedNodeId,
+                    pendingEdgeSourceId: widget.controller.pendingEdgeStartNodeId,
+                    activeHandleNodeId: widget.controller3D.activeHandleNodeId,
+                    dragPreviewLengthFeet:
+                        widget.controller3D.dragPreviewLengthFeet,
+                  ),
+                );
+              },
+            ),
           ),
         );
       },

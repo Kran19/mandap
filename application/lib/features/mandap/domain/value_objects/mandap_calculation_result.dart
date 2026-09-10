@@ -4,6 +4,7 @@ import '../entities/truss_piece_type.dart';
 import 'edge_solution.dart';
 import 'inventory_shortage.dart';
 import 'pole_placement.dart';
+import 'structural_analysis_report.dart';
 
 /// Complete, validated output result of the Mandap calculation engine.
 @immutable
@@ -14,6 +15,7 @@ class MandapCalculationResult {
   final List<PolePlacement> poles;
   final List<InventoryShortage> inventoryShortages;
   final List<String> warnings;
+  final StructuralAnalysisReport? structuralReport;
 
   // Totals for BOM
   final double totalTrussLengthFt;
@@ -27,6 +29,7 @@ class MandapCalculationResult {
     required this.poles,
     required this.inventoryShortages,
     required this.warnings,
+    this.structuralReport,
     this.totalTrussLengthFt = 0.0,
     this.totalFlooringAreaSqFt = 0.0,
     this.totalStageAreaSqFt = 0.0,

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../application/editor_mode.dart';
 import '../../domain/entities/mandap_node.dart';
 
-/// Bottom toolbar showing only the [Delete] mode toggle and [Add Component] button.
+/// Engineering toolbar with direct access to Select, Move, Pencil, Pole, and Erase tools.
 class EditorModeBar extends StatelessWidget {
   final EditorMode currentMode;
   final NodeType pendingNodeType;
@@ -24,147 +23,175 @@ class EditorModeBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDelete = currentMode == EditorMode.delete;
-
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
         color: Color(0xFF0F172A),
         border: Border(top: BorderSide(color: Color(0xFF1E293B), width: 1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black38,
+            blurRadius: 10,
+            offset: Offset(0, -3),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: SafeArea(
         top: false,
         child: Row(
           children: [
-            // Delete Mode Button
-            Expanded(
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    if (onDeletePressed != null) {
-                      onDeletePressed!();
-                    } else {
-                      if (isDelete) {
-                        onModeChanged(EditorMode.select);
-                      } else {
-                        onModeChanged(EditorMode.delete);
-                      }
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(14),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: isDelete
-                          ? const Color(0xFFDC2626).withValues(alpha: 0.22)
-                          : const Color(0xFF1E293B),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: isDelete
-                            ? const Color(0xFFEF4444)
-                            : const Color(0xFF334155),
-                        width: isDelete ? 1.8 : 1.0,
-                      ),
-                      boxShadow: isDelete
-                          ? [
-                              BoxShadow(
-                                color:
-                                    const Color(0xFFDC2626).withValues(alpha: 0.35),
-                                blurRadius: 10,
-                                offset: const Offset(0, 3),
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          isDelete
-                              ? Icons.delete_forever_rounded
-                              : Icons.delete_outline_rounded,
-                          color: isDelete
-                              ? const Color(0xFFEF4444)
-                              : const Color(0xFFF87171),
-                          size: 22,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          isDelete ? 'Delete (Active)' : 'Delete',
-                          style: TextStyle(
-                            color: isDelete
-                                ? const Color(0xFFEF4444)
-                                : Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+            // 1. Select Tool
+            _buildToolItem(
+              icon: Icons.touch_app_rounded,
+              label: 'Select',
+              isActive: currentMode == EditorMode.select,
+              activeColor: const Color(0xFF3B82F6),
+              onTap: () {
+                onModeChanged(
+                  currentMode == EditorMode.select
+                      ? EditorMode.view
+                      : EditorMode.select,
+                );
+              },
             ),
 
-            const SizedBox(width: 14),
+            const SizedBox(width: 6),
 
-            // Add Component Button
-            Expanded(
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    if (projectId != null && projectId!.isNotEmpty) {
-                      context.go('/component-wizard?projectId=$projectId');
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    height: 50,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF6366F1).withValues(alpha: 0.45),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.add_circle_outline_rounded,
-                          color: Colors.white,
-                          size: 22,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Add',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+            // 2. Move / Spread Tool
+            _buildToolItem(
+              icon: Icons.open_with_rounded,
+              label: 'Move',
+              isActive: currentMode == EditorMode.move,
+              activeColor: const Color(0xFFA855F7),
+              onTap: () {
+                onModeChanged(
+                  currentMode == EditorMode.move
+                      ? EditorMode.select
+                      : EditorMode.move,
+                );
+              },
+            ),
+
+            const SizedBox(width: 6),
+
+            // 3. Pencil / Draw Truss Tool
+            _buildToolItem(
+              icon: Icons.edit_rounded,
+              label: 'Pencil',
+              isActive: currentMode == EditorMode.addEdge,
+              activeColor: const Color(0xFF06B6D4),
+              onTap: () {
+                onModeChanged(
+                  currentMode == EditorMode.addEdge
+                      ? EditorMode.select
+                      : EditorMode.addEdge,
+                );
+              },
+            ),
+
+            const SizedBox(width: 6),
+
+            // 4. Pole Tool
+            _buildToolItem(
+              icon: Icons.view_column_rounded,
+              label: 'Pole',
+              isActive: currentMode == EditorMode.addPole,
+              activeColor: const Color(0xFF10B981),
+              onTap: () {
+                onModeChanged(
+                  currentMode == EditorMode.addPole
+                      ? EditorMode.select
+                      : EditorMode.addPole,
+                );
+              },
+            ),
+
+            const SizedBox(width: 6),
+
+            // 5. Erase / Delete Tool
+            _buildToolItem(
+              icon: Icons.delete_outline_rounded,
+              label: 'Erase',
+              isActive: currentMode == EditorMode.delete,
+              activeColor: const Color(0xFFEF4444),
+              onTap: () {
+                if (onDeletePressed != null) {
+                  onDeletePressed!();
+                } else {
+                  onModeChanged(
+                    currentMode == EditorMode.delete
+                        ? EditorMode.select
+                        : EditorMode.delete,
+                  );
+                }
+              },
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToolItem({
+    required IconData icon,
+    required String label,
+    required bool isActive,
+    required Color activeColor,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? activeColor.withOpacity(0.18)
+                  : const Color(0xFF1E293B).withOpacity(0.5),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isActive ? activeColor : const Color(0xFF334155),
+                width: isActive ? 1.6 : 1.0,
+              ),
+              boxShadow: isActive
+                  ? [
+                      BoxShadow(
+                        color: activeColor.withOpacity(0.25),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 20,
+                  color: isActive ? activeColor : Colors.white70,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                    color: isActive ? activeColor : Colors.white70,
+                    letterSpacing: 0.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

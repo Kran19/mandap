@@ -16,11 +16,11 @@ class BomPanel extends StatelessWidget {
     final layout = controller.layout;
 
     return DraggableScrollableSheet(
-          initialChildSize: 0.22,
+          initialChildSize: 0.08,
           minChildSize: 0.08,
           maxChildSize: 0.75,
           snap: true,
-          snapSizes: const [0.08, 0.22, 0.50, 0.75],
+          snapSizes: const [0.08, 0.25, 0.50, 0.75],
           builder: (context, scrollController) {
             return Container(
               decoration: const BoxDecoration(
@@ -147,6 +147,59 @@ class BomPanel extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
+                  // Standard piece summary banner
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFBFDBFE)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Standard ${controller.standardTrussPieceSize.toStringAsFixed(0)} ft Trusses',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: Color(0xFF1E3A8A),
+                                ),
+                              ),
+                              Text(
+                                'Total in design: ${controller.totalLinearTrussFt.toStringAsFixed(0)} ft',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF3B82F6),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2563EB),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '${controller.totalPiecesRequired} pcs',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   ...result.requiredTrussBySize.entries.map(
                     (e) => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -232,9 +285,12 @@ class BomPanel extends StatelessWidget {
 
   void _showMaterialSummary(BuildContext context) {
     final result = controller.result;
+    final totalTruss = controller.totalLinearTrussFt;
+    final trussSize = controller.standardTrussPieceSize;
+    final requiredPieces = controller.totalPiecesRequired;
     
     // Conversions
-    final trussM = (result.totalTrussLengthFt * 0.3048).toStringAsFixed(1);
+    final trussM = (totalTruss * 0.3048).toStringAsFixed(1);
     final floorSqM = (result.totalFlooringAreaSqFt * 0.092903).toStringAsFixed(1);
     final stageSqM = (result.totalStageAreaSqFt * 0.092903).toStringAsFixed(1);
 
@@ -247,13 +303,42 @@ class BomPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildSummaryRow('Total Truss', '${result.totalTrussLengthFt.toStringAsFixed(1)} ft', '$trussM m'),
+              _buildSummaryRow(
+                'Total Truss',
+                '${totalTruss.toStringAsFixed(1)} ft',
+                '$trussM m',
+              ),
               const Divider(),
-              _buildSummaryRow('Flooring Area', '${result.totalFlooringAreaSqFt.toStringAsFixed(1)} sq ft', '$floorSqM sq m'),
+              _buildSummaryRow(
+                'Truss Piece Size',
+                '${trussSize.toStringAsFixed(0)} ft',
+                '',
+              ),
               const Divider(),
-              _buildSummaryRow('Stage Area', '${result.totalStageAreaSqFt.toStringAsFixed(1)} sq ft', '$stageSqM sq m'),
+              _buildSummaryRow(
+                'Trusses Required',
+                '$requiredPieces pcs',
+                '(${totalTruss.toStringAsFixed(0)} ft ÷ ${trussSize.toStringAsFixed(0)} ft)',
+                isHighlighted: true,
+              ),
               const Divider(),
-              _buildSummaryRow('Total Poles', '${result.totalPoleCount} pcs', ''),
+              _buildSummaryRow(
+                'Flooring Area',
+                '${result.totalFlooringAreaSqFt.toStringAsFixed(1)} sq ft',
+                '$floorSqM sq m',
+              ),
+              const Divider(),
+              _buildSummaryRow(
+                'Stage Area',
+                '${result.totalStageAreaSqFt.toStringAsFixed(1)} sq ft',
+                '$stageSqM sq m',
+              ),
+              const Divider(),
+              _buildSummaryRow(
+                'Total Poles',
+                '${result.totalPoleCount} pcs',
+                '',
+              ),
             ],
           ),
         ),
@@ -267,13 +352,79 @@ class BomPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryRow(String label, String val1, String val2) {
+  Widget _buildSummaryRow(
+    String label,
+    String val1,
+    String val2, {
+    bool isHighlighted = false,
+  }) {
+    if (isHighlighted) {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEFF6FF),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.5)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: Color(0xFF1E3A8A),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2563EB),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    val1,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                if (val2.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      val2,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF3B82F6),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+              ],
+            )
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold))),
+          const SizedBox(width: 8),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [

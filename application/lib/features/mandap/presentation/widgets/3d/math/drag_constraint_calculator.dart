@@ -41,6 +41,9 @@ class DragConstraintCalculator {
     return (value / gridSpacing).round() * gridSpacing;
   }
 
+  /// Convenience method: snaps a scalar value in feet to the nearest 0.5-foot increment.
+  static double snapToHalfFoot(double value) => snapToGrid(value, 0.5);
+
   /// Calculates camera-independent edge handle drag along the original edge axis vector.
   static EdgeDragResult calculateEdgeHandleDrag({
     required MandapNode startNode,

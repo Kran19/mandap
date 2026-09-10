@@ -53,73 +53,77 @@ class Mandap2DInteractivePainter extends CustomPainter {
 
   // ── Paints ─────────────────────────────────────────────────────────────────
 
+  static final _lawnBackgroundPaint = Paint()
+    ..color = const Color(0xFF0F2B1D) // Rich green event lawn
+    ..style = PaintingStyle.fill;
+
   static final _majorGridPaint = Paint()
-    ..color = const Color(0xFFCBD5E1).withValues(alpha: 0.6)
-    ..strokeWidth = 0.8;
+    ..color = const Color(0xFF52B788).withValues(alpha: 0.35)
+    ..strokeWidth = 0.9;
 
   static final _minorGridPaint = Paint()
-    ..color = const Color(0xFFCBD5E1).withValues(alpha: 0.25)
+    ..color = const Color(0xFF52B788).withValues(alpha: 0.15)
     ..strokeWidth = 0.5;
 
   static final _edgePaint = Paint()
-    ..color = const Color(0xFF1E293B)
-    ..strokeWidth = 4.0
+    ..color = const Color(0xFFFBBF24) // Bright Festive Gold
+    ..strokeWidth = 5.0
     ..strokeCap = StrokeCap.round;
 
   static final _selectedEdgePaint = Paint()
-    ..color = const Color(0xFF2563EB)
-    ..strokeWidth = 6.0
+    ..color = const Color(0xFF00F0FF) // Electric Neon Cyan
+    ..strokeWidth = 7.0
     ..strokeCap = StrokeCap.round;
 
   static final _cornerNodePaint = Paint()
-    ..color = const Color(0xFF0F172A)
+    ..color = Colors.white
     ..style = PaintingStyle.fill;
 
   static final _selectedNodePaint = Paint()
-    ..color = const Color(0xFF2563EB)
+    ..color = const Color(0xFF00F0FF)
     ..style = PaintingStyle.fill;
 
   static final _pendingSourcePaint = Paint()
-    ..color = const Color(0xFF16A34A)
+    ..color = const Color(0xFF10B981)
     ..style = PaintingStyle.fill;
 
   static final _generatedPolePaint = Paint()
-    ..color = const Color(0xFFD97706)
+    ..color = const Color(0xFFF59E0B) // Amber
     ..style = PaintingStyle.fill;
 
   static final _snapCursorPaint = Paint()
-    ..color = const Color(0xFF2563EB).withValues(alpha: 0.5)
+    ..color = const Color(0xFF00F0FF).withValues(alpha: 0.6)
     ..style = PaintingStyle.fill;
 
   static final _nodeRingPaint = Paint()
-    ..color = Colors.white
+    ..color = const Color(0xFFF59E0B)
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 1.5;
+    ..strokeWidth = 2.0;
 
   static final _flooringPaint = Paint()
-    ..color = const Color(0xFF1E293B).withValues(alpha: 0.3)
+    ..color = const Color(0xFF7C3AED).withValues(alpha: 0.5) // Royal Purple
     ..style = PaintingStyle.fill;
 
   static final _flooringBorderPaint = Paint()
-    ..color = const Color(0xFF334155).withValues(alpha: 0.5)
+    ..color = const Color(0xFFA78BFA)
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 1.0;
+    ..strokeWidth = 1.5;
 
   static final _stagePaint = Paint()
-    ..color = const Color(0xFF0F172A).withValues(alpha: 0.5)
+    ..color = const Color(0xFFDC2626).withValues(alpha: 0.7) // Royal Red
     ..style = PaintingStyle.fill;
 
   static final _stageBorderPaint = Paint()
-    ..color = const Color(0xFF475569)
+    ..color = const Color(0xFFFBBF24) // Gold trim
     ..style = PaintingStyle.stroke
     ..strokeWidth = 2.0;
 
   static final _activeZonePaint = Paint()
-    ..color = const Color(0xFF2563EB).withValues(alpha: 0.2)
+    ..color = const Color(0xFF00F0FF).withValues(alpha: 0.25)
     ..style = PaintingStyle.fill;
 
   static final _activeZoneBorderPaint = Paint()
-    ..color = const Color(0xFF2563EB)
+    ..color = const Color(0xFF00F0FF)
     ..style = PaintingStyle.stroke
     ..strokeWidth = 2.0;
 
@@ -127,6 +131,7 @@ class Mandap2DInteractivePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), _lawnBackgroundPaint);
     _drawGrid(canvas, size);
     _drawZones(canvas);
     _drawEdges(canvas);
@@ -278,6 +283,45 @@ class Mandap2DInteractivePainter extends CustomPainter {
         continue;
       } else if (node.type == NodeType.pole) {
         _drawPoleNode(canvas, node, center, isSelected);
+        continue;
+      }
+
+      if (node.isControlPoint) {
+        // Distinct diamond glyph for center control point
+        final diamondPaint = Paint()
+          ..color = isSelected ? const Color(0xFF00F0FF) : const Color(0xFFF59E0B)
+          ..style = PaintingStyle.fill;
+        final path = Path()
+          ..moveTo(center.dx, center.dy - 10)
+          ..lineTo(center.dx + 10, center.dy)
+          ..lineTo(center.dx, center.dy + 10)
+          ..lineTo(center.dx - 10, center.dy)
+          ..close();
+        canvas.drawPath(path, diamondPaint);
+        canvas.drawPath(
+          path,
+          Paint()
+            ..color = Colors.white
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5,
+        );
+        continue;
+      }
+
+      // If node has NO physical support, render as a hollow warning circle
+      if (!node.hasPhysicalSupport) {
+        final unsupportedPaint = Paint()
+          ..color = isSelected ? const Color(0xFF00F0FF) : const Color(0xFFEF4444)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5;
+        canvas.drawCircle(center, isSelected ? 9.0 : 6.5, unsupportedPaint);
+        canvas.drawCircle(
+          center,
+          isSelected ? 4.0 : 3.0,
+          Paint()
+            ..color = (isSelected ? const Color(0xFF00F0FF) : const Color(0xFFEF4444)).withValues(alpha: 0.3)
+            ..style = PaintingStyle.fill,
+        );
         continue;
       }
 

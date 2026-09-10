@@ -50,7 +50,7 @@ class AddTrussCommand implements MandapCommand {
     // Position origin at (0, 0) by default; user can drag in editor
     final w = spec.width;
     final d = spec.depth;
-    final e = spec.elevation;
+    final e = spec.roofElevation;
 
     MandapLayout updated = layout
         .withNode(MandapNode(id: n1Id, x: 0, z: 0, type: NodeType.corner, elevation: e))
@@ -78,7 +78,7 @@ class AddTrussCommand implements MandapCommand {
   }
 
   @override
-  String get description => 'Add Truss (${spec.width}×${spec.depth} ft @ ${spec.elevation} ft)';
+  String get description => 'Add Truss (${spec.width}×${spec.depth} ft @ ${spec.roofElevation} ft)';
 }
 
 /// Adds a single support pole from a [PoleSpecification].

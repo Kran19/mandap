@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/geometry/length.dart';
 import '../domain/entities/edge_id.dart';
 import '../domain/entities/mandap_layout.dart';
 import '../domain/entities/mandap_node.dart';
@@ -7,19 +8,25 @@ import '../domain/entities/node_id.dart';
 import '../domain/entities/mandap_preset.dart';
 import '../domain/entities/truss_catalog.dart';
 import '../domain/entities/truss_inventory.dart';
+import '../domain/entities/truss_piece_type.dart';
 import '../domain/services/mandap_calculation_engine.dart';
 import '../domain/value_objects/mandap_calculation_result.dart';
 import 'commands/add_edge_command.dart';
+import 'commands/add_external_structure_command.dart';
 import 'commands/add_node_command.dart';
 import 'commands/command_history.dart';
 import 'commands/delete_edge_command.dart';
 import 'commands/delete_node_command.dart';
 import 'commands/mandap_command.dart';
 import 'commands/move_node_command.dart';
-import 'commands/update_node_dimensions_command.dart';
 import 'commands/resize_edge_command.dart';
+import 'commands/set_node_support_command.dart';
+import 'commands/update_node_dimensions_command.dart';
 import 'editor_mode.dart';
+import '../domain/generators/base_truss_architecture_generator.dart';
+import '../domain/services/structural_graph_analyzer.dart';
 import '../domain/value_objects/grid_settings.dart';
+import '../domain/value_objects/structural_analysis_report.dart';
 
 /// Central application controller for managing Mandap layout state, editor mode,
 /// calculations, presets, and undo/redo history.
@@ -43,6 +50,108 @@ class MandapEditorController extends ChangeNotifier {
   /// In addEdge mode: the first tapped node awaiting a second tap.
   NodeId? pendingEdgeStartNodeId;
 
+  // ── Standard Truss Piece Size & BOM calculation ───────────────────────────
+  double _standardTrussPieceSize = 30.0;
+  double get standardTrussPieceSize => _standardTrussPieceSize;
+
+  /// Active structural analysis report reflecting live support and connectivity.
+  StructuralAnalysisReport get structuralReport =>
+      result.structuralReport ??
+      StructuralGraphAnalyzer.analyze(
+        layout,
+        preferredSpacingFeet: _standardTrussPieceSize,
+      );
+
+  /// Total linear feet of truss derived directly from actual Euclidean geometry.
+  double get totalLinearTrussFt {
+    double sum = 0.0;
+    for (final edge in layout.edges.values) {
+      sum += layout.getExactGeometricLengthFeet(edge);
+    }
+    return sum;
+  }
+
+  /// Total physical poles derived from calculation engine.
+  int get totalPoleCount => result?.poles.length ?? 0;
+
+  /// Generates the initial parametric base truss architecture.
+  void generateBaseArchitecture(BaseTrussGenerationParams params) {
+    layout = BaseTrussArchitectureGenerator.generate(params);
+    selectedEdgeId = null;
+    selectedNodeId = null;
+    pendingEdgeStartNodeId = null;
+    isCustomLayout = false;
+    history.clear();
+    _recalculate();
+  }
+
+  /// Sets physical support of a node (e.g. pole, none).
+  void setNodeSupport(NodeId nodeId, NodeSupport support) {
+    executeCommand(SetNodeSupportCommand(nodeId: nodeId, newSupport: support));
+  }
+
+  /// Removes vertical pole support from a node without deleting the node or connected members.
+  void removePoleSupport(NodeId nodeId) {
+    setNodeSupport(nodeId, NodeSupport.none);
+  }
+
+  /// Attaches an external entrance/structure to a side of the main structure.
+  void addExternalStructure({
+    required String structureId,
+    required EntranceSide side,
+    required double width,
+    required double projection,
+    required double offset,
+    double height = 20.0,
+  }) {
+    executeCommand(AddExternalStructureCommand(
+      structureId: structureId,
+      side: side,
+      width: width,
+      projection: projection,
+      offset: offset,
+      height: height,
+    ));
+  }
+
+  /// Total pieces of standard truss required (e.g. 90 ft / 30 ft piece = 3 pcs).
+  int get totalPiecesRequired {
+    if (_standardTrussPieceSize <= 0) return 0;
+    final totalFt = totalLinearTrussFt;
+    if (totalFt <= 0) return 0;
+    return (totalFt / _standardTrussPieceSize).ceil();
+  }
+
+  /// Sets the standard stock truss piece size (e.g. 30 ft), rebuilds catalog and recalculates BOM.
+  void setStandardTrussPieceSize(double sizeInFeet) {
+    if (sizeInFeet <= 0) return;
+    _standardTrussPieceSize = sizeInFeet;
+    _updateCatalogWithStandardSize();
+    _recalculate();
+    notifyListeners();
+  }
+
+  void _updateCatalogWithStandardSize() {
+    final types = List<TrussPieceType>.generate(20, (index) {
+      final ft = index + 1;
+      return TrussPieceType(
+        id: '${ft}ft',
+        length: Length.fromFeet(ft.toDouble()),
+      );
+    });
+    final stdFt = _standardTrussPieceSize;
+    if (stdFt > 0 && !types.any((t) => t.length.feet == stdFt)) {
+      final idLabel = stdFt.truncateToDouble() == stdFt
+          ? '${stdFt.toInt()}ft'
+          : '${stdFt.toStringAsFixed(1)}ft';
+      types.add(TrussPieceType(
+        id: idLabel,
+        length: Length.fromFeet(stdFt),
+      ));
+    }
+    catalog = TrussCatalog(types);
+  }
+
   // ── Grid Settings ──────────────────────────────────────────────────────────
   GridSettings gridSettings = const GridSettings(majorSpacing: 10.0, minorSpacing: 0.5);
   
@@ -63,13 +172,25 @@ class MandapEditorController extends ChangeNotifier {
   }
 
   MandapEditorController({this.engine = const MandapCalculationEngine()}) {
-    catalog = TrussCatalog.sample1To20Ft();
+    _updateCatalogWithStandardSize();
     _initLayout();
   }
 
   void _initLayout() {
     layout = currentPreset.createLayout();
     _recalculate();
+  }
+
+  /// Sets a new layout dynamically from in-editor dialogs or generator.
+  void setLayout(MandapLayout newLayout) {
+    layout = newLayout;
+    history.clear();
+    selectedEdgeId = null;
+    selectedNodeId = null;
+    pendingEdgeStartNodeId = null;
+    isCustomLayout = true;
+    _recalculate();
+    notifyListeners();
   }
 
   void _recalculate() {

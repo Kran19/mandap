@@ -73,9 +73,9 @@ class PolePlacementEngine {
   List<PolePlacement> calculatePoles(MandapLayout layout) {
     final result = <PolePlacement>[];
 
-    // 1. Structural corner nodes receive poles
+    // 1. Structural nodes receive poles only if node.hasPole is true
     for (final node in layout.nodes.values) {
-      if (node.type == NodeType.stage || node.type == NodeType.carpet) {
+      if (node.type == NodeType.stage || node.type == NodeType.carpet || !node.hasPole) {
         continue;
       }
       result.add(
@@ -95,6 +95,11 @@ class PolePlacementEngine {
       final endNode = layout.getNode(edge.endNodeId);
 
       if (startNode != null && endNode != null) {
+        // Internal members connecting to control points (e.g. center cross) do not receive ground poles
+        if (startNode.type == NodeType.controlPoint || endNode.type == NodeType.controlPoint) {
+          continue;
+        }
+
         final generated = strategy.calculateIntermediatePoles(
           edge: edge,
           startNode: startNode,

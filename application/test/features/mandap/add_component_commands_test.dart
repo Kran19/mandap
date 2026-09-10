@@ -17,7 +17,8 @@ void main() {
       final spec = TrussSpecification(
         width: 10.123456789,
         depth: 20.987654321,
-        elevation: 15.0,
+        height: 15.0,
+        roofElevation: 15.0,
       );
 
       final cmd = AddTrussCommand(spec: spec);
@@ -46,7 +47,7 @@ void main() {
 
       // All nodes have elevation e
       for (final node in nodes) {
-        expect(node.elevation, closeTo(spec.elevation, 1e-9));
+        expect(node.elevation, closeTo(spec.roofElevation, 1e-9));
         expect(node.type, NodeType.corner);
       }
 

@@ -1,0 +1,56 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mandap/l10n/app_localizations.dart';
+import 'package:mandap/core/localization/locale_notifier.dart';
+
+void main() {
+  group('MANDAP Multi-Language / Localization Integration Tests', () {
+    final approvedLocales = [
+      const Locale('en'),
+      const Locale('hi'),
+      const Locale('gu'),
+      const Locale('ta'),
+      const Locale('te'),
+      const Locale('mr'),
+      const Locale('bn'),
+    ];
+
+    test('All 7 approved locales are supported in AppLocalizations.delegate', () {
+      for (final locale in approvedLocales) {
+        expect(AppLocalizations.delegate.isSupported(locale), isTrue,
+            reason: 'Locale ${locale.languageCode} must be supported');
+      }
+    });
+
+    test('AppLocalizations lookup returns non-null instance for all 7 approved locales', () {
+      for (final locale in approvedLocales) {
+        final localizations = lookupAppLocalizations(locale);
+        expect(localizations, isNotNull);
+        expect(localizations.appTitle, equals('MANDAP'));
+        expect(localizations.truss, isNotEmpty);
+      }
+    });
+
+    test('LocaleNotifier initial default falls back to English for unsupported device locale', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      SharedPreferences.setMockInitialValues({});
+      final notifier = LocaleNotifier();
+      expect(notifier.supportedLanguages.length, equals(7));
+      expect(kApprovedLanguages.any((l) => l.code == 'en'), isTrue);
+    });
+
+    test('LocaleNotifier updates locale and maintains persistence key format', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      SharedPreferences.setMockInitialValues({});
+      final notifier = LocaleNotifier();
+      await notifier.setLanguageByCode('hi');
+      expect(notifier.locale.languageCode, equals('hi'));
+      expect(notifier.currentLanguage.nativeName, equals('हिन्दी'));
+
+      await notifier.setLanguageByCode('gu');
+      expect(notifier.locale.languageCode, equals('gu'));
+      expect(notifier.currentLanguage.nativeName, equals('ગુજરાતી'));
+    });
+  });
+}

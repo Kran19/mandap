@@ -18,5 +18,10 @@ export var AdminPermissions;
     AdminPermissions["FEATURE_FLAGS_READ"] = "ADMIN_FEATURE_FLAGS_READ";
     AdminPermissions["FEATURE_FLAGS_WRITE"] = "ADMIN_FEATURE_FLAGS_WRITE";
     AdminPermissions["USAGE_READ"] = "ADMIN_USAGE_READ";
+    AdminPermissions["SUBSCRIPTIONS_READ"] = "subscriptions.read";
+    AdminPermissions["ORDERS_READ"] = "orders.read";
+    AdminPermissions["PAYMENTS_READ"] = "payments.read";
+    AdminPermissions["REFUNDS_READ"] = "refunds.read";
+    AdminPermissions["REFUNDS_CREATE"] = "refunds.create";
 })(AdminPermissions || (AdminPermissions = {}));
 //# sourceMappingURL=admin-permissions.js.map

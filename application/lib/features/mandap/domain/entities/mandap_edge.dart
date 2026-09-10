@@ -5,6 +5,14 @@ import 'edge_id.dart';
 import 'mandap_node.dart';
 import 'node_id.dart';
 
+/// Defines the structural rendering and cross-section profile of an edge.
+enum EdgeProfile {
+  /// Standard rectangular box truss (e.g. 4 chords and lattice).
+  box,
+  /// Single cylindrical tube (e.g. for individual lattice bracing or single pipes).
+  singleTube,
+}
+
 /// Represents a horizontal truss edge run connecting two [MandapNode] instances.
 @immutable
 class MandapEdge {
@@ -16,11 +24,16 @@ class MandapEdge {
   /// before spatial node placement is finalized.
   final Length? requestedLength;
 
+  /// The physical rendering and structural profile of this edge.
+  /// Defaults to [EdgeProfile.box] for legacy compatibility if missing.
+  final EdgeProfile? profile;
+
   const MandapEdge({
     required this.id,
     required this.startNodeId,
     required this.endNodeId,
     this.requestedLength,
+    this.profile,
   });
 
   /// Calculates the actual geometric physical length of this edge
@@ -57,12 +70,14 @@ class MandapEdge {
     NodeId? startNodeId,
     NodeId? endNodeId,
     Length? requestedLength,
+    EdgeProfile? profile,
   }) {
     return MandapEdge(
       id: id ?? this.id,
       startNodeId: startNodeId ?? this.startNodeId,
       endNodeId: endNodeId ?? this.endNodeId,
       requestedLength: requestedLength ?? this.requestedLength,
+      profile: profile ?? this.profile,
     );
   }
 
@@ -73,10 +88,11 @@ class MandapEdge {
           id == other.id &&
           startNodeId == other.startNodeId &&
           endNodeId == other.endNodeId &&
-          requestedLength == other.requestedLength);
+          requestedLength == other.requestedLength &&
+          profile == other.profile);
 
   @override
-  int get hashCode => Object.hash(id, startNodeId, endNodeId, requestedLength);
+  int get hashCode => Object.hash(id, startNodeId, endNodeId, requestedLength, profile);
 
   @override
   String toString() => 'MandapEdge($id, $startNodeId -> $endNodeId)';

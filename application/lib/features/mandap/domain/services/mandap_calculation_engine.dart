@@ -7,6 +7,7 @@ import '../value_objects/mandap_calculation_result.dart';
 import '../entities/mandap_zone.dart';
 import 'inventory_validator.dart';
 import 'pole_placement_engine.dart';
+import 'structural_graph_analyzer.dart';
 import 'truss_optimizer.dart';
 
 /// Central domain orchestrator for Mandap layout calculations.
@@ -31,6 +32,19 @@ class MandapCalculationEngine {
     // 2. Solve truss piece decomposition per edge
     final edgeSolutions = <EdgeId, EdgeSolution>{};
     for (final edge in layout.edges.values) {
+      final startNode = layout.nodes[edge.startNodeId];
+      final endNode = layout.nodes[edge.endNodeId];
+      if (startNode != null && endNode != null) {
+        try {
+          edge.calculateGeometricLength(startNode, endNode);
+        } catch (_) {
+          warnings.add(
+            'Edge ${edge.id} has a diagonal length that is not a 0.5 ft increment — '
+            'adjust node positions to axis-aligned or 0.5 ft snap for truss calculation.',
+          );
+        }
+      }
+
       try {
         final length = layout.getEdgeLength(edge);
         final sol = TrussOptimizer.solveEdge(
@@ -75,7 +89,14 @@ class MandapCalculationEngine {
     // 5. Calculate vertical support poles
     final poles = poleEngine.calculatePoles(layout);
 
-    // 6. Calculate Totals
+    // 6. Run pure structural graph analysis
+    final structuralReport = StructuralGraphAnalyzer.analyze(
+      layout,
+      preferredSpacingFeet: poleEngine.maxSpanFeet,
+    );
+    warnings.addAll(structuralReport.warnings);
+
+    // 7. Calculate Totals
     double totalTrussLengthFt = 0.0;
     for (final entry in requiredBOM.entries) {
       totalTrussLengthFt += entry.key.length.feet * entry.value;
@@ -99,6 +120,7 @@ class MandapCalculationEngine {
       poles: poles,
       inventoryShortages: shortages,
       warnings: List.unmodifiable(warnings),
+      structuralReport: structuralReport,
       totalTrussLengthFt: totalTrussLengthFt,
       totalFlooringAreaSqFt: totalFlooringAreaSqFt,
       totalStageAreaSqFt: totalStageAreaSqFt,

@@ -4,6 +4,7 @@ import 'package:mandap/features/mandap/domain/entities/mandap_layout.dart';
 import 'package:mandap/features/mandap/domain/entities/mandap_node.dart';
 import 'package:mandap/features/mandap/domain/entities/node_id.dart';
 import 'package:mandap/features/mandap/infrastructure/layout_serializer.dart';
+import 'package:mandap/core/errors/api_exceptions.dart';
 
 void main() {
   group('LayoutSerializer Round Trip & Precision Verification', () {

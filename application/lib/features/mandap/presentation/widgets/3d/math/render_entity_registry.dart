@@ -96,29 +96,44 @@ class RenderEntityRegistry {
   HandleRenderEntity? getHandle(NodeId nodeId) => _handles[nodeId];
   PoleRenderEntity? getPole(PoleRenderId poleId) => _poles[poleId];
 
-  /// Performs 3D raycast picking to find the closest handle entity.
+  /// Performs 3D raycast picking to find the closest handle entity,
+  /// supporting either a [cameraRay] or a direct [planeIntersectionPoint].
   NodeId? pickHandle({
-    required v64.Ray cameraRay,
+    v64.Ray? cameraRay,
+    v64.Vector3? planeIntersectionPoint,
     double hitRadiusFeet = 7.0,
   }) {
     NodeId? closestNodeId;
     double minDistance = hitRadiusFeet;
 
-    final rayOrigin = cameraRay.origin;
-    final rayDir = cameraRay.direction.normalized();
+    if (planeIntersectionPoint != null) {
+      for (final handle in _handles.values) {
+        final dist = (handle.position - planeIntersectionPoint).length;
+        if (dist <= minDistance) {
+          minDistance = dist;
+          closestNodeId = handle.nodeId;
+        }
+      }
+      return closestNodeId;
+    }
 
-    for (final handle in _handles.values) {
-      final pos = handle.position;
-      final v = pos - rayOrigin;
-      final t = v.dot(rayDir);
-      if (t < 0.0) continue; // Behind camera
+    if (cameraRay != null) {
+      final rayOrigin = cameraRay.origin;
+      final rayDir = cameraRay.direction.normalized();
 
-      final proj = rayOrigin + rayDir * t;
-      final dist = (pos - proj).length;
+      for (final handle in _handles.values) {
+        final pos = handle.position;
+        final v = pos - rayOrigin;
+        final t = v.dot(rayDir);
+        if (t < 0.0) continue; // Behind camera
 
-      if (dist <= minDistance) {
-        minDistance = dist;
-        closestNodeId = handle.nodeId;
+        final proj = rayOrigin + rayDir * t;
+        final dist = (pos - proj).length;
+
+        if (dist <= minDistance) {
+          minDistance = dist;
+          closestNodeId = handle.nodeId;
+        }
       }
     }
 

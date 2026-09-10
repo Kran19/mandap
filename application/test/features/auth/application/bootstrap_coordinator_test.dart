@@ -22,7 +22,6 @@ void main() {
     coordinator = BootstrapCoordinator(
       authRepository: mockAuthRepository,
       billingRepository: mockBillingRepository,
-      defaultOrganizationId: 'org_1',
     );
   });
 
@@ -64,6 +63,7 @@ void main() {
       emailVerified: true,
       mobileVerified: true,
       identityVerified: true,
+      organizationId: 'org_1',
     ));
     when(() => mockBillingRepository.getEntitlement('org_1')).thenAnswer((_) async => const EntitlementResult(
       applicationAccess: false,
@@ -86,6 +86,7 @@ void main() {
       emailVerified: true,
       mobileVerified: true,
       identityVerified: true,
+      organizationId: 'org_1',
     ));
     when(() => mockBillingRepository.getEntitlement('org_1')).thenAnswer((_) async => const EntitlementResult(
       applicationAccess: true,

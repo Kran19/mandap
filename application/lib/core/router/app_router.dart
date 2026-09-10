@@ -16,7 +16,12 @@ import '../../features/projects/presentation/projects_dashboard_screen.dart';
 
 // Placeholder screen imports - these will be built out in later steps
 import '../../features/mandap/presentation/mandap_editor_screen.dart';
+import '../../features/mandap/presentation/wizard/truss_configuration_wizard_screen.dart';
+import '../../features/module_selection/presentation/module_selection_screen.dart';
 import '../../features/projects/presentation/component_wizard_screen.dart';
+import '../../features/pole/presentation/pole_calculator_screen.dart';
+import '../../features/stage/presentation/stage_calculator_screen.dart';
+import '../../features/flooring/presentation/flooring_calculator_screen.dart';
 
 class PlaceholderScreen extends StatelessWidget {
   final String title;
@@ -81,7 +86,7 @@ class AppRouter {
                AppDestination.verifyMobile => '/verify-mobile',
                AppDestination.verifyIdentity => '/verify-identity',
                AppDestination.authorizeBilling => '/billing/trial',
-               AppDestination.projects => '/component-wizard',
+               AppDestination.projects => '/editor',
                AppDestination.blocked => '/blocked',
                _ => '/',
             };
@@ -109,7 +114,7 @@ class AppRouter {
                case AppDestination.authorizeBilling:
                  return '/billing/trial';
                case AppDestination.projects:
-                 return '/component-wizard';
+                 return '/modules';
                case AppDestination.blocked:
                  return '/blocked';
                default:
@@ -160,6 +165,18 @@ class AppRouter {
           path: '/blocked',
           builder: (context, state) => const PlaceholderScreen(title: 'Account Blocked / Action Required'),
         ),
+        // --- Module Selection & Wizard ---
+        GoRoute(
+          path: '/modules',
+          builder: (context, state) => const ModuleSelectionScreen(),
+        ),
+        GoRoute(
+          path: '/truss-wizard',
+          builder: (context, state) {
+            final projectId = state.uri.queryParameters['projectId'];
+            return TrussConfigurationWizardScreen(existingProjectId: projectId);
+          },
+        ),
         // --- App Routes (Entitlement Protected) ---
         GoRoute(
           path: '/projects',
@@ -178,6 +195,18 @@ class AppRouter {
             final projectId = state.uri.queryParameters['projectId'] ?? 'new';
             return ComponentWizardScreen(projectId: projectId);
           },
+        ),
+        GoRoute(
+          path: '/pole',
+          builder: (context, state) => const PoleCalculatorScreen(),
+        ),
+        GoRoute(
+          path: '/stage',
+          builder: (context, state) => const StageCalculatorScreen(),
+        ),
+        GoRoute(
+          path: '/flooring',
+          builder: (context, state) => const FlooringCalculatorScreen(),
         ),
       ],
     );

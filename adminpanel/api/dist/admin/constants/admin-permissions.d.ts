@@ -16,5 +16,10 @@ export declare enum AdminPermissions {
     PROJECTS_WRITE = "ADMIN_PROJECTS_WRITE",
     FEATURE_FLAGS_READ = "ADMIN_FEATURE_FLAGS_READ",
     FEATURE_FLAGS_WRITE = "ADMIN_FEATURE_FLAGS_WRITE",
-    USAGE_READ = "ADMIN_USAGE_READ"
+    USAGE_READ = "ADMIN_USAGE_READ",
+    SUBSCRIPTIONS_READ = "subscriptions.read",
+    ORDERS_READ = "orders.read",
+    PAYMENTS_READ = "payments.read",
+    REFUNDS_READ = "refunds.read",
+    REFUNDS_CREATE = "refunds.create"
 }

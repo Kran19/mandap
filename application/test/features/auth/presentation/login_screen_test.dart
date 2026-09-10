@@ -36,43 +36,43 @@ void main() {
     await tester.pumpWidget(createTestWidget());
 
     expect(find.text('Welcome Back'), findsOneWidget);
-    expect(find.byType(TextField), findsNWidgets(2)); // Email and Password
-    expect(find.text('Login'), findsOneWidget);
+    expect(find.byType(TextField), findsNWidgets(2)); // Phone and Password
+    expect(find.text('Continue'), findsOneWidget);
   });
 
   testWidgets('shows error message when login fails', (WidgetTester tester) async {
-    when(() => mockAuthRepository.login(any(), any())).thenAnswer((_) async => false);
+    when(() => mockAuthRepository.login(any(), any())).thenAnswer((_) async => LoginResult.error('Invalid phone or password'));
 
     await tester.pumpWidget(createTestWidget());
 
-    await tester.enterText(find.byType(TextField).first, 'test@test.com');
+    await tester.enterText(find.byType(TextField).first, '9876543210');
     await tester.enterText(find.byType(TextField).last, 'password');
-    await tester.tap(find.text('Login'));
+    await tester.tap(find.text('Continue'));
     
     // Initial pump for setState, another for Future completion
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('Invalid email or password'), findsOneWidget);
-    verify(() => mockAuthRepository.login('test@test.com', 'password')).called(1);
+    expect(find.text('Invalid phone or password'), findsOneWidget);
+    verify(() => mockAuthRepository.login('9876543210', 'password')).called(1);
     verifyNever(() => mockCoordinator.bootstrap());
   });
 
   testWidgets('triggers bootstrap when login succeeds', (WidgetTester tester) async {
-    when(() => mockAuthRepository.login(any(), any())).thenAnswer((_) async => true);
+    when(() => mockAuthRepository.login(any(), any())).thenAnswer((_) async => LoginResult.authenticated());
     when(() => mockCoordinator.bootstrap()).thenAnswer((_) async {});
 
     await tester.pumpWidget(createTestWidget());
 
-    await tester.enterText(find.byType(TextField).first, 'test@test.com');
+    await tester.enterText(find.byType(TextField).first, '9876543210');
     await tester.enterText(find.byType(TextField).last, 'password');
-    await tester.tap(find.text('Login'));
+    await tester.tap(find.text('Continue'));
     
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('Invalid email or password'), findsNothing);
-    verify(() => mockAuthRepository.login('test@test.com', 'password')).called(1);
+    expect(find.text('Invalid phone or password'), findsNothing);
+    verify(() => mockAuthRepository.login('9876543210', 'password')).called(1);
     verify(() => mockCoordinator.bootstrap()).called(1);
   });
 }

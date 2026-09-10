@@ -36,10 +36,10 @@ class _PremiumAuthButtonState extends State<PremiumAuthButton> {
             borderRadius: BorderRadius.circular(12),
             gradient: LinearGradient(
               colors: isDisabled
-                  ? [Colors.white.withOpacity(0.1), Colors.white.withOpacity(0.1)]
+                  ? [const Color(0xFFCBD5E1), const Color(0xFFCBD5E1)]
                   : [
-                      const Color(0xFF6366F1), // Indigo 500
-                      const Color(0xFF8B5CF6), // Violet 500
+                      const Color(0xFF2563EB), // Blue 600
+                      const Color(0xFF1D4ED8), // Blue 700
                     ],
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
@@ -47,7 +47,7 @@ class _PremiumAuthButtonState extends State<PremiumAuthButton> {
             boxShadow: _isHovered && !isDisabled
                 ? [
                     BoxShadow(
-                      color: const Color(0xFF8B5CF6).withOpacity(0.4),
+                      color: const Color(0xFF2563EB).withValues(alpha: 0.35),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     )

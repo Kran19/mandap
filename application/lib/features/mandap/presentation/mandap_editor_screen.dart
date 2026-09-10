@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../application/editor_mode.dart';
 import '../application/mandap_editor_controller.dart';
 import '../domain/entities/edge_id.dart';
+import '../domain/generators/base_truss_architecture_generator.dart';
 import '../domain/entities/mandap_preset.dart';
 import '../domain/entities/node_id.dart';
 import '../domain/entities/mandap_node.dart';
@@ -13,9 +14,6 @@ import 'top_view_2d/mandap_2d_interactive_painter.dart';
 import 'viewport_transform.dart';
 import 'widgets/3d/mandap_3d_controller.dart';
 import 'widgets/3d/mandap_3d_view.dart';
-import 'widgets/bom_panel.dart';
-import 'widgets/editor_mode_bar.dart';
-import 'widgets/selection_sheet.dart';
 import '../../auth/application/bootstrap_coordinator.dart';
 import '../../projects/infrastructure/projects_repository.dart';
 import '../../projects/infrastructure/project_version_repository.dart';
@@ -24,20 +22,18 @@ import '../../projects/application/project_sync_service.dart';
 import '../../projects/domain/sync_state.dart';
 import '../../projects/domain/local_project_sync_metadata.dart';
 import '../../mandap/infrastructure/layout_serializer.dart';
+import '../application/commands/add_external_structure_command.dart';
+import '../domain/value_objects/structural_analysis_report.dart';
 import '../../../core/errors/api_exceptions.dart';
+import 'editor/widgets/cad_header_bar.dart';
+import 'editor/widgets/tool_rail_widget.dart';
+import 'editor/widgets/floating_warning_chip.dart';
+import 'editor/widgets/inspector_bom_panel.dart';
 
-enum _ViewMode { topView2D, view3D }
+enum ViewMode { topView2D, view3D }
 
 /// Primary Mandap Layout Editor screen.
-///
-/// Layout (phone portrait):
-///   AppBar (slim — only logo + undo/redo/preset)
-///   ├── Viewport (Expanded — 2D or 3D)
-///   │   └── BomPanel overlay (DraggableScrollableSheet)
-///   │   └── SelectionSheet (bottom slide-up when selected)
-///   └── EditorModeBar (64 dp, fixed bottom)
-///
-/// The AppBar is deliberately minimal to avoid overflow on 360dp screens.
+/// CAD-Grade Event Structure Design Canvas
 class MandapEditorScreen extends StatefulWidget {
   final String projectId;
   const MandapEditorScreen({super.key, required this.projectId});
@@ -49,11 +45,15 @@ class MandapEditorScreen extends StatefulWidget {
 class MandapEditorScreenState extends State<MandapEditorScreen> {
   late MandapEditorController controller;
   late Mandap3DController controller3D;
-  _ViewMode _viewMode = _ViewMode.topView2D;
+  ViewMode _viewMode = ViewMode.topView2D;
 
   String? _projectName;
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isMobileInspectorOpen = false;
+  bool _isToolRailOpen = true;
+  bool _isMeasuring = false;
+  bool _isOrthographic = false;
   ProjectSyncService? _syncService;
   MandapLayout? _lastNotifiedLayout;
 
@@ -299,7 +299,12 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
       case EditorMode.delete:
         final hitNode = _hitTestNode(screenPos);
         if (hitNode != null) {
-          controller.deleteNode(hitNode);
+          final node = controller.layout.getNode(hitNode);
+          if (node != null && node.hasPole) {
+            _showNodeEraserOptions(node);
+          } else {
+            controller.deleteNode(hitNode);
+          }
         } else {
           final hitEdge = _hitTestEdge(screenPos);
           if (hitEdge != null) {
@@ -314,6 +319,20 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
   }
 
   void _onPanStart(DragStartDetails details) {
+    // If grabbing a node in select or move mode, immediately begin drag
+    final hitNode = _hitTestNode(details.localPosition);
+    if (hitNode != null &&
+        (controller.mode == EditorMode.select || controller.mode == EditorMode.move)) {
+      controller.selectNode(hitNode);
+      _dragStartScreen = details.localPosition;
+      final node = controller.layout.getNode(hitNode);
+      if (node != null) {
+        final worldGrab = _transform.screenToWorld(details.localPosition);
+        _dragOffsetWorld = (x: worldGrab.x - node.x, z: worldGrab.z - node.z);
+      }
+      return;
+    }
+
     if (controller.mode == EditorMode.move &&
         controller.selectedNodeId != null) {
       _dragStartScreen = details.localPosition;
@@ -333,15 +352,7 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
-    if (controller.mode == EditorMode.view) {
-      // Pan the viewport
-      setState(() {
-        _transform = _transform.pan(details.delta.dx, details.delta.dy);
-      });
-      return;
-    }
-
-    if (controller.mode == EditorMode.move &&
+    if ((controller.mode == EditorMode.move || controller.mode == EditorMode.select) &&
         controller.selectedNodeId != null &&
         _dragStartScreen != null) {
       // Preview snap cursor
@@ -352,6 +363,14 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
       final snapped = _transform.snapToGrid(targetX, targetZ, gridSpacing: _getDynamicSnapGrid());
       setState(() {
         _snapCursor = snapped;
+      });
+      return;
+    }
+
+    if (controller.mode == EditorMode.view || controller.mode == EditorMode.select) {
+      // Pan the viewport
+      setState(() {
+        _transform = _transform.pan(details.delta.dx, details.delta.dy);
       });
       return;
     }
@@ -374,7 +393,7 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
   }
 
   void _onPanEnd(DragEndDetails details) {
-    if (controller.mode == EditorMode.move &&
+    if ((controller.mode == EditorMode.move || controller.mode == EditorMode.select) &&
         controller.selectedNodeId != null &&
         _snapCursor != null) {
       controller.moveNode(
@@ -477,13 +496,23 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
 
   void _fitView(Size canvasSize) {
     setState(() {
-      if (_viewMode == _ViewMode.view3D) {
+      if (_viewMode == ViewMode.view3D) {
         controller3D.fitCamera(controller.layout);
       } else {
         _transform = ViewportTransform.fitToLayout(
           layout: controller.layout,
           canvasSize: canvasSize,
         );
+      }
+    });
+  }
+
+  void _resetView() {
+    setState(() {
+      if (_viewMode == ViewMode.view3D) {
+        controller3D.fitCamera(controller.layout);
+      } else {
+        _transform = ViewportTransform.defaultTransform();
       }
     });
   }
@@ -713,293 +742,230 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final hasSelection =
-        controller.selectedEdgeId != null || controller.selectedNodeId != null;
-
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         final shouldLeave = await _onWillPop();
-        if (shouldLeave && mounted) context.go('/projects');
+        if (shouldLeave && mounted) context.go('/modules');
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFF0F172A),
+        backgroundColor: const Color(0xFF0B0F19), // Dark blueprint background
         body: SafeArea(
           child: Column(
             children: [
-              _buildResponsiveHeader(),
+              // Top CAD Header Bar
+              CadHeaderBar(
+                controller: controller,
+                projectName: _projectName ?? 'Project 01',
+                onProjectNameChanged: (val) => setState(() => _projectName = val),
+                syncService: _syncService,
+                onSave: _saveNow,
+                viewMode: _viewMode,
+                onViewModeChanged: (m) => setState(() => _viewMode = m),
+              ),
+
+              // Main Workspace Canvas + Left Tool Rail + Right Inspector/BOM
               Expanded(
-                child: Stack(
-                  children: [
-                    // ── Viewport ────────────────────────────────────────────────
-                    Positioned.fill(child: _buildViewport()),
-                    
-                    // ── Fit View FAB ─────────────────────────────────────────────
-                    Positioned(top: 10, right: 10, child: _buildFitButton()),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth >= 820;
 
-                    // ── Mode hint banner ─────────────────────────────────────────
-                    Positioned(top: 10, left: 10, child: _buildModeHint()),
+                    final canvasStack = Stack(
+                      children: [
+                        // Viewport (2D / 3D)
+                        Positioned.fill(child: _buildViewport()),
 
-                    // ── BOM Panel ────────────────────────────────────────────────
-                    if (!hasSelection)
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          ignoring: _viewMode == _ViewMode.view3D &&
-                              controller.mode != EditorMode.view,
-                          child: BomPanel(controller: controller),
-                        ),
-                      ),
-
-                    // ── Selection sheet ──────────────────────────────────────────
-                    if (hasSelection)
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: SelectionSheet(controller: controller),
-                      ),
-                  ],
-                ),
-              ),
-
-              // ── Mode Bar ───────────────────────────────────────────────────────
-              EditorModeBar(
-                currentMode: controller.mode,
-                pendingNodeType: controller.pendingNodeType,
-                projectId: widget.projectId,
-                onModeChanged: (m) {
-                  controller.setMode(m);
-                  setState(() => _snapCursor = null);
-                },
-                onNodeTypeChanged: (t) {
-                  controller.setPendingNodeType(t);
-                },
-                onDeletePressed: _handleDeletePressed,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildResponsiveHeader() {
-    final isMobile = MediaQuery.of(context).size.width < 600;
-    
-    return Container(
-      color: const Color(0xFF0F172A),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () async {
-                  final shouldLeave = await _onWillPop();
-                  if (shouldLeave && mounted) context.go('/projects');
-                },
-                tooltip: 'Exit to Dashboard',
-              ),
-              const Icon(Icons.architecture, size: 18, color: Color(0xFF2563EB)),
-              const SizedBox(width: 8),
-              if (_isLoading)
-                SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70))
-              else
-                Expanded(
-                  child: Text(
-                    _projectName ?? 'Unknown Project',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.0,
-                      color: Colors.white,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              if (!isMobile) ...[
-                const SizedBox(width: 16),
-                _buildSyncIndicator(),
-                const SizedBox(width: 8),
-                const Text('v: latest', style: TextStyle(fontSize: 11, color: Colors.white54)),
-              ],
-              if (!isMobile) Expanded(child: _buildToolbarActions()),
-              if (isMobile) const SizedBox(width: 8),
-              if (isMobile) _buildSyncIndicator(),
-              if (isMobile) const SizedBox(width: 16),
-            ],
-          ),
-          if (isMobile)
-            Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                border: Border(top: BorderSide(color: Colors.white10)),
-              ),
-              child: _buildToolbarActions(),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSyncIndicator() {
-    if (_syncService == null) return const SizedBox.shrink();
-    return ValueListenableBuilder<SyncState>(
-      valueListenable: _syncService!.syncState,
-      builder: (context, state, child) {
-        final color = switch (state) {
-          SyncState.CLEAN => Colors.green,
-          SyncState.DIRTY => Colors.orange,
-          SyncState.SYNCING => Colors.blue,
-          SyncState.CONFLICT => Colors.red,
-          SyncState.ERROR => Colors.red,
-          SyncState.AUTH_BLOCKED => Colors.red,
-          SyncState.OFFLINE => Colors.grey,
-        };
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
-          child: Text(state.name, style: TextStyle(fontSize: 11, color: color)),
-        );
-      },
-    );
-  }
-
-  Widget _buildToolbarActions() {
-    return Row(
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.logout, size: 20, color: Colors.white70),
-                  tooltip: 'Logout',
-                  onPressed: () => context.read<BootstrapCoordinator>().logout(),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.grid_4x4, size: 20, color: Colors.white70),
-                  tooltip: 'Grid Settings',
-                  onPressed: _showGridSettings,
-                ),
-                // Preset selector popup menu
-                PopupMenuButton<MandapPreset>(
-                  tooltip: 'Select Layout Preset',
-                  icon: const Icon(Icons.dashboard_outlined, color: Colors.white70),
-                  color: const Color(0xFF1E293B),
-                  onSelected: (p) {
-                    controller.loadPreset(p);
-                    setState(() => _snapCursor = null);
-                  },
-                  itemBuilder: (context) => MandapPreset.availablePresets().map((p) {
-                    final isSelected =
-                        p.id == controller.currentPreset.id &&
-                        !controller.isCustomLayout;
-                    return PopupMenuItem(
-                      value: p,
-                      child: Row(
-                        children: [
-                          Icon(
-                            isSelected ? Icons.check_circle : Icons.circle_outlined,
-                            size: 16,
-                            color: isSelected
-                                ? const Color(0xFF2563EB)
-                                : Colors.white54,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            p.name,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isSelected ? Colors.white : Colors.white70,
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
+                        // Left Floating Tool Rail (Collapsible)
+                        if (_isToolRailOpen)
+                          Positioned(
+                            left: 12,
+                            top: 12,
+                            child: ToolRailWidget(
+                              controller: controller,
+                              onGridSettings: _showGridSettings,
+                              onEditorSettings: _showTrussSizeDialog,
+                              isMeasuring: _isMeasuring,
+                              onToggleMeasure: () => setState(() => _isMeasuring = !_isMeasuring),
+                              onConfigureDimensions: _showDimensionsDialog,
+                              onToggleCollapse: () => setState(() => _isToolRailOpen = false),
+                            ),
+                          )
+                        else
+                          Positioned(
+                            left: 12,
+                            top: 12,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0F1523).withValues(alpha: 0.95),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFF1E293B)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.4),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: IconButton(
+                                icon: const Icon(Icons.chevron_right_rounded, color: Color(0xFF60A5FA), size: 22),
+                                tooltip: 'Show Tools',
+                                onPressed: () => setState(() => _isToolRailOpen = true),
+                              ),
                             ),
                           ),
-                        ],
-                      ),
+
+                        // Floating Warning Chip (pinned top-center)
+                        Positioned(
+                          top: 12,
+                          left: 90,
+                          right: isWide ? 90 : 64,
+                          child: FloatingWarningChip(
+                            report: controller.structuralReport,
+                            onTap: () => _showStructuralReportSheet(controller.structuralReport),
+                          ),
+                        ),
+
+                        // Bottom-Right Viewport controls (Fit Screen, Reset View)
+                        Positioned(
+                          bottom: 16,
+                          right: 16,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildFitButton(),
+                              const SizedBox(width: 8),
+                              _buildResetButton(),
+                            ],
+                          ),
+                        ),
+
+                        // Mobile Inspector / BOM toggle button
+                        if (!isWide)
+                          Positioned(
+                            top: 12,
+                            right: 12,
+                            child: _buildMobileInspectorToggle(),
+                          ),
+
+                        // Mobile sliding drawer for Inspector / BOM
+                        if (!isWide && _isMobileInspectorOpen)
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            bottom: 0,
+                            width: 300,
+                            child: Material(
+                              elevation: 16,
+                              color: const Color(0xFF0F1523),
+                              child: Stack(
+                                children: [
+                                  Positioned.fill(
+                                    child: InspectorBomPanel(
+                                      controller: controller,
+                                      viewMode: _viewMode,
+                                      onViewModeChanged: (m) => setState(() => _viewMode = m),
+                                      onFitToScreen: () => _fitView(_canvasSize),
+                                      onResetView: _resetView,
+                                      onToggleOrthographic: () => setState(() => _isOrthographic = !_isOrthographic),
+                                      isOrthographic: _isOrthographic,
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 10,
+                                    right: 10,
+                                    child: IconButton(
+                                      icon: const Icon(Icons.close, color: Colors.white70),
+                                      onPressed: () => setState(() => _isMobileInspectorOpen = false),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
                     );
-                  }).toList(),
+
+                    if (isWide) {
+                      return Row(
+                        children: [
+                          Expanded(child: canvasStack),
+                          InspectorBomPanel(
+                            controller: controller,
+                            viewMode: _viewMode,
+                            onViewModeChanged: (m) => setState(() => _viewMode = m),
+                            onFitToScreen: () => _fitView(_canvasSize),
+                            onResetView: _resetView,
+                            onToggleOrthographic: () => setState(() => _isOrthographic = !_isOrthographic),
+                            isOrthographic: _isOrthographic,
+                          ),
+                        ],
+                      );
+                    }
+
+                    return canvasStack;
+                  },
                 ),
-                const SizedBox(width: 4),
-                _ViewToggle(
-                  current: _viewMode,
-                  onChanged: (m) => setState(() => _viewMode = m),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.undo, size: 20, color: Colors.white70),
-                  tooltip: 'Undo',
-                  onPressed: controller.history.canUndo
-                      ? () => controller.undo()
-                      : null,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.redo, size: 20, color: Colors.white70),
-                  tooltip: 'Redo',
-                  onPressed: controller.history.canRedo
-                      ? () => controller.redo()
-                      : null,
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-        // Pin the Save button to the right
-        if (_syncService != null)
-          ValueListenableBuilder<SyncState>(
-            valueListenable: _syncService!.syncState,
-            builder: (context, state, _) {
-              final isDirty = state == SyncState.DIRTY || state == SyncState.ERROR;
-              final isConflict = state == SyncState.CONFLICT;
-              final showActiveSave = isDirty || isConflict;
-              
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.only(left: 4, right: 8),
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isConflict ? Colors.red : (showActiveSave ? const Color(0xFF2563EB) : const Color(0xFF1E293B)),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    elevation: showActiveSave ? 4 : 0,
-                  ),
-                  icon: _isSaving
-                      ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : Icon(isConflict ? Icons.warning : (showActiveSave ? Icons.save : Icons.check), size: 16),
-                  label: Text(
-                    _isSaving ? 'Saving…' : (isConflict ? 'Force Save' : (showActiveSave ? 'Save' : 'Saved')),
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                  ),
-                  onPressed: _isSaving 
-                    ? null 
-                    : (isConflict 
-                        ? () async {
-                            // Resolve conflict by forcing local changes onto server
-                            final repo = context.read<ProjectVersionRepository>();
-                            final versions = await repo.getVersions(context.read<BootstrapCoordinator>().current.user!.organizationId!, widget.projectId);
-                            if (versions.isNotEmpty) {
-                              await _syncService?.resolveConflictKeepLocal(versions.first.id);
-                              await _saveNow();
-                            }
-                          }
-                        : (isDirty ? _saveNow : null)),
-                ),
-              );
-            },
-          ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildResetButton() {
+    return GestureDetector(
+      onTap: _resetView,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F1523).withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF334155)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            )
+          ],
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.refresh_rounded, size: 14, color: Color(0xFF94A3B8)),
+            SizedBox(width: 4),
+            Text('Reset', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileInspectorToggle() {
+    return GestureDetector(
+      onTap: () => setState(() => _isMobileInspectorOpen = !_isMobileInspectorOpen),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2563EB),
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            )
+          ],
+        ),
+        child: const Icon(Icons.tune_rounded, size: 18, color: Colors.white),
+      ),
     );
   }
   Widget _buildViewport() {
-    if (_viewMode == _ViewMode.view3D) {
+    if (_viewMode == ViewMode.view3D) {
       return Stack(
         children: [
           Mandap3DView(controller: controller, controller3D: controller3D),
@@ -1076,16 +1042,23 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E293B).withValues(alpha: 0.9),
+          color: const Color(0xFF0D2818).withValues(alpha: 0.92),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFF334155)),
+          border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.5)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            )
+          ],
         ),
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.fit_screen, size: 14, color: Colors.white70),
+            Icon(Icons.fit_screen, size: 14, color: Color(0xFF34D399)),
             SizedBox(width: 4),
-            Text('Fit', style: TextStyle(fontSize: 11, color: Colors.white70)),
+            Text('Fit', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
@@ -1123,13 +1096,13 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B).withValues(alpha: 0.9),
+        color: const Color(0xFF0D2818).withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF334155)),
+        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.45)),
       ),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 11, color: Colors.white70),
+        style: const TextStyle(fontSize: 11, color: Color(0xFFD1FAE5), fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -1187,13 +1160,762 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
       },
     );
   }
+
+  void _showTrussSizeDialog() {
+    double tempSize = controller.standardTrussPieceSize;
+    final textController = TextEditingController(
+      text: tempSize.truncateToDouble() == tempSize 
+          ? tempSize.toInt().toString() 
+          : tempSize.toString(),
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            final totalFt = controller.totalLinearTrussFt;
+            final requiredPieces = tempSize > 0 ? (totalFt / tempSize).ceil() : 0;
+            const quickSizes = [10.0, 15.0, 20.0, 25.0, 30.0, 40.0];
+
+            return AlertDialog(
+              backgroundColor: const Color(0xFF1E293B),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Row(
+                children: [
+                  Icon(Icons.straighten_rounded, color: Color(0xFF3B82F6), size: 22),
+                  SizedBox(width: 10),
+                  Text(
+                    'Truss Piece Size',
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Choose standard stock piece size (feet):',
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: quickSizes.map((size) {
+                        final isSelected = (tempSize - size).abs() < 0.01;
+                        final label = '${size.toInt()} ft';
+                        return ChoiceChip(
+                          label: Text(label),
+                          selected: isSelected,
+                          selectedColor: const Color(0xFF2563EB),
+                          backgroundColor: const Color(0xFF0F172A),
+                          labelStyle: TextStyle(
+                            color: isSelected ? Colors.white : Colors.white70,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          ),
+                          onSelected: (selected) {
+                            if (selected) {
+                              setDialogState(() {
+                                tempSize = size;
+                                textController.text = size.toInt().toString();
+                              });
+                            }
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: textController,
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: InputDecoration(
+                        labelText: 'Custom Truss Size (feet)',
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        suffixText: 'ft',
+                        suffixStyle: const TextStyle(color: Colors.white60),
+                        filled: true,
+                        fillColor: const Color(0xFF0F172A),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFF334155)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFF334155)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2),
+                        ),
+                      ),
+                      onChanged: (val) {
+                        final parsed = double.tryParse(val);
+                        if (parsed != null && parsed > 0) {
+                          setDialogState(() {
+                            tempSize = parsed;
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    // Live Calculation Preview Card
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.5)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.calculate_outlined, color: Color(0xFF60A5FA), size: 16),
+                              SizedBox(width: 6),
+                              Text(
+                                'CALCULATION PREVIEW',
+                                style: TextStyle(
+                                  color: Color(0xFF93C5FD),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Total Design Truss:', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                              Text(
+                                '${totalFt.toStringAsFixed(1)} ft',
+                                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Stock Piece Size:', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                              Text(
+                                '${tempSize.toStringAsFixed(tempSize.truncateToDouble() == tempSize ? 0 : 1)} ft',
+                                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                          const Divider(color: Colors.white12, height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Trusses Required:',
+                                style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2563EB),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '$requiredPieces pcs',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (tempSize > 0 && totalFt > 0) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              '(${totalFt.toStringAsFixed(0)} ft ÷ ${tempSize.toStringAsFixed(0)} ft = $requiredPieces trusses required)',
+                              style: const TextStyle(color: Colors.white54, fontSize: 11, fontStyle: FontStyle.italic),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () {
+                    if (tempSize > 0) {
+                      controller.setStandardTrussPieceSize(tempSize);
+                    }
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('Apply Size'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showDimensionsDialog() {
+    double currentX = 0;
+    double currentZ = 0;
+    for (final node in controller.layout.nodes.values) {
+      if (node.x > currentX) currentX = node.x;
+      if (node.z > currentZ) currentZ = node.z;
+    }
+    double width = currentX > 0 ? currentX : 100.0;
+    double depth = currentZ > 0 ? currentZ : 100.0;
+    double spacing = controller.standardTrussPieceSize > 0 ? controller.standardTrussPieceSize : 30.0;
+    double height = controller3D.mandapHeight > 0 ? controller3D.mandapHeight : 20.0;
+    bool includeCenter = controller.layout.nodes.values.any((n) => n.isControlPoint);
+
+    final widthController = TextEditingController(text: width.toStringAsFixed(0));
+    final depthController = TextEditingController(text: depth.toStringAsFixed(0));
+    final spacingController = TextEditingController(text: spacing.toStringAsFixed(0));
+    final heightController = TextEditingController(text: height.toStringAsFixed(0));
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDlgState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF0F1523),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: Color(0xFF1E293B)),
+              ),
+              title: const Row(
+                children: [
+                  Icon(Icons.aspect_ratio_rounded, color: Color(0xFF60A5FA), size: 22),
+                  SizedBox(width: 8),
+                  Text(
+                    'Plot Dimensions & Setup',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: SizedBox(
+                  width: 340,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Set your event structure measurements directly on the canvas:',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Length & Width
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildDimInputField(
+                              label: 'Length X (ft)',
+                              controller: widthController,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildDimInputField(
+                              label: 'Width Z (ft)',
+                              controller: depthController,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Pole Spacing & Height
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildDimInputField(
+                              label: 'Pole Spacing (ft)',
+                              controller: spacingController,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildDimInputField(
+                              label: 'Pole Height (ft)',
+                              controller: heightController,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Center Structure Toggle
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0B0F19),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF1E293B)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Center Structure (Cross)',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                            ),
+                            Switch(
+                              value: includeCenter,
+                              activeColor: const Color(0xFF2563EB),
+                              onChanged: (val) => setDlgState(() => includeCenter = val),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () {
+                    final newW = double.tryParse(widthController.text.trim()) ?? 100.0;
+                    final newD = double.tryParse(depthController.text.trim()) ?? 100.0;
+                    final newSpacing = double.tryParse(spacingController.text.trim()) ?? 30.0;
+                    final newH = double.tryParse(heightController.text.trim()) ?? 20.0;
+
+                    final params = BaseTrussGenerationParams(
+                      plotWidth: newW > 0 ? newW : 100.0,
+                      plotDepth: newD > 0 ? newD : 100.0,
+                      preferredPoleSpacing: newSpacing > 0 ? newSpacing : 30.0,
+                      poleHeight: newH > 0 ? newH : 20.0,
+                      includeCenterControlPoint: includeCenter,
+                      availableTrussSizes: const [30.0, 20.0, 10.0, 5.0],
+                    );
+
+                    final generatedLayout = BaseTrussArchitectureGenerator.generate(params);
+                    controller.setLayout(generatedLayout);
+                    controller3D.setMandapHeight(newH);
+                    controller.setStandardTrussPieceSize(newSpacing);
+                    controller3D.fitCamera(generatedLayout);
+                    _fitView(_canvasSize);
+
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('Apply Dimensions'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildDimInputField({
+    required String label,
+    required TextEditingController controller,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF94A3B8)),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          height: 38,
+          decoration: BoxDecoration(
+            color: const Color(0xFF0B0F19),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFF1E293B)),
+          ),
+          child: TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.bold),
+            decoration: const InputDecoration(
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              border: InputBorder.none,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Structural Intelligence & Live Status ───────────────────────────────────
+
+  Widget _buildStructuralStatusBar() {
+    final report = controller.structuralReport;
+    final hasWarn = report.hasWarnings;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: hasWarn
+            ? const Color(0xFF78350F).withValues(alpha: 0.85) // Warm amber
+            : const Color(0xFF064E3B).withValues(alpha: 0.85), // Forest emerald
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: hasWarn ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+          width: 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: () => _showStructuralReportSheet(report),
+        child: Row(
+          children: [
+            Icon(
+              hasWarn ? Icons.warning_amber_rounded : Icons.check_circle_outline_rounded,
+              size: 18,
+              color: hasWarn ? const Color(0xFFFBBF24) : const Color(0xFF34D399),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                hasWarn
+                    ? report.warnings.first
+                    : 'Structure Connected & Supported (${report.componentCount} component${report.componentCount == 1 ? '' : 's'})',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (hasWarn && report.warnings.length > 1) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black26,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '+${report.warnings.length - 1} more',
+                  style: const TextStyle(color: Colors.white70, fontSize: 10),
+                ),
+              ),
+              const SizedBox(width: 6),
+            ],
+            const Icon(Icons.info_outline, size: 15, color: Colors.white60),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showStructuralReportSheet(StructuralAnalysisReport report) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF0F172A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      report.hasWarnings ? Icons.warning_amber_rounded : Icons.check_circle_outline_rounded,
+                      color: report.hasWarnings ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Structural Intelligence & Diagnostics',
+                      style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      _reportRow('Structural Components', '${report.componentCount} independent structure(s)'),
+                      _reportRow('Unsupported Endpoints', '${report.unsupportedEndpoints.length}'),
+                      _reportRow('Isolated Poles', '${report.isolatedNodes.length}'),
+                      _reportRow('Long Spans (>30ft)', '${report.longSpans.length}'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (report.hasWarnings) ...[
+                  const Text('Active Structural Notices:', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  ...report.warnings.map((w) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('• ', style: TextStyle(color: Colors.amber)),
+                        Expanded(child: Text(w, style: const TextStyle(color: Colors.white70, fontSize: 12))),
+                      ],
+                    ),
+                  )),
+                  const SizedBox(height: 8),
+                ],
+                Text(
+                  'ℹ MANDAP provides real-time structural intelligence without restricting your freedom to draw, move, or modify geometry.',
+                  style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11, fontStyle: FontStyle.italic),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _reportRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+          Text(value, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  void _showNodeEraserOptions(MandapNode node) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF0F172A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Erase Point ${node.id.value}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Choose whether to remove only the vertical pole support (keeping connected trusses intact) or delete the node and connected members.',
+                  style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.vertical_align_bottom_rounded, color: Colors.amber),
+                  label: const Text('Remove Pole Support (Keep Truss)'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1E293B),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    controller.removePoleSupport(node.id);
+                  },
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.delete_forever_rounded, color: Colors.redAccent),
+                  label: const Text('Delete Node & Connected Members'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.withOpacity(0.15),
+                    foregroundColor: Colors.redAccent,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    controller.deleteNode(node.id);
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showAddEntranceDialog() {
+    var selectedSide = EntranceSide.northA;
+    final widthCtrl = TextEditingController(text: '10');
+    final projCtrl = TextEditingController(text: '30');
+    final offsetCtrl = TextEditingController(text: '45');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF1E293B),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.meeting_room_outlined, color: Color(0xFF10B981)),
+              SizedBox(width: 8),
+              Text('Attach External Entrance', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Select target side of main structure:',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<EntranceSide>(
+                  value: selectedSide,
+                  dropdownColor: const Color(0xFF0F172A),
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.05),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: EntranceSide.northA, child: Text('Side A — North / Back (+Z)')),
+                    DropdownMenuItem(value: EntranceSide.eastB, child: Text('Side B — East / Right (+X)')),
+                    DropdownMenuItem(value: EntranceSide.southC, child: Text('Side C — South / Front (-Z)')),
+                    DropdownMenuItem(value: EntranceSide.westD, child: Text('Side D — West / Left (-X)')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) setDialogState(() => selectedSide = val);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: widthCtrl,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Entrance Width (ft)',
+                    labelStyle: TextStyle(color: Colors.white70),
+                    suffixText: 'ft',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: projCtrl,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Projection Outward (ft)',
+                    labelStyle: TextStyle(color: Colors.white70),
+                    suffixText: 'ft',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: offsetCtrl,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Position Offset along side (ft)',
+                    labelStyle: TextStyle(color: Colors.white70),
+                    suffixText: 'ft',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
+              onPressed: () {
+                final w = double.tryParse(widthCtrl.text) ?? 10.0;
+                final p = double.tryParse(projCtrl.text) ?? 30.0;
+                final off = double.tryParse(offsetCtrl.text) ?? 45.0;
+                Navigator.pop(ctx);
+                final sId = 'entrance_${DateTime.now().millisecondsSinceEpoch % 10000}';
+                controller.addExternalStructure(
+                  structureId: sId,
+                  side: selectedSide,
+                  width: w,
+                  projection: p,
+                  offset: off,
+                );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Attached entrance (${w.toInt()}×${p.toInt()} ft on ${selectedSide.name})'),
+                    backgroundColor: const Color(0xFF10B981),
+                  ),
+                );
+              },
+              child: const Text('Attach', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ── 2D/3D toggle button ────────────────────────────────────────────────────────
 
 class _ViewToggle extends StatelessWidget {
-  final _ViewMode current;
-  final ValueChanged<_ViewMode> onChanged;
+  final ViewMode current;
+  final ValueChanged<ViewMode> onChanged;
 
   const _ViewToggle({required this.current, required this.onChanged});
 
@@ -1206,14 +1928,14 @@ class _ViewToggle extends StatelessWidget {
         children: [
           _Chip(
             label: '2D',
-            isActive: current == _ViewMode.topView2D,
-            onTap: () => onChanged(_ViewMode.topView2D),
+            isActive: current == ViewMode.topView2D,
+            onTap: () => onChanged(ViewMode.topView2D),
           ),
           const SizedBox(width: 4),
           _Chip(
             label: '3D',
-            isActive: current == _ViewMode.view3D,
-            onTap: () => onChanged(_ViewMode.view3D),
+            isActive: current == ViewMode.view3D,
+            onTap: () => onChanged(ViewMode.view3D),
           ),
         ],
       ),
@@ -1234,16 +1956,26 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final activeColor = label == '3D' ? const Color(0xFF10B981) : const Color(0xFF2563EB);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF2563EB) : const Color(0xFF1E293B),
+          color: isActive ? activeColor : const Color(0xFF1E293B).withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
-            color: isActive ? const Color(0xFF2563EB) : const Color(0xFF334155),
+            color: isActive ? activeColor : const Color(0xFF334155),
           ),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: activeColor.withValues(alpha: 0.4),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
         ),
         child: Text(
           label,

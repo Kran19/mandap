@@ -10,6 +10,7 @@ import 'projects_dashboard_screen.dart';
 import '../../mandap/application/commands/add_component_commands.dart';
 import '../../mandap/application/mandap_editor_controller.dart';
 import '../../mandap/domain/entities/mandap_layout.dart';
+import '../../mandap/domain/generators/base_truss_architecture_generator.dart';
 import '../../mandap/domain/specifications/component_specifications.dart';
 import '../domain/sync_state.dart';
 import '../domain/local_project_sync_metadata.dart';
@@ -539,40 +540,46 @@ class _TrussMeasurementForm extends StatefulWidget {
 }
 
 class _TrussMeasurementFormState extends State<_TrussMeasurementForm> {
-  final _width = TextEditingController(text: '40');
-  final _depth = TextEditingController(text: '30');
-  final _elevation = TextEditingController(text: '12');
+  final _width = TextEditingController(text: '100');
+  final _depth = TextEditingController(text: '100');
+  final _poleSpacing = TextEditingController(text: '30');
+  final _poleHeight = TextEditingController(text: '20');
+  bool _includeCenterCross = true;
   bool _isLoading = false;
 
   Future<void> _submit() async {
     final w = double.tryParse(_width.text) ?? 0;
     final d = double.tryParse(_depth.text) ?? 0;
-    final e = double.tryParse(_elevation.text) ?? 0;
+    final s = double.tryParse(_poleSpacing.text) ?? 30.0;
+    final h = double.tryParse(_poleHeight.text) ?? 20.0;
+
     if (w <= 0 || d <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Width and Depth must be positive values.')));
+          const SnackBar(content: Text('Plot Width and Depth must be positive values.')));
       return;
     }
     setState(() => _isLoading = true);
     try {
       final effectiveId = await _ensureProjectId(context, widget.projectId);
       if (!mounted) return;
-      final store = LocalProjectStore();
-      final existingLayout = await store.getLayout(effectiveId);
-      if (!mounted) return;
 
-      final controller = MandapEditorController();
-      if (existingLayout != null) {
-        controller.layout = existingLayout;
-      }
-      final spec = TrussSpecification(width: w, depth: d, elevation: e);
-      controller.executeCommand(AddTrussCommand(spec: spec));
-      await _persistLayout(effectiveId, controller.layout);
+      final params = BaseTrussGenerationParams(
+        plotWidth: w,
+        plotDepth: d,
+        preferredPoleSpacing: s > 0 ? s : 30.0,
+        poleHeight: h > 0 ? h : 20.0,
+        includeCenterControlPoint: _includeCenterCross,
+        availableTrussSizes: const [10.0, 30.0, 50.0],
+      );
+
+      final generatedLayout = BaseTrussArchitectureGenerator.generate(params);
+
+      await _persistLayout(effectiveId, generatedLayout);
       if (mounted) context.go('/editor?projectId=$effectiveId');
     } catch (err) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error adding truss: $err')),
+          SnackBar(content: Text('Error generating structure: $err')),
         );
       }
     } finally {
@@ -582,15 +589,71 @@ class _TrussMeasurementFormState extends State<_TrussMeasurementForm> {
 
   @override
   Widget build(BuildContext context) => _MeasurementFormBase(
-        title: 'Truss Dimensions',
-        subtitle: 'Horizontal roof / portal truss system',
+        title: 'Truss Architecture Setup',
+        subtitle: 'Configure plot size and structural spacing',
         isLoading: _isLoading,
         onBack: widget.onBack,
         onNext: _submit,
         fields: [
-          _numberField(_width, 'Width (X-axis)', hint: 'e.g. 40'),
-          _numberField(_depth, 'Depth (Z-axis)', hint: 'e.g. 30'),
-          _numberField(_elevation, 'Top chord elevation', hint: 'e.g. 12'),
+          // Available inventory chip row
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Available Truss Inventory',
+                  style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: ['10 ft', '30 ft', '50 ft'].map((size) {
+                    return Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6366F1).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFF6366F1)),
+                      ),
+                      child: Text(
+                        size,
+                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+          _numberField(_width, 'Plot Width (X-axis)', hint: 'e.g. 100'),
+          _numberField(_depth, 'Plot Depth (Z-axis)', hint: 'e.g. 100'),
+          _numberField(_poleSpacing, 'Preferred Pole Spacing', hint: 'Default: 30'),
+          _numberField(_poleHeight, 'Pole Height', hint: 'Default: 20'),
+          // Center Structural Pole & Cross toggle
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withOpacity(0.15)),
+            ),
+            child: SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text(
+                'Center Structural Pole & Cross (+)',
+                style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                'Generates 17th center pole and 4-way internal truss division (600 ft total)',
+                style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11),
+              ),
+              value: _includeCenterCross,
+              activeColor: const Color(0xFF6366F1),
+              onChanged: (val) => setState(() => _includeCenterCross = val),
+            ),
+          ),
         ],
       );
 }

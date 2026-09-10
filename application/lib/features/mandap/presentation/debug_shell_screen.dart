@@ -3,6 +3,7 @@ import '../../../spikes/renderer_3d/mandap_3d_spike_screen.dart';
 import '../application/mandap_editor_controller.dart';
 import '../domain/entities/mandap_preset.dart';
 import 'top_view_2d/mandap_2d_painter.dart';
+import 'top_view_2d/mandap_2d_canvas.dart';
 
 enum ViewportMode { topView2D, view3D, splitView }
 
@@ -117,6 +118,7 @@ class _DebugShellScreenState extends State<DebugShellScreen> {
           const SizedBox(width: 12),
         ],
       ),
+      floatingActionButton: _buildToolbar(),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth >= 700;
@@ -175,13 +177,8 @@ class _DebugShellScreenState extends State<DebugShellScreen> {
                   ),
                 ),
                 Expanded(
-                  child: CustomPaint(
-                    painter: Mandap2DPainter(
-                      layout: layout,
-                      result: result,
-                      selectedEdgeId: controller.selectedEdgeId,
-                    ),
-                    size: Size.infinite,
+                  child: Mandap2DCanvas(
+                    controller: controller,
                   ),
                 ),
               ],
@@ -246,6 +243,54 @@ class _DebugShellScreenState extends State<DebugShellScreen> {
             );
           }
         },
+      ),
+    );
+  }
+
+  Widget _buildToolbar() {
+    return Card(
+      elevation: 4,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Pen OFF (Camera/View) vs Pen ON (Edit)
+            ToggleButtons(
+              isSelected: [
+                controller.mode == EditorMode.view,
+                controller.mode == EditorMode.select || controller.mode == EditorMode.move,
+                controller.mode == EditorMode.addEdge,
+              ],
+              onPressed: (index) {
+                if (index == 0) controller.setMode(EditorMode.view);
+                if (index == 1) controller.setMode(EditorMode.select);
+                if (index == 2) controller.setMode(EditorMode.addEdge);
+              },
+              borderRadius: BorderRadius.circular(6),
+              constraints: const BoxConstraints(minHeight: 36, minWidth: 40),
+              children: const [
+                Tooltip(message: 'Pen OFF (Pan/Zoom)', child: Icon(Icons.pan_tool, size: 18)),
+                Tooltip(message: 'Select / Move Node', child: Icon(Icons.touch_app, size: 18)),
+                Tooltip(message: 'Add Member (Draw)', child: Icon(Icons.draw, size: 18)),
+              ],
+            ),
+            const SizedBox(width: 8),
+            Container(width: 1, height: 24, color: Colors.grey[300]),
+            const SizedBox(width: 8),
+            // Actions
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              tooltip: 'Delete Selected',
+              iconSize: 20,
+              onPressed: (controller.selectedEdgeId != null || controller.selectedNodeId != null)
+                  ? () => controller.deleteSelected()
+                  : null,
+            ),
+          ],
+        ),
       ),
     );
   }

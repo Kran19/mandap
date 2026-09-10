@@ -38,9 +38,9 @@ class _PremiumAuthTextFieldState extends State<PremiumAuthTextField> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
       ),
       child: TextFormField(
         controller: widget.controller,
@@ -49,27 +49,26 @@ class _PremiumAuthTextFieldState extends State<PremiumAuthTextField> {
         maxLength: widget.maxLength,
         inputFormatters: widget.inputFormatters,
         style: const TextStyle(
-          color: Colors.white,
+          color: Color(0xFF0F172A),
           fontSize: 15,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w600,
           letterSpacing: 0.3,
         ),
         decoration: InputDecoration(
           labelText: widget.labelText,
-          labelStyle: TextStyle(
-            color: Colors.white.withValues(alpha: 0.5),
+          labelStyle: const TextStyle(
+            color: Color(0xFF64748B),
             fontSize: 14,
-            fontWeight: FontWeight.w400,
+            fontWeight: FontWeight.w500,
           ),
           prefixIcon: widget.prefixIcon != null
-              ? Icon(widget.prefixIcon, color: Colors.white.withValues(alpha: 0.5), size: 20)
+              ? Icon(widget.prefixIcon, color: const Color(0xFF64748B), size: 20)
               : null,
-          // Show eye toggle only when obscureText is enabled
           suffixIcon: widget.obscureText
               ? IconButton(
                   icon: Icon(
                     _isObscured ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                    color: Colors.white.withValues(alpha: 0.5),
+                    color: const Color(0xFF64748B),
                     size: 20,
                   ),
                   onPressed: () => setState(() => _isObscured = !_isObscured),
@@ -78,8 +77,7 @@ class _PremiumAuthTextFieldState extends State<PremiumAuthTextField> {
               : null,
           border: InputBorder.none,
           counterText: '',
-          // Reduced vertical padding to make fields shorter
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           isDense: true,
         ),
       ),

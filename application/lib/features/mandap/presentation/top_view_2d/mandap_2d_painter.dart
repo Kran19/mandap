@@ -20,32 +20,14 @@ class Mandap2DPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (layout.nodes.isEmpty) return;
 
-    // Determine spatial bounding box of nodes
-    var minX = double.infinity;
-    var maxX = -double.infinity;
-    var minZ = double.infinity;
-    var maxZ = -double.infinity;
-
-    for (final node in layout.nodes.values) {
-      if (node.x < minX) minX = node.x;
-      if (node.x > maxX) maxX = node.x;
-      if (node.z < minZ) minZ = node.z;
-      if (node.z > maxZ) maxZ = node.z;
-    }
-
-    final layoutWidth = (maxX - minX).clamp(1.0, 1000.0);
-    final layoutHeight = (maxZ - minZ).clamp(1.0, 1000.0);
-
-    const padding = 40.0;
-    final scaleX = (size.width - padding * 2) / layoutWidth;
-    final scaleZ = (size.height - padding * 2) / layoutHeight;
-    final scale = scaleX < scaleZ ? scaleX : scaleZ;
-
-    final offsetX = (size.width - layoutWidth * scale) / 2 - minX * scale;
-    final offsetZ = (size.height - layoutHeight * scale) / 2 - minZ * scale;
-
+    // Deterministic Coordinate Mapping: World X -> Canvas X, World Z -> Canvas Y
+    // We use a fixed scale (e.g., 20 pixels per foot) so the coordinate system is stable.
+    const double pixelsPerFoot = 20.0;
+    
+    // We want the origin (0,0) to be visible, so we can translate the canvas slightly
+    // but InteractiveViewer will handle panning.
     Offset toCanvasOffset(double x, double z) {
-      return Offset(x * scale + offsetX, z * scale + offsetZ);
+      return Offset(x * pixelsPerFoot, z * pixelsPerFoot);
     }
 
     // 1. Draw Grid Background
@@ -106,21 +88,24 @@ class Mandap2DPainter extends CustomPainter {
       }
     }
 
-    // 3. Draw Support Poles
-    final cornerPolePaint = Paint()
+    // 3. Draw Nodes (including poles)
+    final cornerNodePaint = Paint()
       ..color = const Color(0xFF0F172A)
       ..style = PaintingStyle.fill;
 
-    final generatedPolePaint = Paint()
-      ..color = const Color(0xFFD97706)
+    final controlNodePaint = Paint()
+      ..color = const Color(0xFFD97706) // Amber for control points
       ..style = PaintingStyle.fill;
 
-    for (final pole in result.poles) {
-      final center = toCanvasOffset(pole.x, pole.z);
-      final radius = pole.reason == PoleReason.corner ? 7.0 : 5.0;
-      final paint = pole.reason == PoleReason.corner
-          ? cornerPolePaint
-          : generatedPolePaint;
+    for (final node in layout.nodes.values) {
+      final center = toCanvasOffset(node.x, node.z);
+      
+      // Determine if it's a control point (e.g. Center Control for roof)
+      // For now, if elevation is > 0 and it's a structural point, we mark it
+      final isControl = node.elevation > 0;
+      
+      final radius = isControl ? 6.0 : 4.0;
+      final paint = isControl ? controlNodePaint : cornerNodePaint;
 
       canvas.drawCircle(center, radius, paint);
       canvas.drawCircle(
@@ -131,6 +116,16 @@ class Mandap2DPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.5,
       );
+      
+      // Draw elevation label for structural points
+      if (node.elevation > 0) {
+        _drawText(
+          canvas,
+          center + const Offset(0, 12),
+          'E:${node.elevation.toStringAsFixed(1)}',
+          Colors.black54,
+        );
+      }
     }
   }
 

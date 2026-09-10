@@ -10,7 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 import { Injectable, ForbiddenException, SetMetadata } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../prisma.service.js';
-import { UserStatus } from '@prisma/client';
+import { UserStatus, AdminRole } from '@prisma/client';
 export const REQUIRE_ADMIN_PERMISSION_KEY = 'requireAdminPermission';
 export const RequireAdminPermission = (...permissions) => SetMetadata(REQUIRE_ADMIN_PERMISSION_KEY, permissions);
 let AdminPermissionGuard = class AdminPermissionGuard {
@@ -49,7 +49,13 @@ let AdminPermissionGuard = class AdminPermissionGuard {
         if (!membership.role || !membership.role.isActive) {
             throw new ForbiddenException('Admin role is missing or inactive.');
         }
+        if (membership.role.name === AdminRole.SUPER_ADMIN || membership.role.name === 'SUPER_ADMIN') {
+            return true;
+        }
         const userPermissions = membership.role.permissions.map(p => p.action);
+        if (userPermissions.includes('*') || userPermissions.includes('ALL')) {
+            return true;
+        }
         const hasAllPermissions = requiredPermissions.every(p => userPermissions.includes(p));
         if (!hasAllPermissions) {
             throw new ForbiddenException('You do not have the required admin permissions.');

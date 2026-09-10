@@ -39,6 +39,8 @@ class LayoutSerializer {
         'x': node.x,
         'z': node.z,
         'type': node.type.name,
+        'support': node.support.name,
+        'structureId': node.structureId,
         'isLocked': node.isLocked,
       };
 
@@ -57,6 +59,7 @@ class LayoutSerializer {
         'startNodeId': edge.startNodeId.value,
         'endNodeId': edge.endNodeId.value,
         if (edge.requestedLength != null) 'requestedLength': edge.requestedLength!.feet,
+        if (edge.profile != null) 'profile': edge.profile!.name,
       };
     }).toList();
 
@@ -100,12 +103,23 @@ class LayoutSerializer {
           orElse: () => NodeType.corner,
         );
       }
+      NodeSupport? support;
+      if (n['support'] != null) {
+        final supStr = n['support'] as String;
+        support = NodeSupport.values.firstWhere(
+          (e) => e.name == supStr,
+          orElse: () => NodeSupport.pole,
+        );
+      }
+      final structureId = (n['structureId'] as String?) ?? 'main';
 
       nodes[id] = MandapNode(
         id: id,
         x: (n['x'] as num).toDouble(),
         z: (n['z'] as num).toDouble(),
         type: type,
+        support: support,
+        structureId: structureId,
         isLocked: (n['isLocked'] as bool?) ?? false,
         width: n['width'] != null ? (n['width'] as num).toDouble() : _defaultWidth(type),
         depth: n['depth'] != null ? (n['depth'] as num).toDouble() : _defaultDepth(type),
@@ -166,11 +180,21 @@ class LayoutSerializer {
         requestedLength = Length.fromFeet((e['requestedLength'] as num).toDouble());
       }
 
+      EdgeProfile? profile;
+      if (e['profile'] != null) {
+        final profileStr = e['profile'] as String;
+        profile = EdgeProfile.values.firstWhere(
+          (p) => p.name == profileStr,
+          orElse: () => EdgeProfile.box,
+        );
+      }
+
       edges[id] = MandapEdge(
         id: id,
         startNodeId: NodeId(e['startNodeId'] as String),
         endNodeId: NodeId(e['endNodeId'] as String),
         requestedLength: requestedLength,
+        profile: profile,
       );
     }
 

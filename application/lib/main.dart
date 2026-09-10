@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_localizations.dart';
 
 import 'core/router/app_router.dart';
+import 'core/localization/locale_notifier.dart';
 import 'features/auth/application/bootstrap_coordinator.dart';
 import 'features/auth/infrastructure/auth_repository.dart';
 import 'features/billing/infrastructure/billing_repository.dart';
@@ -59,6 +62,9 @@ class MandapApp extends StatelessWidget {
             return coordinator;
           },
         ),
+        ChangeNotifierProvider<LocaleNotifier>(
+          create: (_) => LocaleNotifier(),
+        ),
       ],
       child: Builder(
         builder: (context) {
@@ -77,6 +83,32 @@ class MandapApp extends StatelessWidget {
               useMaterial3: true,
             ),
             routerConfig: router,
+            locale: context.watch<LocaleNotifier>().locale,
+            localizationsDelegates: [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: const [
+              Locale('en'),
+              Locale('hi'),
+              Locale('gu'),
+              Locale('ta'),
+              Locale('te'),
+              Locale('mr'),
+              Locale('bn'),
+            ],
+            localeResolutionCallback: (locale, supportedLocales) {
+              if (locale != null) {
+                for (final supportedLocale in supportedLocales) {
+                  if (supportedLocale.languageCode == locale.languageCode) {
+                    return supportedLocale;
+                  }
+                }
+              }
+              return const Locale('en');
+            },
           );
         }
       ),

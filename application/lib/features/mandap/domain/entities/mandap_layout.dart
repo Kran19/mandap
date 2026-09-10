@@ -70,13 +70,21 @@ class MandapLayout {
   /// Returns the computed physical geometric length for a given edge.
   ///
   /// If nodes exist, physical geometric length derived from coordinates is used.
+  /// If the distance is not an exact 0.5 ft increment, it rounds to the nearest tick
+  /// so that BOM decomposition does not crash.
   /// Otherwise, falls back to requestedLength if set.
   Length getEdgeLength(MandapEdge edge) {
     final startNode = nodes[edge.startNodeId];
     final endNode = nodes[edge.endNodeId];
 
     if (startNode != null && endNode != null) {
-      return edge.calculateGeometricLength(startNode, endNode);
+      try {
+        return edge.calculateGeometricLength(startNode, endNode);
+      } catch (_) {
+        final dist = edge.calculateGeometricDistanceFeet(startNode, endNode);
+        final ticks = (dist * 2.0).round();
+        return Length.fromTicks(ticks);
+      }
     }
     if (edge.requestedLength != null) {
       return edge.requestedLength!;
@@ -84,6 +92,42 @@ class MandapLayout {
     throw StateError(
       'Edge ${edge.id} has missing endpoint nodes and no requested length',
     );
+  }
+
+  /// Returns the un-quantized exact Euclidean geometric distance in feet.
+  double getExactGeometricLengthFeet(MandapEdge edge) {
+    final startNode = nodes[edge.startNodeId];
+    final endNode = nodes[edge.endNodeId];
+    if (startNode != null && endNode != null) {
+      return edge.calculateGeometricDistanceFeet(startNode, endNode);
+    }
+    return edge.requestedLength?.feet ?? 0.0;
+  }
+
+  /// Validates strict data integrity (NaN/infinite coordinates, broken references).
+  /// These are hard failures that protect the application.
+  List<String> validateDataIntegrity() {
+    final errors = <String>[];
+    for (final node in nodes.values) {
+      if (node.x.isNaN || node.x.isInfinite || node.z.isNaN || node.z.isInfinite) {
+        errors.add('Node ${node.id} has invalid coordinates (NaN or Infinite)');
+      }
+      if (node.id.value.isEmpty) {
+        errors.add('Node has empty ID');
+      }
+    }
+    for (final edge in edges.values) {
+      if (edge.id.value.isEmpty) {
+        errors.add('Edge has empty ID');
+      }
+      if (!nodes.containsKey(edge.startNodeId)) {
+        errors.add('Edge ${edge.id} references missing start node ${edge.startNodeId}');
+      }
+      if (!nodes.containsKey(edge.endNodeId)) {
+        errors.add('Edge ${edge.id} references missing end node ${edge.endNodeId}');
+      }
+    }
+    return errors;
   }
 
   /// Validates structural layout graph integrity.

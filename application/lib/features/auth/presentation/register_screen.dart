@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../infrastructure/auth_repository.dart';
 import '../application/bootstrap_coordinator.dart';
+import '../../../core/theme/app_theme.dart';
 import 'widgets/premium_auth_textfield.dart';
 import 'widgets/premium_auth_button.dart';
 
@@ -95,70 +96,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          Container(
-            decoration: const BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment.bottomRight,
-                radius: 1.5,
-                colors: [
-                  Color(0xFF312E81),
-                  Color(0xFF0F172A),
-                ],
-              ),
+      backgroundColor: AppColors.appBackground,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 440),
+            padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 36.0),
+            decoration: BoxDecoration(
+              color: AppColors.cardBackground,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: AppColors.headerBorder, width: 1.0),
+              boxShadow: AppShadows.cardShadow,
             ),
+            child: _registrationComplete
+                ? _buildSuccessState()
+                : _buildFormState(),
           ),
-
-          Positioned(
-            bottom: -100,
-            left: -100,
-            child: Container(
-              width: 400,
-              height: 400,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF8B5CF6).withOpacity(0.15),
-              ),
-            ),
-          ),
-
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
-              child: Center(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                    child: Container(
-                      constraints: const BoxConstraints(maxWidth: 480),
-                      padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 36.0),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.03),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.1),
-                          width: 1.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 30,
-                            offset: const Offset(0, 10),
-                          )
-                        ],
-                      ),
-                      child: _registrationComplete
-                          ? _buildSuccessState()
-                          : _buildFormState(),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -167,25 +122,49 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Icon(Icons.how_to_reg_rounded, size: 48, color: Colors.white),
-        const SizedBox(height: 24),
+        Center(
+          child: Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: AppShadows.cardShadow,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Image.asset(
+                'assets/images/logo.png',
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.trussLight,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: const Icon(Icons.architecture_rounded, color: AppColors.trussPrimary, size: 36),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
         const Text(
           'Join MANDAP',
           style: TextStyle(
-            fontSize: 32,
+            fontSize: 28,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: AppColors.primaryText,
             letterSpacing: -0.5,
           ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Enter your phone to create an account',
-          style: TextStyle(fontSize: 15, color: Colors.white.withOpacity(0.6)),
+        const SizedBox(height: 6),
+        const Text(
+          'Enter your details to create a new account',
+          style: TextStyle(fontSize: 14, color: AppColors.secondaryText),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 36),
+        const SizedBox(height: 28),
 
         if (_errorMessage != null) _buildErrorBox(_errorMessage!),
 
@@ -217,7 +196,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           prefixIcon: Icons.email_outlined,
           keyboardType: TextInputType.emailAddress,
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 24),
 
         PremiumAuthButton(
           text: 'Create Account',
@@ -225,15 +204,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
           onPressed: _handleRegister,
         ),
 
-        const SizedBox(height: 28),
+        const SizedBox(height: 24),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Already have an account?', style: TextStyle(color: Colors.white.withOpacity(0.6))),
+            const Text('Already have an account?', style: TextStyle(color: AppColors.secondaryText, fontSize: 14)),
             TextButton(
               onPressed: () => context.go('/login'),
-              style: TextButton.styleFrom(foregroundColor: Colors.white),
-              child: const Text('Sign in', style: TextStyle(fontWeight: FontWeight.bold)),
+              style: TextButton.styleFrom(foregroundColor: AppColors.trussPrimary),
+              child: const Text('Sign in', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             ),
           ],
         ),
@@ -245,16 +224,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          alignment: Alignment.center,
-          padding: const EdgeInsets.all(20),
+        Center(
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.15),
+              color: AppColors.flooringLight,
               shape: BoxShape.circle,
             ),
             padding: const EdgeInsets.all(20),
-            child: const Icon(Icons.check_circle_outline, size: 56, color: Colors.greenAccent),
+            child: const Icon(Icons.check_circle_outline, size: 56, color: AppColors.success),
           ),
         ),
         const SizedBox(height: 20),
@@ -263,17 +240,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: AppColors.primaryText,
           ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 12),
-        Text(
+        const SizedBox(height: 8),
+        const Text(
           'Your account has been created. Sign in to verify your phone number and access MANDAP.',
-          style: TextStyle(fontSize: 15, color: Colors.white.withOpacity(0.6)),
+          style: TextStyle(fontSize: 14, color: AppColors.secondaryText),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 36),
+        const SizedBox(height: 28),
         PremiumAuthButton(
           text: 'Sign In',
           isLoading: false,
@@ -288,15 +265,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
       padding: const EdgeInsets.all(12),
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        color: Colors.red.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.withOpacity(0.3)),
+        color: const Color(0xFFFEF2F2),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFFCA5A5)),
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: Colors.red[300], size: 20),
-          const SizedBox(width: 12),
-          Expanded(child: Text(message, style: TextStyle(color: Colors.red[200]))),
+          const Icon(Icons.error_outline, color: AppColors.error, size: 20),
+          const SizedBox(width: 10),
+          Expanded(child: Text(message, style: const TextStyle(color: AppColors.error, fontSize: 13))),
         ],
       ),
     );

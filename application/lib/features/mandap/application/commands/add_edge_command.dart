@@ -33,5 +33,8 @@ class AddEdgeCommand implements MandapCommand {
   String get description => 'Add edge $edgeId ($startNodeId → $endNodeId)';
 }
 
-/// Generates a unique EdgeId from the current timestamp.
-EdgeId generateEdgeId() => EdgeId('e${DateTime.now().microsecondsSinceEpoch}');
+int _edgeCounter = 0;
+
+/// Generates a unique EdgeId from the current timestamp and incrementing counter.
+EdgeId generateEdgeId() =>
+    EdgeId('e_${DateTime.now().microsecondsSinceEpoch}_${++_edgeCounter}');

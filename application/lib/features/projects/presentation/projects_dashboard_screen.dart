@@ -112,7 +112,7 @@ class _ProjectsDashboardScreenState extends State<ProjectsDashboardScreen>
         nameController.text.trim().isEmpty ? 'New Project' : nameController.text.trim(),
         descController.text.trim().isEmpty ? null : descController.text.trim(),
       );
-      if (mounted) context.go('/component-wizard?projectId=${project.id}');
+      if (mounted) context.go('/editor?projectId=${project.id}');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -409,7 +409,7 @@ class _ProjectsDashboardScreenState extends State<ProjectsDashboardScreen>
         currentIndex: 1,
         onTabSelected: (index) async {
           if (index == 0) {
-            context.go('/component-wizard');
+            context.go('/editor');
           } else if (index == 1) {
             // Already on projects
           } else if (index == 2) {

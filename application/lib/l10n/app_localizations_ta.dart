@@ -199,6 +199,15 @@ class AppLocalizationsTa extends AppLocalizations {
   String get pole => 'கம்ப';
 
   @override
+  String get pipe => 'பைப்';
+
+  @override
+  String get modulePipeSubtitle => 'பைப் கால்குலேட்டர்';
+
+  @override
+  String get createPipeStructure => 'பைப் அமைப்பு உருவாக்கவும்';
+
+  @override
   String get stage => 'மேடை';
 
   @override

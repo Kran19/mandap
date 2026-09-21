@@ -54,5 +54,8 @@
   "length": "Length",
   "geometricLength": "Geometric Length",
   "inventoryRequirement": "Inventory Requirement",
-  "totalStructural": "Total Structural"
+  "totalStructural": "Total Structural",
+  "pipe": "ਪਾਈਪ",
+  "modulePipeSubtitle": "ਪਾਈਪ ਕੈਲਕੁਲੇਟਰ",
+  "createPipeStructure": "ਪਾਈਪ ਢਾਂਚਾ ਬਣਾਓ"
 }

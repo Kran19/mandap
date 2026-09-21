@@ -199,6 +199,15 @@ class AppLocalizationsTe extends AppLocalizations {
   String get pole => 'పోల్';
 
   @override
+  String get pipe => 'పైప్';
+
+  @override
+  String get modulePipeSubtitle => 'పైప్ కాలిక్యులేటర్';
+
+  @override
+  String get createPipeStructure => 'పైప్ నిర్మాణాన్ని సృష్టించండి';
+
+  @override
   String get stage => 'స్టేజ్';
 
   @override

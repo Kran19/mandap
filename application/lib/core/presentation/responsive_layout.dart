@@ -111,20 +111,20 @@ class AppMobileHeader extends StatelessWidget {
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                  colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)]),
-              borderRadius: BorderRadius.circular(8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.asset(
+              'assets/images/logo.png',
+              width: 32,
+              height: 32,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Icon(Icons.architecture, color: Colors.white, size: 20),
             ),
-            child: const Icon(Icons.architecture, color: Colors.white, size: 18),
           ),
           const SizedBox(width: 10),
-          Text('Mandap',
+          Text('MANDAP BUILDER',
               style: GoogleFonts.outfit(
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: Colors.white,
                   letterSpacing: -0.5)),

@@ -199,6 +199,15 @@ class AppLocalizationsGu extends AppLocalizations {
   String get pole => 'પોલ';
 
   @override
+  String get pipe => 'પાઇપ';
+
+  @override
+  String get modulePipeSubtitle => 'પાઇપ કેલ્ક્યુલેટર';
+
+  @override
+  String get createPipeStructure => 'પાઇપ સ્ટ્રક્ચર બનાવો';
+
+  @override
   String get stage => 'સ્ટેજ';
 
   @override

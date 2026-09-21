@@ -54,5 +54,8 @@
   "length": "Length",
   "geometricLength": "Geometric Length",
   "inventoryRequirement": "Inventory Requirement",
-  "totalStructural": "Total Structural"
+  "totalStructural": "Total Structural",
+  "pipe": "പൈപ്പ്",
+  "modulePipeSubtitle": "പൈപ്പ് കാൽക്കുലേറ്റർ",
+  "createPipeStructure": "പൈപ്പ് ഘടന സൃഷ്ടിക്കുക"
 }

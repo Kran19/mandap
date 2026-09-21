@@ -54,5 +54,8 @@
   "length": "Length",
   "geometricLength": "Geometric Length",
   "inventoryRequirement": "Inventory Requirement",
-  "totalStructural": "Total Structural"
+  "totalStructural": "Total Structural",
+  "pipe": "ಪೈಪ್",
+  "modulePipeSubtitle": "ಪೈಪ್ ಕ್ಯಾಲ್ಕುಲೇಟರ್",
+  "createPipeStructure": "ಪೈಪ್ ರಚನೆಯನ್ನು ರಚಿಸಿ"
 }

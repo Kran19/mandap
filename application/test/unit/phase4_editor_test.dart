@@ -273,31 +273,22 @@ void main() {
       expect(ctrl.pendingEdgeStartNodeId, isNull);
     });
 
-    test('handleAddEdgeTap continuous polyline chain drawing workflow', () {
+    test('handleAddEdgeTap creates single edge and turns Pen OFF', () {
       ctrl.setMode(EditorMode.addEdge);
 
       final n1 = const NodeId('n1');
       final n2 = const NodeId('n2');
-      final n3 = const NodeId('n3');
       final edgesBefore = ctrl.layout.edges.length;
 
-      // Tap n1 (start node of chain)
+      // Tap n1 (start node of member)
       ctrl.handleAddEdgeTap(n1);
       expect(ctrl.pendingEdgeStartNodeId, n1);
 
-      // Tap n2 (creates edge n1->n2 and pending becomes n2)
+      // Tap n2 (creates edge n1->n2 and turns Pen OFF)
       ctrl.handleAddEdgeTap(n2);
-      expect(ctrl.pendingEdgeStartNodeId, n2);
-      expect(ctrl.layout.edges.length, edgesBefore + 1);
-
-      // Tap n3 (creates edge n2->n3 and pending becomes n3)
-      ctrl.handleAddEdgeTap(n3);
-      expect(ctrl.pendingEdgeStartNodeId, n3);
-      expect(ctrl.layout.edges.length, edgesBefore + 2);
-
-      // Tap n3 again (cancels/completes chain)
-      ctrl.handleAddEdgeTap(n3);
       expect(ctrl.pendingEdgeStartNodeId, isNull);
+      expect(ctrl.mode, EditorMode.view);
+      expect(ctrl.layout.edges.length, edgesBefore + 1);
     });
 
     test('preset to custom state transitions cleanly', () {

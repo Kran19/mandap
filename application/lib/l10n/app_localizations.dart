@@ -492,6 +492,24 @@ abstract class AppLocalizations {
   /// **'Pole'**
   String get pole;
 
+  /// No description provided for @pipe.
+  ///
+  /// In en, this message translates to:
+  /// **'Pipe'**
+  String get pipe;
+
+  /// No description provided for @modulePipeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pipe Calculator'**
+  String get modulePipeSubtitle;
+
+  /// No description provided for @createPipeStructure.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Pipe Structure'**
+  String get createPipeStructure;
+
   /// No description provided for @stage.
   ///
   /// In en, this message translates to:

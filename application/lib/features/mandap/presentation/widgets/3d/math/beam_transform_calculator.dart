@@ -14,8 +14,10 @@ class BeamTransformCalculator {
     required MandapNode endNode,
     double height = defaultMandapHeightFeet,
   }) {
-    final start = v64.Vector3(startNode.x, height, startNode.z);
-    final end = v64.Vector3(endNode.x, height, endNode.z);
+    final startY = startNode.elevation;
+    final endY = endNode.elevation;
+    final start = v64.Vector3(startNode.x, startY, startNode.z);
+    final end = v64.Vector3(endNode.x, endY, endNode.z);
 
     final diff = end - start;
     final length = diff.length;
@@ -26,7 +28,7 @@ class BeamTransformCalculator {
 
     final center = v64.Vector3(
       (startNode.x + endNode.x) / 2.0,
-      height,
+      (startY + endY) / 2.0,
       (startNode.z + endNode.z) / 2.0,
     );
 

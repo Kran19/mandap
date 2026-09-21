@@ -1,11 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:mandap/l10n/app_localizations.dart';
+import 'package:mandap/core/network/api_client.dart';
+import 'package:mandap/features/auth/infrastructure/auth_repository.dart';
+import 'package:mandap/features/projects/infrastructure/project_version_repository.dart';
+import 'package:mandap/features/projects/infrastructure/local_project_store.dart';
+import 'package:mandap/features/projects/application/project_sync_service.dart';
+import 'package:mandap/features/projects/application/create_truss_project_command.dart';
+import '../mandap_editor_screen.dart';
 
-import '../../../projects/application/create_truss_project_command.dart';
-import '../../../projects/infrastructure/local_project_store.dart';
-import '../../../projects/application/project_sync_service.dart';
-import '../editor/mandap_editor_shell.dart';
+class _DummyTokenProvider implements AuthTokenProvider {
+  const _DummyTokenProvider();
+  @override
+  Future<String?> getAccessToken() async => null;
+  @override
+  Future<bool> refreshToken() async => false;
+  @override
+  Future<void> clearTokens() async {}
+}
 
 class ProjectWizardScreen extends StatefulWidget {
   const ProjectWizardScreen({super.key});
@@ -16,15 +28,13 @@ class ProjectWizardScreen extends StatefulWidget {
 
 class _ProjectWizardScreenState extends State<ProjectWizardScreen> {
   final _formKey = GlobalKey<FormState>();
-
   String _projectName = '';
   double _plotWidth = 100.0;
   double _plotDepth = 100.0;
-  double _trussWidth = 40.0;
-  double _trussDepth = 30.0;
-  double _towerHeight = 12.0;
+  double _trussWidth = 100.0;
+  double _trussDepth = 100.0;
+  double _towerHeight = 20.0;
   int _points = 5;
-
   bool _isGenerating = false;
 
   Future<void> _handleGenerate() async {
@@ -35,13 +45,19 @@ class _ProjectWizardScreenState extends State<ProjectWizardScreen> {
 
     try {
       final store = LocalProjectStore();
-      // In a real dependency injection setup, we'd pull these from Provider.
       final command = CreateTrussProjectCommand(
         store: store,
-        // The sync service for the new project isn't instantiated until the editor opens,
-        // so we pass a null/dummy one or refactor the command to not strictly require it 
-        // until the project is opened. For now, we mock/omit if not strictly needed in execute.
-        syncService: context.read<ProjectSyncService>(), // This will likely throw if not provided globally, but we'll refactor if needed.
+        syncService: ProjectSyncService(
+          organizationId: 'org_1',
+          projectId: 'pending',
+          store: store,
+          versionRepo: ProjectVersionRepository(
+            apiClient: ApiClient(
+              baseUrl: 'http://localhost',
+              tokenProvider: const _DummyTokenProvider(),
+            ),
+          ),
+        ),
       );
 
       final req = CreateTrussProjectRequest(
@@ -58,10 +74,9 @@ class _ProjectWizardScreenState extends State<ProjectWizardScreen> {
 
       if (!mounted) return;
       
-      // Navigate to the builder shell with the newly generated projectId
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => MandapEditorShell(projectId: projectId),
+          builder: (_) => MandapEditorScreen(projectId: projectId),
         ),
       );
     } catch (e) {
@@ -109,7 +124,6 @@ class _ProjectWizardScreenState extends State<ProjectWizardScreen> {
                     ),
                     const SizedBox(height: 24),
                     
-                    // Project Name
                     TextFormField(
                       decoration: InputDecoration(
                         labelText: l10n.projectName,
@@ -120,7 +134,6 @@ class _ProjectWizardScreenState extends State<ProjectWizardScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Plot Dimensions
                     Text(l10n.plotSize, style: const TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     Row(
@@ -148,7 +161,6 @@ class _ProjectWizardScreenState extends State<ProjectWizardScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Truss Dimensions
                     Text(l10n.trussDimensions, style: const TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     Row(
@@ -186,7 +198,6 @@ class _ProjectWizardScreenState extends State<ProjectWizardScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Configuration
                     Text(l10n.roofConfiguration, style: const TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     SegmentedButton<int>(
@@ -205,7 +216,7 @@ class _ProjectWizardScreenState extends State<ProjectWizardScreen> {
                       height: 50,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFDC2626), // Red accent
+                          backgroundColor: const Color(0xFFDC2626),
                           foregroundColor: Colors.white,
                         ),
                         onPressed: _isGenerating ? null : _handleGenerate,

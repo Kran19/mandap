@@ -55,8 +55,8 @@ void main() {
         final poles = engine.calculatePoles(layout);
         expect(poles.length, equals(17));
 
-        // 5. Total Truss Length: 400 ft perimeter (20 split segments) + 200 ft internal cross = 600 ft
-        expect(layout.edges.length, equals(24)); // 20 perimeter segments + 4 internal cross
+        // 5. Total Truss Length: 400 ft perimeter (16 segments: 30+30+30+10 on each side) + 200 ft internal cross = 600 ft
+        expect(layout.edges.length, equals(20)); // 16 perimeter segments + 4 internal cross
         var totalExactFeet = 0.0;
         for (final edge in layout.edges.values) {
           totalExactFeet += layout.getExactGeometricLengthFeet(edge);

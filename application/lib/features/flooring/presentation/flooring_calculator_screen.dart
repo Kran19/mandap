@@ -1,721 +1,818 @@
+import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/localization/language_selector_dialog.dart';
-import '../../../l10n/app_localizations.dart';
 import 'flooring_calculator_controller.dart';
+import 'widgets/create_flooring_dialog.dart';
+import 'widgets/flooring_summary_dialog.dart';
 import 'widgets/flooring_2d_painter.dart';
 import 'widgets/flooring_3d_painter.dart';
+import '../../projects/infrastructure/local_project_store.dart';
 
 class FlooringCalculatorScreen extends StatelessWidget {
-  const FlooringCalculatorScreen({super.key});
+  final String? projectId;
+  final double? initialLength;
+  final double? initialWidth;
+  final double? initialCarpetLength;
+  final double? initialCarpetWidth;
+
+  const FlooringCalculatorScreen({
+    super.key,
+    this.projectId,
+    this.initialLength,
+    this.initialWidth,
+    this.initialCarpetLength,
+    this.initialCarpetWidth,
+  });
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => FlooringCalculatorController(),
-      child: const _FlooringCalculatorScreenContent(),
+      create: (_) => FlooringCalculatorController(
+        initialLength: initialLength ?? 100.0,
+        initialWidth: initialWidth ?? 60.0,
+        initialCarpetLength: initialCarpetLength ?? 15.0,
+        initialCarpetWidth: initialCarpetWidth ?? 30.0,
+      ),
+      child: _FlooringCalculatorScreenContent(projectId: projectId),
     );
   }
 }
 
 class _FlooringCalculatorScreenContent extends StatefulWidget {
-  const _FlooringCalculatorScreenContent();
+  final String? projectId;
+  const _FlooringCalculatorScreenContent({this.projectId});
 
   @override
   State<_FlooringCalculatorScreenContent> createState() => _FlooringCalculatorScreenContentState();
 }
 
-class _FlooringCalculatorScreenContentState extends State<_FlooringCalculatorScreenContent> {
-  late TextEditingController _plotLengthController;
-  late TextEditingController _plotWidthController;
-  late TextEditingController _carpetLengthController;
-  late TextEditingController _carpetWidthController;
-  final ScrollController _scrollController = ScrollController();
-  final GlobalKey _previewKey = GlobalKey();
+class _FlooringCalculatorScreenContentState extends State<_FlooringCalculatorScreenContent>
+    with SingleTickerProviderStateMixin {
+  bool _showSavedBanner = false;
+  String _activeTool = 'pencil'; // 'pencil' or 'eraser'
+  int _pointerCount = 0;
+  Timer? _saveTimer;
+  late AnimationController _animController;
+  late Animation<double> _animProgress;
 
   @override
   void initState() {
     super.initState();
-    final ctrl = context.read<FlooringCalculatorController>();
-    _plotLengthController = TextEditingController(text: ctrl.plotLength.toString());
-    _plotWidthController = TextEditingController(text: ctrl.plotWidth.toString());
-    _carpetLengthController = TextEditingController(text: ctrl.carpetLength.toString());
-    _carpetWidthController = TextEditingController(text: ctrl.carpetWidth.toString());
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2500),
+    );
+    _animProgress = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeInOutCubic,
+    );
+    _animController.forward(from: 0.0);
   }
 
   @override
   void dispose() {
-    _plotLengthController.dispose();
-    _plotWidthController.dispose();
-    _carpetLengthController.dispose();
-    _carpetWidthController.dispose();
-    _scrollController.dispose();
+    _animController.dispose();
+    _saveTimer?.cancel();
     super.dispose();
   }
 
-  void _onInputsChanged(FlooringCalculatorController controller) {
-    final pl = double.tryParse(_plotLengthController.text) ?? controller.plotLength;
-    final pw = double.tryParse(_plotWidthController.text) ?? controller.plotWidth;
-    final cl = double.tryParse(_carpetLengthController.text) ?? controller.carpetLength;
-    final cw = double.tryParse(_carpetWidthController.text) ?? controller.carpetWidth;
-
-    controller.updateInputs(
-      plotLength: pl,
-      plotWidth: pw,
-      carpetLength: cl,
-      carpetWidth: cw,
+  Future<void> _handleEditDimensions(BuildContext context, FlooringCalculatorController controller) async {
+    final params = await CreateFlooringDialog.show(
+      context,
+      initialPlotLength: controller.plotLength,
+      initialPlotWidth: controller.plotWidth,
+      initialCarpetLength: controller.carpetLength,
+      initialCarpetWidth: controller.carpetWidth,
     );
+    if (params != null && mounted) {
+      controller.updateDimensions(
+        params.plotLength,
+        params.plotWidth,
+        carpetLength: params.carpetLength,
+        carpetWidth: params.carpetWidth,
+      );
+      _animController.forward(from: 0.0);
+    }
   }
 
-  void _scrollToPreview() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_previewKey.currentContext != null) {
-        Scrollable.ensureVisible(
-          _previewKey.currentContext!,
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.easeInOut,
-        );
-      }
+  Future<void> _handleSave(BuildContext context, FlooringCalculatorController controller) async {
+    setState(() => _showSavedBanner = true);
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _showSavedBanner = false);
     });
+
+    final id = widget.projectId ?? 'flooring_${DateTime.now().millisecondsSinceEpoch}';
+    final store = LocalProjectStore();
+    await store.saveProjectRecord(
+      MandapSavedProject(
+        id: id,
+        title: 'Flooring ${controller.plotWidth.toInt()} × ${controller.plotLength.toInt()} ft',
+        moduleType: 'flooring',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        parameters: {
+          'width': controller.plotWidth,
+          'length': controller.plotLength,
+          'carpetLength': controller.carpetLength,
+          'carpetWidth': controller.carpetWidth,
+          'totalSheets': controller.result?.totalCarpets ?? 0,
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<FlooringCalculatorController>();
-    final isMobile = MediaQuery.of(context).size.width < 800;
+    final result = controller.result;
 
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) context.go('/modules');
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (context.mounted) {
+          context.go('/modules');
+        }
       },
       child: Scaffold(
-        backgroundColor: AppColors.appBackground,
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
-          child: Container(
-            decoration: const BoxDecoration(
-              color: AppColors.headerBackground,
-              border: Border(bottom: BorderSide(color: AppColors.headerBorder)),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: SafeArea(
-              child: Builder(
-                builder: (context) {
-                  final isCompactHeader = MediaQuery.of(context).size.width < 600;
-                  return Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.meeting_room_outlined, color: AppColors.primaryText, size: 24),
-                        tooltip: 'Exit to Menu',
-                        onPressed: () => context.go('/modules'),
+        backgroundColor: const Color(0xFF0F172A),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // 1. Top CAD Header Bar (matches Truss, Pole, & Stage CadHeaderBar architecture)
+              _buildHeaderBar(context, controller),
+
+              // 2. Main 3D / 2D Viewport Stack (full-screen CAD model)
+              Expanded(
+                child: Stack(
+                  children: [
+                    // A. Interactive Canvas (3D Model / 2D Blueprint)
+                    Positioned.fill(
+                      child: result == null
+                          ? const Center(
+                              child: CircularProgressIndicator(color: AppColors.flooringPrimary),
+                            )
+                          : controller.viewMode == FlooringViewMode.mode2D
+                              ? CustomPaint(painter: Flooring2DPainter(result: result))
+                              : Listener(
+                                  onPointerDown: (_) => setState(() => _pointerCount++),
+                                  onPointerUp: (_) => setState(() => _pointerCount = (_pointerCount - 1).clamp(0, 10)),
+                                  onPointerCancel: (_) => setState(() => _pointerCount = (_pointerCount - 1).clamp(0, 10)),
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onScaleStart: (_) => controller.onScaleStart(),
+                                    onScaleUpdate: (details) {
+                                      controller.onScaleUpdate(
+                                        details.scale,
+                                        details.focalPointDelta,
+                                        pointerCount: _pointerCount,
+                                      );
+                                    },
+                                    child: AnimatedBuilder(
+                                      animation: _animProgress,
+                                      builder: (context, _) => CustomPaint(
+                                        painter: Flooring3DPainter(
+                                          result: result,
+                                          controller: controller,
+                                          animationProgress: _animProgress.value,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                    ),
+
+                    // B. Top-Center In-Model Dimension Badge
+                    if (result != null)
+                      Positioned(
+                        top: 14,
+                        left: 56,
+                        right: 80,
+                        child: Center(
+                          child: _buildInModelDimensionBadge(context, controller, result),
+                        ),
                       ),
-                      const SizedBox(width: 4),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.asset(
-                          'assets/images/logo.png',
-                          width: 28,
-                          height: 28,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            padding: const EdgeInsets.all(4),
+
+                    // C. Left Floating Tool Rail (Pencil, Eraser, and Swap)
+                    Positioned(
+                      left: 14,
+                      top: 14,
+                      child: _buildSimplifiedToolRail(context, controller),
+                    ),
+
+                    // C2. Top-Right Floating OK Button
+                    Positioned(
+                      top: 14,
+                      right: 14,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => FlooringSummaryDialog.show(context, controller: controller),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                             decoration: BoxDecoration(
-                              color: AppColors.flooringLight,
-                              borderRadius: BorderRadius.circular(8),
+                              color: const Color(0xFF7C3AED),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFA78BFA), width: 1.5),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF7C3AED).withValues(alpha: 0.4),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                            child: const Icon(Icons.architecture_rounded, color: AppColors.flooringPrimary, size: 16),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                                SizedBox(width: 6),
+                                Text(
+                                  'OK',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'MANDAP',
-                            style: TextStyle(
-                              color: AppColors.primaryText,
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.1,
-                            ),
+                    ),
+
+                    // D. Bottom-Left Live Status Info Chip (100 × 60 ft · 85 carpets · Covered: 102 × 60 ft)
+                    if (result != null)
+                      Positioned(
+                        left: 14,
+                        bottom: 14,
+                        child: _buildBottomStatusChip(controller, result),
+                      ),
+
+                    // E. Project Saved Notification Banner
+                    if (_showSavedBanner)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                          color: const Color(0xFF16A34A),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                              SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  'Project saved successfully!',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          if (!isCompactHeader)
-                            const Text(
-                              'EVENT STRUCTURE DESIGNER',
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderBar(BuildContext context, FlooringCalculatorController controller) {
+    return Container(
+      height: 56,
+      decoration: const BoxDecoration(
+        color: AppColors.headerBackground,
+        border: Border(bottom: BorderSide(color: AppColors.headerBorder)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Row(
+        children: [
+          // Exit to menu
+          IconButton(
+            icon: const Icon(Icons.meeting_room_outlined, color: AppColors.primaryText, size: 22),
+            tooltip: 'Exit to Menu',
+            padding: const EdgeInsets.all(6),
+            constraints: const BoxConstraints(),
+            onPressed: () => context.go('/modules'),
+          ),
+          const SizedBox(width: 6),
+
+          // Logo
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Image.asset(
+              'assets/images/logo.png',
+              width: 24,
+              height: 24,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: AppColors.flooringLight,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(Icons.grid_on_rounded, color: AppColors.flooringPrimary, size: 16),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Undo / Redo buttons right in navbar beside logo
+          IconButton(
+            icon: Icon(
+              Icons.undo_rounded,
+              color: controller.canUndo ? AppColors.primaryText : AppColors.secondaryText.withValues(alpha: 0.35),
+              size: 20,
+            ),
+            tooltip: 'Previous (Undo)',
+            padding: const EdgeInsets.all(6),
+            constraints: const BoxConstraints(),
+            onPressed: controller.canUndo ? () => controller.undo() : null,
+          ),
+          const SizedBox(width: 2),
+          IconButton(
+            icon: Icon(
+              Icons.redo_rounded,
+              color: controller.canRedo ? AppColors.primaryText : AppColors.secondaryText.withValues(alpha: 0.35),
+              size: 20,
+            ),
+            tooltip: 'Next (Redo)',
+            padding: const EdgeInsets.all(6),
+            constraints: const BoxConstraints(),
+            onPressed: controller.canRedo ? () => controller.redo() : null,
+          ),
+          const SizedBox(width: 2),
+          IconButton(
+            icon: const Icon(
+              Icons.swap_horiz_rounded,
+              color: AppColors.primaryText,
+              size: 20,
+            ),
+            tooltip: 'Swap Length & Width (L ⇄ W)',
+            padding: const EdgeInsets.all(6),
+            constraints: const BoxConstraints(),
+            onPressed: () {
+              controller.swapDimensions();
+              _animController.forward(from: 0.0);
+            },
+          ),
+
+          // Right-aligned actions wrapped in SingleChildScrollView to prevent any overflow on small screens
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Project Name Badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.appBackground,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.headerBorder),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 55),
+                            child: const Text(
+                              'Flooring',
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                               style: TextStyle(
-                                color: AppColors.secondaryText,
-                                fontSize: 8,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.8,
+                                color: AppColors.primaryText,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
+                          ),
+                          const SizedBox(width: 2),
+                          const Icon(Icons.edit, size: 10, color: AppColors.secondaryText),
                         ],
                       ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.language_rounded, color: AppColors.primaryText, size: 20),
-                        tooltip: 'Language / भाषा',
-                        onPressed: () => LanguageSelectorDialog.show(context),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-        body: isMobile
-            ? SingleChildScrollView(
-                controller: _scrollController,
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    _buildInputPanel(context, controller),
-                    const SizedBox(height: 16),
-                    Container(
-                      key: _previewKey,
-                      height: 380,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFF334155)),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: _buildVisualization(context, controller),
-                      ),
                     ),
-                  ],
-                ),
-              )
-            : Row(
-                children: [
-                  SizedBox(
-                    width: 360,
-                    child: SingleChildScrollView(child: _buildInputPanel(context, controller)),
-                  ),
-                  const VerticalDivider(width: 1, color: AppColors.dividerBorder),
-                  Expanded(child: _buildVisualization(context, controller)),
-                ],
-              ),
-      ),
-    );
-  }
+                    const SizedBox(width: 4),
 
-  Widget _buildInputPanel(BuildContext context, FlooringCalculatorController controller) {
-    final l10n = AppLocalizations.of(context);
-    final titleText = l10n?.flooringCalculatorTitle ?? 'Flooring Calculator';
-    final subtitleText = l10n?.flooringCalculatorSubtitle ?? 'Calculate total carpet requirement for your plot size.';
-    final enterPlotText = l10n?.enterPlotSize ?? '1. Enter Plot Size';
-    final lengthLabel = l10n?.lengthFt ?? 'Length (ft)';
-    final widthLabel = l10n?.widthFt ?? 'Width (ft)';
-    final enterCarpetText = l10n?.enterCarpetSize ?? '2. Enter Carpet Size';
-    final carpetLengthLabel = l10n?.carpetLengthFt ?? 'Carpet Length (ft)';
-    final carpetWidthLabel = l10n?.carpetWidthFt ?? 'Carpet Width (ft)';
-    final calculateBtnText = l10n?.calculateFlooring ?? 'CALCULATE FLOORING';
-
-    return Container(
-      color: AppColors.appBackground,
-      padding: const EdgeInsets.all(4.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.grid_on_rounded, color: AppColors.flooringPrimary, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                titleText,
-                style: const TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitleText,
-            style: const TextStyle(color: AppColors.secondaryText, fontSize: 12),
-          ),
-          const SizedBox(height: 20),
-
-          // Section 1: Enter Plot Size
-          Text(
-            enterPlotText,
-            style: const TextStyle(color: AppColors.primaryText, fontSize: 13, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _DimensionInput(
-                  label: lengthLabel,
-                  controller: _plotLengthController,
-                  onChanged: (_) => _onInputsChanged(controller),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _DimensionInput(
-                  label: widthLabel,
-                  controller: _plotWidthController,
-                  onChanged: (_) => _onInputsChanged(controller),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Section 2: Enter Carpet Size
-          Text(
-            enterCarpetText,
-            style: const TextStyle(color: AppColors.primaryText, fontSize: 13, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _DimensionInput(
-                  label: carpetLengthLabel,
-                  controller: _carpetLengthController,
-                  onChanged: (_) => _onInputsChanged(controller),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _DimensionInput(
-                  label: carpetWidthLabel,
-                  controller: _carpetWidthController,
-                  onChanged: (_) => _onInputsChanged(controller),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // Calculate Button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.flooringPrimary,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                elevation: 0,
-              ),
-              onPressed: () {
-                controller.calculate();
-                _scrollToPreview();
-              },
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.calculate_rounded, color: Colors.white, size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    calculateBtnText,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.0),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          if (controller.error != null)
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFFCA5A5)),
-              ),
-              child: Text(controller.error!, style: const TextStyle(color: AppColors.error, fontSize: 13)),
-            )
-          else if (controller.result != null)
-            _buildResults(context, controller.result!),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildResults(BuildContext context, dynamic result) {
-    final l10n = AppLocalizations.of(context);
-    final totalReqLabel = l10n?.totalCarpetsRequired ?? 'Total Carpets Required';
-    final detailsLabel = l10n?.calculationDetails ?? 'Calculation Details';
-    final plotDimLabel = l10n?.plotDimensions ?? 'Plot Dimensions';
-    final plotAreaLabel = l10n?.plotArea ?? 'Plot Area';
-    final carpetDimLabel = l10n?.carpetDimensions ?? 'Carpet Dimensions';
-    final carpetAreaLabel = l10n?.carpetArea ?? 'Carpet Area';
-    final lengthCarpetsLabel = l10n?.carpetsAlongLength ?? 'Carpets Along Length';
-    final widthCarpetsLabel = l10n?.carpetsAlongWidth ?? 'Carpets Along Width';
-    final totalCarpetsLabel = l10n?.totalCarpets ?? 'Total Carpets';
-    final totalCovLabel = l10n?.totalCoverage ?? 'Total Coverage';
-    final extraCovLabel = l10n?.extraCoverage ?? 'Extra Coverage';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Total Carpets Required Prominent Card
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppColors.flooringLight,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.flooringSoft),
-          ),
-          child: Column(
-            children: [
-              Text(
-                totalReqLabel,
-                style: const TextStyle(
-                  color: AppColors.flooringPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                result.totalCarpets.toString(),
-                style: const TextStyle(
-                  color: AppColors.flooringPrimary,
-                  fontSize: 48,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              Text(
-                'Orientation: ${result.orientedCarpetLength} × ${result.orientedCarpetWidth} ft',
-                style: const TextStyle(color: AppColors.secondaryText, fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        // Calculation Details Card
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.cardBackground,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.headerBorder),
-            boxShadow: AppShadows.cardShadow,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                detailsLabel,
-                style: const TextStyle(color: AppColors.primaryText, fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-              const Divider(height: 20, color: AppColors.headerBorder),
-              _DetailRow(label: plotDimLabel, value: '${result.plotLength} × ${result.plotWidth} ft'),
-              _DetailRow(label: plotAreaLabel, value: '${result.plotArea.toStringAsFixed(0)} sq ft'),
-              _DetailRow(label: carpetDimLabel, value: '${result.carpetLength} × ${result.carpetWidth} ft'),
-              _DetailRow(label: carpetAreaLabel, value: '${result.carpetArea.toStringAsFixed(0)} sq ft'),
-              _DetailRow(label: lengthCarpetsLabel, value: '${result.carpetsAlongLength}'),
-              _DetailRow(label: widthCarpetsLabel, value: '${result.carpetsAlongWidth}'),
-              _DetailRow(label: totalCarpetsLabel, value: '${result.carpetsAlongLength} × ${result.carpetsAlongWidth} = ${result.totalCarpets}'),
-              _DetailRow(label: totalCovLabel, value: '${result.coveredLength} × ${result.coveredWidth} ft (${result.coveredArea.toStringAsFixed(0)} sq ft)'),
-              _DetailRow(
-                label: extraCovLabel,
-                value: '${result.extraCoverage.toStringAsFixed(0)} sq ft (${result.extraCoveragePercent.toStringAsFixed(1)}%)',
-                highlightColor: result.extraCoverage > 0 ? AppColors.warning : AppColors.secondaryText,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Success Card
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFECFDF5),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFA7F3D0)),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Layout calculated successfully!',
-                      style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 13),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Total ${result.totalCarpets} carpets required for ${result.plotLength} × ${result.plotWidth} ft plot using ${result.carpetLength} × ${result.carpetWidth} ft carpets.\nTotal coverage: ${result.coveredArea.toStringAsFixed(0)} sq ft (Extra: ${result.extraCoverage.toStringAsFixed(0)} sq ft).',
-                      style: const TextStyle(color: AppColors.secondaryText, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-
-        // Tip Card
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFEFF6FF),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFBFDBFE)),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Icon(Icons.info_outline_rounded, color: AppColors.info, size: 20),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Tip: Carpets are arranged in straight rows to cover the complete plot. The calculator automatically evaluates both carpet orientations to minimize the total carpets required.',
-                  style: TextStyle(color: AppColors.secondaryText, fontSize: 11),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildVisualization(BuildContext context, FlooringCalculatorController controller) {
-    return Stack(
-      children: [
-        if (controller.result != null)
-          Positioned.fill(
-            child: ClipRect(
-              child: controller.viewMode == FlooringViewMode.mode2D
-                  ? CustomPaint(painter: Flooring2DPainter(result: controller.result!))
-                  : GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onScaleStart: (_) => controller.onScaleStart(),
-                      onScaleUpdate: (details) => controller.onScaleUpdate(details.scale, details.focalPointDelta),
-                      child: Container(
-                        color: Colors.transparent,
-                        width: double.infinity,
-                        height: double.infinity,
-                        child: CustomPaint(
-                          painter: Flooring3DPainter(
-                            result: controller.result!,
-                            cameraAzimuth: controller.cameraAzimuth,
-                            cameraElevation: controller.cameraElevation,
-                            cameraZoom: controller.cameraZoom,
+                    // Save Button
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _handleSave(context, controller),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.flooringPrimary,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.flooringPrimary.withValues(alpha: 0.35),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.save_rounded, size: 14, color: Colors.white),
+                              SizedBox(width: 3),
+                              Text(
+                                'Save',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ),
-            ),
-          ),
-        Positioned(
-          top: 16,
-          right: 16,
-          child: Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E293B).withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF334155)),
-            ),
-            child: Row(
-              children: [
-                _ViewModeButton(
-                  label: '2D',
-                  isSelected: controller.viewMode == FlooringViewMode.mode2D,
-                  onTap: () => controller.setViewMode(FlooringViewMode.mode2D),
+                    const SizedBox(width: 4),
+
+                    // 2D / 3D Switcher
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.appBackground,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.headerBorder),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildViewToggleItem(
+                            label: '2D',
+                            isSelected: controller.viewMode == FlooringViewMode.mode2D,
+                            onTap: () => controller.setViewMode(FlooringViewMode.mode2D),
+                          ),
+                          _buildViewToggleItem(
+                            label: '3D',
+                            isSelected: controller.viewMode == FlooringViewMode.mode3D,
+                            onTap: () => controller.setViewMode(FlooringViewMode.mode3D),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+
+                    // Language Selector
+                    IconButton(
+                      icon: const Icon(Icons.language_rounded, color: AppColors.primaryText, size: 18),
+                      tooltip: 'Language',
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(),
+                      onPressed: () => LanguageSelectorDialog.show(context),
+                    ),
+                  ],
                 ),
-                _ViewModeButton(
-                  label: '3D',
-                  isSelected: controller.viewMode == FlooringViewMode.mode3D,
-                  onTap: () => controller.setViewMode(FlooringViewMode.mode3D),
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (controller.viewMode == FlooringViewMode.mode3D && controller.result != null)
-          Positioned(
-            bottom: 16,
-            right: 16,
-            child: FloatingActionButton.small(
-              backgroundColor: const Color(0xFF1E293B),
-              foregroundColor: Colors.white,
-              tooltip: 'Reset View',
-              onPressed: () => controller.resetCamera(),
-              child: const Icon(Icons.refresh),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _DimensionInput extends StatelessWidget {
-  final String label;
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-
-  const _DimensionInput({
-    required this.label,
-    required this.controller,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(color: AppColors.secondaryText, fontSize: 11, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          style: const TextStyle(color: AppColors.primaryText, fontSize: 15, fontWeight: FontWeight.bold),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: AppColors.inputBackground,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.inputBorder),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.inputBorder),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.flooringPrimary, width: 2),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-          ),
-          onChanged: onChanged,
-        ),
-      ],
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color? highlightColor;
-
-  const _DetailRow({required this.label, required this.value, this.highlightColor});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: AppColors.secondaryText, fontSize: 12)),
-          Text(
-            value,
-            style: TextStyle(
-              color: highlightColor ?? AppColors.primaryText,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
       ),
     );
   }
-}
 
-class _ModulePill extends StatelessWidget {
-  final String label;
-  final String icon;
-  final bool isActive;
-  final Color? activeColor;
-  final Color? activeBg;
-  final VoidCallback onTap;
-
-  const _ModulePill({
-    required this.label,
-    required this.icon,
-    required this.isActive,
-    this.activeColor,
-    this.activeBg,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildViewToggleItem({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: isActive ? (activeBg ?? AppColors.trussLight) : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isActive ? (activeColor ?? AppColors.trussPrimary) : AppColors.headerBorder,
+          color: isSelected ? AppColors.flooringPrimary : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : AppColors.secondaryText,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildInModelDimensionBadge(
+    BuildContext context,
+    FlooringCalculatorController controller,
+    dynamic result,
+  ) {
+    final lenStr = controller.plotLength.toStringAsFixed(0);
+    final widStr = controller.plotWidth.toStringAsFixed(0);
+
+    final excessL = math.max(0.0, result.coveredLength - result.plotLength);
+    final excessW = math.max(0.0, result.coveredWidth - result.plotWidth);
+    final hasExcess = excessL > 0.01 || excessW > 0.01;
+    final excessVal = excessL > 0.01 ? excessL : excessW;
+    final excessValStr = excessVal % 1 == 0 ? excessVal.toStringAsFixed(0) : excessVal.toStringAsFixed(1);
+
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: hasExcess ? const Color(0xFF1E1B18) : const Color(0xFF0F172A).withValues(alpha: 0.90),
+          gradient: hasExcess
+              ? const LinearGradient(
+                  colors: [
+                    Color(0xFF451A03),
+                    Color(0xFF2E1002),
+                  ],
+                )
+              : null,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: hasExcess ? const Color(0xFFF59E0B) : AppColors.flooringPrimary.withValues(alpha: 0.6),
+            width: hasExcess ? 1.8 : 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: hasExcess
+                  ? const Color(0xFFF59E0B).withValues(alpha: 0.45)
+                  : Colors.black.withValues(alpha: 0.4),
+              blurRadius: hasExcess ? 14 : 8,
+              spreadRadius: hasExcess ? 1.0 : 0.0,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(icon, style: const TextStyle(fontSize: 10)),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive ? (activeColor ?? AppColors.trussPrimary) : AppColors.secondaryText,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
+            InkWell(
+              onTap: () => _handleEditDimensions(context, controller),
+              borderRadius: BorderRadius.circular(16),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    hasExcess ? Icons.warning_amber_rounded : Icons.grid_on_rounded,
+                    color: hasExcess ? const Color(0xFFFBBF24) : AppColors.flooringPrimary,
+                    size: 15,
+                  ),
+                  const SizedBox(width: 7),
+                  Text(
+                    '$lenStr/$widStr ft · ${result.totalCarpets} Carpets',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.edit_rounded, color: hasExcess ? const Color(0xFFFBBF24) : const Color(0xFF94A3B8), size: 12),
+                ],
               ),
             ),
+            if (hasExcess) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B),
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.40),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Color(0xFF1E1B18), size: 12),
+                    const SizedBox(width: 3),
+                    Text(
+                      '$excessValStr ft Extra',
+                      style: const TextStyle(
+                        color: Color(0xFF1E1B18),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 11,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
-}
 
-class _ViewModeButton extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
+  Widget _buildSimplifiedToolRail(BuildContext context, FlooringCalculatorController controller) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B).withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF334155)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildToolButton(
+            toolId: 'pencil',
+            icon: Icons.edit_rounded,
+            tooltip: 'Pencil Tool',
+            onTap: () => setState(() => _activeTool = 'pencil'),
+          ),
+          const SizedBox(height: 5),
+          _buildToolButton(
+            toolId: 'eraser',
+            icon: Icons.cleaning_services_rounded,
+            tooltip: 'Eraser Tool',
+            onTap: () => setState(() => _activeTool = 'eraser'),
+          ),
+          const SizedBox(height: 5),
+          const Divider(height: 1, color: Color(0xFF334155), indent: 2, endIndent: 2),
+          const SizedBox(height: 5),
+          // Swap Button in Left Tool Rail
+          Tooltip(
+            message: 'Swap Layout (L ⇄ W)',
+            child: InkWell(
+              onTap: () {
+                controller.swapDimensions();
+                _animController.forward(from: 0.0);
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: controller.isRotated ? AppColors.flooringPrimary.withValues(alpha: 0.3) : const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: controller.isRotated ? AppColors.flooringPrimary : const Color(0xFF334155),
+                    width: 1.2,
+                  ),
+                ),
+                child: Icon(
+                  Icons.swap_horiz_rounded,
+                  color: controller.isRotated ? AppColors.flooringPrimary : const Color(0xFFE2E8F0),
+                  size: 18,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-  const _ViewModeButton({required this.label, required this.isSelected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.flooringPrimary.withValues(alpha: 0.3) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? const Color(0xFF6EE7B7) : const Color(0xFF94A3B8),
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
+  Widget _buildToolButton({
+    required String toolId,
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    final isSelected = _activeTool == toolId;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.flooringPrimary : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+            size: 17,
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildBottomStatusChip(FlooringCalculatorController controller, dynamic result) {
+    final lenStr = result.plotLength.toStringAsFixed(0);
+    final widStr = result.plotWidth.toStringAsFixed(0);
+    final cLenStr = result.coveredLength.toStringAsFixed(0);
+    final cWidStr = result.coveredWidth.toStringAsFixed(0);
+
+    final excessL = math.max(0.0, result.coveredLength - result.plotLength);
+    final excessW = math.max(0.0, result.coveredWidth - result.plotWidth);
+    final hasExcess = excessL > 0.01 || excessW > 0.01;
+    final extraSqFt = (result.coveredArea - result.plotArea).round();
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Main Dimension Info Chip
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.90),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFF334155)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: AppColors.flooringPrimary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '$lenStr × $widStr ft · ${result.totalCarpets} carpets · Covered: $cLenStr × $cWidStr ft',
+                style: const TextStyle(
+                  color: Color(0xFFE2E8F0),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Prominent Alert Chip showing exact measurement going out of plot
+        if (hasExcess) ...[
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: const Color(0xFF7C2D12).withValues(alpha: 0.95), // Deep Amber/Orange alert
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFF97316), width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFF97316).withValues(alpha: 0.30),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Color(0xFFFDBA74), size: 14),
+                const SizedBox(width: 6),
+                Text(
+                  '⚠ Extra: ${excessL > 0.01 ? '${excessL % 1 == 0 ? excessL.toStringAsFixed(0) : excessL.toStringAsFixed(1)} ft Length ' : ''}${excessW > 0.01 ? '${excessW % 1 == 0 ? excessW.toStringAsFixed(0) : excessW.toStringAsFixed(1)} ft Width ' : ''}($extraSqFt sq ft)',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

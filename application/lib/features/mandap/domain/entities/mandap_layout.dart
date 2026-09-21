@@ -104,6 +104,16 @@ class MandapLayout {
     return edge.requestedLength?.feet ?? 0.0;
   }
 
+  /// Returns the un-quantized true 3D Euclidean distance in feet (including Y elevation difference).
+  double get3DGeometricLengthFeet(MandapEdge edge) {
+    final startNode = nodes[edge.startNodeId];
+    final endNode = nodes[edge.endNodeId];
+    if (startNode != null && endNode != null) {
+      return edge.calculate3DGeometricDistanceFeet(startNode, endNode);
+    }
+    return edge.requestedLength?.feet ?? 0.0;
+  }
+
   /// Validates strict data integrity (NaN/infinite coordinates, broken references).
   /// These are hard failures that protect the application.
   List<String> validateDataIntegrity() {

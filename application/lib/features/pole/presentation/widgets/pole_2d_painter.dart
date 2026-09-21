@@ -59,6 +59,32 @@ class Pole2DPainter extends CustomPainter {
       canvas.drawLine(Offset(0, pz), Offset(plotDisplayWidth, pz), gridPaint);
     }
 
+    // Bay Numbers (1, 2, 3...) at the center of each cell
+    int bayIndex = 1;
+    final bayTextStyle = const TextStyle(
+      color: Color(0xFF64748B),
+      fontSize: 8.0,
+      fontWeight: FontWeight.bold,
+    );
+    for (int j = 0; j < result.grid.lengthBays; j++) {
+      final z1 = (j * result.poleSize).clamp(0.0, result.plotLength) * scale;
+      final z2 = ((j + 1) * result.poleSize).clamp(0.0, result.plotLength) * scale;
+      for (int i = 0; i < result.grid.widthBays; i++) {
+        final x1 = (i * result.poleSize).clamp(0.0, result.plotWidth) * scale;
+        final x2 = ((i + 1) * result.poleSize).clamp(0.0, result.plotWidth) * scale;
+        final midX = (x1 + x2) / 2.0;
+        final midZ = (z1 + z2) / 2.0;
+
+        final tp = TextPainter(
+          text: TextSpan(text: '$bayIndex', style: bayTextStyle),
+          textDirection: TextDirection.ltr,
+        )..layout();
+
+        tp.paint(canvas, Offset(midX - tp.width / 2.0, midZ - tp.height / 2.0));
+        bayIndex++;
+      }
+    }
+
     // Poles
     final polePaint = Paint()..color = const Color(0xFFCBD5E1); 
     

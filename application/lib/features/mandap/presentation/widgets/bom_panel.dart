@@ -200,6 +200,61 @@ class BomPanel extends StatelessWidget {
                       ],
                     ),
                   ),
+                  // Pillar vs Upper Truss Separation Card
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Pillar / Vertical:',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFD97706)),
+                            ),
+                            Text(
+                              '${result.trussBomSummary.pillarQuantity} pcs · ${result.trussBomSummary.pillarTotalFeet.toStringAsFixed(1)} ft',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Upper / Roof:',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0284C7)),
+                            ),
+                            Text(
+                              '${result.trussBomSummary.upperQuantity} pcs · ${result.trussBomSummary.upperTotalFeet.toStringAsFixed(1)} ft',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        const Divider(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Total Truss:',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF059669)),
+                            ),
+                            Text(
+                              '${result.trussBomSummary.totalQuantity} pcs · ${result.trussBomSummary.totalFeet.toStringAsFixed(1)} ft',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF059669)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                   ...result.requiredTrussBySize.entries.map(
                     (e) => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 2),

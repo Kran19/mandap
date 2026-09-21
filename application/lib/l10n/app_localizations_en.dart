@@ -199,6 +199,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pole => 'Pole';
 
   @override
+  String get pipe => 'Pipe';
+
+  @override
+  String get modulePipeSubtitle => 'Pipe Calculator';
+
+  @override
+  String get createPipeStructure => 'Create Pipe Structure';
+
+  @override
   String get stage => 'Stage';
 
   @override

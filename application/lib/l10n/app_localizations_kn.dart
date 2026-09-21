@@ -199,6 +199,15 @@ class AppLocalizationsKn extends AppLocalizations {
   String get pole => 'Pole';
 
   @override
+  String get pipe => 'ಪೈಪ್';
+
+  @override
+  String get modulePipeSubtitle => 'ಪೈಪ್ ಕ್ಯಾಲ್ಕುಲೇಟರ್';
+
+  @override
+  String get createPipeStructure => 'ಪೈಪ್ ರಚನೆಯನ್ನು ರಚಿಸಿ';
+
+  @override
   String get stage => 'Stage';
 
   @override

@@ -158,20 +158,20 @@ class _ProjectsDashboardScreenState extends State<ProjectsDashboardScreen>
             padding: const EdgeInsets.fromLTRB(24, 48, 24, 32),
                   child: Row(
                     children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                              colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)]),
-                          borderRadius: BorderRadius.circular(10),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          width: 36,
+                          height: 36,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const Icon(Icons.architecture, color: Colors.white, size: 20),
                         ),
-                        child: const Icon(Icons.architecture, color: Colors.white, size: 20),
                       ),
                       const SizedBox(width: 12),
-                      Text('Mandap',
+                      Text('MANDAP BUILDER',
                           style: GoogleFonts.outfit(
-                              fontSize: 20,
+                              fontSize: 18,
                               fontWeight: FontWeight.w700,
                               color: Colors.white,
                               letterSpacing: -0.5)),

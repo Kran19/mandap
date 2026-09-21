@@ -8,6 +8,7 @@ import '../entities/mandap_zone.dart';
 import 'inventory_validator.dart';
 import 'pole_placement_engine.dart';
 import 'structural_graph_analyzer.dart';
+import 'truss_bom_calculator.dart';
 import 'truss_optimizer.dart';
 
 /// Central domain orchestrator for Mandap layout calculations.
@@ -96,10 +97,17 @@ class MandapCalculationEngine {
     );
     warnings.addAll(structuralReport.warnings);
 
-    // 7. Calculate Totals
-    double totalTrussLengthFt = 0.0;
-    for (final entry in requiredBOM.entries) {
-      totalTrussLengthFt += entry.key.length.feet * entry.value;
+    // 7. Calculate Authoritative Pillar vs Upper Truss BOM
+    final trussBomSummary = const TrussBomCalculator().calculateBom(layout);
+
+    // 8. Calculate Totals
+    double totalTrussLengthFt = trussBomSummary.totalFeet > 0
+        ? trussBomSummary.totalFeet
+        : 0.0;
+    if (totalTrussLengthFt == 0.0) {
+      for (final entry in requiredBOM.entries) {
+        totalTrussLengthFt += entry.key.length.feet * entry.value;
+      }
     }
 
     double totalFlooringAreaSqFt = 0.0;
@@ -124,6 +132,7 @@ class MandapCalculationEngine {
       totalTrussLengthFt: totalTrussLengthFt,
       totalFlooringAreaSqFt: totalFlooringAreaSqFt,
       totalStageAreaSqFt: totalStageAreaSqFt,
+      trussBomSummary: trussBomSummary,
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -6,617 +7,806 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/localization/language_selector_dialog.dart';
 import '../../../l10n/app_localizations.dart';
 import 'pole_calculator_controller.dart';
+import '../domain/models/pole_calculation_result.dart';
+import 'widgets/create_pole_dialog.dart';
+import 'widgets/pole_summary_dialog.dart';
 import 'widgets/pole_2d_painter.dart';
 import 'widgets/pole_3d_painter.dart';
+import '../../projects/infrastructure/local_project_store.dart';
 
 class PoleCalculatorScreen extends StatelessWidget {
-  const PoleCalculatorScreen({super.key});
+  final String? projectId;
+  final double? initialLength;
+  final double? initialWidth;
+  final double? initialPipeSize;
+
+  const PoleCalculatorScreen({
+    super.key,
+    this.projectId,
+    this.initialLength,
+    this.initialWidth,
+    this.initialPipeSize,
+  });
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => PoleCalculatorController(),
-      child: const _PoleCalculatorScreenContent(),
+      create: (_) => PoleCalculatorController(
+        initialLength: initialLength ?? 100.0,
+        initialWidth: initialWidth ?? 100.0,
+        initialPoleSize: initialPipeSize ?? 15.0,
+      ),
+      child: _PoleCalculatorScreenContent(projectId: projectId),
     );
   }
 }
 
 class _PoleCalculatorScreenContent extends StatefulWidget {
-  const _PoleCalculatorScreenContent();
+  final String? projectId;
+  const _PoleCalculatorScreenContent({this.projectId});
 
   @override
   State<_PoleCalculatorScreenContent> createState() => _PoleCalculatorScreenContentState();
 }
 
-class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenContent> {
-  late TextEditingController _lengthController;
-  late TextEditingController _widthController;
-  late TextEditingController _poleSizeController;
-  final ScrollController _scrollController = ScrollController();
-  final GlobalKey _previewKey = GlobalKey();
+class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenContent>
+    with SingleTickerProviderStateMixin {
+  bool _showSavedBanner = false;
+  String _activeTool = 'pencil'; // 'pencil' or 'eraser'
+  int _pointerCount = 0;
+  Timer? _saveTimer;
+  late AnimationController _animController;
+  late Animation<double> _animProgress;
 
   @override
   void initState() {
     super.initState();
-    final ctrl = context.read<PoleCalculatorController>();
-    _lengthController = TextEditingController(text: ctrl.length.toString());
-    _widthController = TextEditingController(text: ctrl.width.toString());
-    _poleSizeController = TextEditingController(text: ctrl.poleSize.toString());
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2500),
+    );
+    _animProgress = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeInOutCubic,
+    );
+    _animController.forward(from: 0.0);
   }
 
   @override
   void dispose() {
-    _lengthController.dispose();
-    _widthController.dispose();
-    _poleSizeController.dispose();
-    _scrollController.dispose();
+    _animController.dispose();
+    _saveTimer?.cancel();
     super.dispose();
   }
 
-  void _onInputsChanged(PoleCalculatorController controller) {
-    final l = double.tryParse(_lengthController.text) ?? controller.length;
-    final w = double.tryParse(_widthController.text) ?? controller.width;
-    final s = double.tryParse(_poleSizeController.text) ?? controller.poleSize;
-
-    controller.updateDimensions(l, w, s);
+  Future<void> _handleEditDimensions(BuildContext context, PoleCalculatorController controller) async {
+    final params = await CreatePoleDialog.show(
+      context,
+      initialLength: controller.length,
+      initialWidth: controller.width,
+      initialPipeSize: controller.poleSize,
+    );
+    if (params != null && mounted) {
+      controller.updateDimensions(params.plotLength, params.plotWidth, params.pipeSize);
+      controller.calculate();
+      _animController.forward(from: 0.0);
+    }
   }
 
-  void _scrollToPreview() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_previewKey.currentContext != null) {
-        Scrollable.ensureVisible(
-          _previewKey.currentContext!,
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.easeInOut,
-        );
-      }
+  Future<void> _handleSave(BuildContext context, PoleCalculatorController controller) async {
+    setState(() => _showSavedBanner = true);
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _showSavedBanner = false);
     });
+
+    final id = widget.projectId ?? 'pole_${DateTime.now().millisecondsSinceEpoch}';
+    final store = LocalProjectStore();
+    await store.saveProjectRecord(
+      MandapSavedProject(
+        id: id,
+        title: 'Pipe ${controller.width.toInt()} × ${controller.length.toInt()} ft',
+        moduleType: 'pole',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        parameters: {
+          'width': controller.width,
+          'length': controller.length,
+          'pipeSize': controller.poleSize,
+          'totalPoles': controller.result?.totalVerticalPoles ?? 0,
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<PoleCalculatorController>();
-    final isMobile = MediaQuery.of(context).size.width < 800;
+    final result = controller.result;
 
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) context.go('/modules');
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (context.mounted) {
+          context.go('/modules');
+        }
       },
       child: Scaffold(
-        backgroundColor: AppColors.appBackground,
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
-          child: Container(
-            decoration: const BoxDecoration(
-              color: AppColors.headerBackground,
-              border: Border(bottom: BorderSide(color: AppColors.headerBorder)),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: SafeArea(
-              child: Builder(
-                builder: (context) {
-                  final isCompactHeader = MediaQuery.of(context).size.width < 600;
-                  return Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.meeting_room_outlined, color: AppColors.primaryText, size: 24),
-                        tooltip: 'Exit to Menu',
-                        onPressed: () => context.go('/modules'),
+        backgroundColor: const Color(0xFF0F172A),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // 1. Top CAD Header Bar (matches Truss CadHeaderBar architecture)
+              _buildHeaderBar(context, controller),
+
+              // 2. Main 3D / 2D Viewport Stack (full-screen CAD model)
+              Expanded(
+                child: Stack(
+                  children: [
+                    // A. Interactive Canvas (3D Model / 2D Blueprint)
+                    Positioned.fill(
+                      child: result == null
+                          ? const Center(
+                              child: CircularProgressIndicator(color: AppColors.polePrimary),
+                            )
+                          : controller.viewMode == PoleViewMode.mode2D
+                              ? CustomPaint(painter: Pole2DPainter(result: result))
+                              : Listener(
+                                  onPointerDown: (_) => setState(() => _pointerCount++),
+                                  onPointerUp: (_) => setState(() => _pointerCount = (_pointerCount - 1).clamp(0, 10)),
+                                  onPointerCancel: (_) => setState(() => _pointerCount = (_pointerCount - 1).clamp(0, 10)),
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onScaleStart: (_) => controller.onScaleStart(),
+                                    onScaleUpdate: (details) {
+                                      controller.onScaleUpdate(
+                                        details.scale,
+                                        details.focalPointDelta,
+                                        pointerCount: _pointerCount,
+                                      );
+                                    },
+                                    child: AnimatedBuilder(
+                                      animation: _animProgress,
+                                      builder: (context, _) => CustomPaint(
+                                        painter: Pole3DPainter(
+                                          result: result,
+                                          controller: controller,
+                                          animationProgress: _animProgress.value,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                    ),
+
+                    // B. Top-Center Controls (Dimension Badge + Pipes Breakdown Badge in Green Marked Box)
+                    Positioned(
+                      top: 14,
+                      left: 12,
+                      right: 12,
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildInModelDimensionBadge(context, controller),
+                            if (result != null) ...[
+                              const SizedBox(height: 8),
+                              _buildPipesBreakdownBadge(controller, result),
+                            ],
+                          ],
+                        ),
                       ),
-                      const SizedBox(width: 4),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.asset(
-                          'assets/images/logo.png',
-                          width: 28,
-                          height: 28,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            padding: const EdgeInsets.all(4),
+                    ),
+
+                    // C. Left Floating Tool Rail (Compact Pencil & Eraser)
+                    Positioned(
+                      left: 14,
+                      top: 108,
+                      child: _buildSimplifiedToolRail(context, controller),
+                    ),
+
+                    // C2. Top-Right Floating OK Button
+                    Positioned(
+                      top: 14,
+                      right: 14,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => PoleSummaryDialog.show(context, controller: controller),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                             decoration: BoxDecoration(
-                              color: AppColors.poleLight,
-                              borderRadius: BorderRadius.circular(8),
+                              color: const Color(0xFF059669),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFF34D399), width: 1.5),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF059669).withValues(alpha: 0.4),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                            child: const Icon(Icons.architecture_rounded, color: AppColors.polePrimary, size: 16),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                                SizedBox(width: 6),
+                                Text(
+                                  'OK',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'MANDAP',
-                            style: TextStyle(
-                              color: AppColors.primaryText,
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.1,
-                            ),
-                          ),
-                          if (!isCompactHeader)
-                            const Text(
-                              'EVENT STRUCTURE DESIGNER',
-                              style: TextStyle(
-                                color: AppColors.secondaryText,
-                                fontSize: 8,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                        ],
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.language_rounded, color: AppColors.primaryText, size: 20),
-                        tooltip: 'Language / भाषा',
-                        onPressed: () => LanguageSelectorDialog.show(context),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-        body: isMobile
-            ? SingleChildScrollView(
-                controller: _scrollController,
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    _buildInputPanel(context, controller),
-                    const SizedBox(height: 16),
-                    Container(
-                      key: _previewKey,
-                      height: 380,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFF334155)),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: _buildVisualization(context, controller),
-                      ),
                     ),
+
+                    // D. Bottom-Left Live Status Info Chip (100 × 100 ft · 64 poles · 112 pipes)
+                    if (result != null)
+                      Positioned(
+                        left: 14,
+                        bottom: 14,
+                        child: _buildBottomStatusChip(controller, result),
+                      ),
+
+                    // E. Project Saved Notification Banner
+                    if (_showSavedBanner)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                          color: const Color(0xFF16A34A),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                              SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  'Project saved successfully!',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
-              )
-            : Row(
-                children: [
-                  SizedBox(
-                    width: 350,
-                    child: SingleChildScrollView(child: _buildInputPanel(context, controller)),
-                  ),
-                  const VerticalDivider(width: 1, color: AppColors.dividerBorder),
-                  Expanded(child: _buildVisualization(context, controller)),
-                ],
               ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildInputPanel(BuildContext context, PoleCalculatorController controller) {
-    final l10n = AppLocalizations.of(context);
-    final titleText = l10n?.poleCalculatorTitle ?? 'Pole Calculator';
-    final subtitleText = l10n?.poleCalculatorSubtitle ?? 'Calculate vertical poles & horizontal pipes required for plot.';
-    final plotSizeText = l10n?.enterPlotSize ?? '1. Enter Plot Size';
-    final lengthLabel = l10n?.lengthFt ?? 'Length (ft)';
-    final widthLabel = l10n?.widthFt ?? 'Width (ft)';
-    final gridLabel = l10n?.gridSizeFt ?? 'Grid Size (ft)';
-    final calculateBtnText = l10n?.calculatePoles ?? 'CALCULATE POLES';
-
+  Widget _buildHeaderBar(BuildContext context, PoleCalculatorController controller) {
+    final isCompact = MediaQuery.of(context).size.width < 600;
     return Container(
-      color: AppColors.appBackground,
-      padding: const EdgeInsets.all(4.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      height: 56,
+      decoration: const BoxDecoration(
+        color: AppColors.headerBackground,
+        border: Border(bottom: BorderSide(color: AppColors.headerBorder)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Row(
         children: [
-          Row(
-            children: [
-              const Icon(Icons.view_column_rounded, color: AppColors.polePrimary, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                titleText,
-                style: const TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
+          // Exit to menu
+          IconButton(
+            icon: const Icon(Icons.meeting_room_outlined, color: AppColors.primaryText, size: 22),
+            tooltip: 'Exit to Menu',
+            padding: const EdgeInsets.all(6),
+            constraints: const BoxConstraints(),
+            onPressed: () => context.go('/modules'),
           ),
-          const SizedBox(height: 4),
-          Text(
-            subtitleText,
-            style: const TextStyle(color: AppColors.secondaryText, fontSize: 12),
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(width: 6),
 
-          // Plot Size Section
-          Text(
-            plotSizeText,
-            style: const TextStyle(color: AppColors.primaryText, fontSize: 13, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _DimensionInput(
-                  label: lengthLabel,
-                  controller: _lengthController,
-                  onChanged: (_) => _onInputsChanged(controller),
+          // Logo
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Image.asset(
+              'assets/images/logo.png',
+              width: 24,
+              height: 24,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: AppColors.poleLight,
+                  borderRadius: BorderRadius.circular(6),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _DimensionInput(
-                  label: widthLabel,
-                  controller: _widthController,
-                  onChanged: (_) => _onInputsChanged(controller),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _DimensionInput(
-                  label: gridLabel,
-                  controller: _poleSizeController,
-                  onChanged: (_) => _onInputsChanged(controller),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // Calculate Button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.polePrimary,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                elevation: 0,
-              ),
-              onPressed: () {
-                controller.calculate();
-                _scrollToPreview();
-              },
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.calculate_rounded, color: Colors.white, size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    calculateBtnText,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.0),
-                  ),
-                ],
+                child: const Icon(Icons.architecture_rounded, color: AppColors.polePrimary, size: 16),
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(width: 8),
 
-          if (controller.error != null)
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFFCA5A5)),
-              ),
-              child: Text(controller.error!, style: const TextStyle(color: AppColors.error, fontSize: 13)),
-            )
-          else if (controller.result != null)
-            _buildResults(context, controller.result!),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildResults(BuildContext context, dynamic result) {
-    final l10n = AppLocalizations.of(context);
-    final poleReqText = l10n?.poleRequirement ?? 'POLE REQUIREMENT';
-    final vertPolesText = l10n?.verticalPoles ?? 'VERTICAL POLES';
-    final horizPipesText = l10n?.horizontalPipes ?? 'HORIZONTAL PIPES';
-    final ceilingSecText = l10n?.ceilingSections ?? 'CEILING SECTIONS';
-    final gridBreakdownText = l10n?.gridBreakdown ?? 'Grid Breakdown';
-    final gridUnitText = l10n?.gridPoleUnit ?? 'Grid Pole Unit';
-    final lengthBaysText = l10n?.lengthBays ?? 'Length Bays';
-    final widthBaysText = l10n?.widthBays ?? 'Width Bays';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Pole Requirement Container Card
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: AppColors.poleLight,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.poleSoft),
+          // Undo / Redo buttons right in navbar beside logo
+          IconButton(
+            icon: Icon(
+              Icons.undo_rounded,
+              color: controller.canUndo ? AppColors.primaryText : AppColors.secondaryText.withValues(alpha: 0.35),
+              size: 20,
+            ),
+            tooltip: 'Previous (Undo)',
+            padding: const EdgeInsets.all(6),
+            constraints: const BoxConstraints(),
+            onPressed: controller.canUndo ? () => controller.undo() : null,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                poleReqText,
-                style: const TextStyle(color: AppColors.polePrimary, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0),
-              ),
-              const SizedBox(height: 12),
-              _ResultRow(value: result.totalVerticalPoles.toString(), label: vertPolesText, color: AppColors.polePrimary),
-              const SizedBox(height: 12),
-              _ResultRow(value: result.totalHorizontalPipes.toString(), label: horizPipesText, color: AppColors.primaryText),
-              const SizedBox(height: 12),
-              _ResultRow(value: result.totalCeilingSections.toString(), label: ceilingSecText, color: AppColors.secondaryText),
-            ],
+          const SizedBox(width: 2),
+          IconButton(
+            icon: Icon(
+              Icons.redo_rounded,
+              color: controller.canRedo ? AppColors.primaryText : AppColors.secondaryText.withValues(alpha: 0.35),
+              size: 20,
+            ),
+            tooltip: 'Next (Redo)',
+            padding: const EdgeInsets.all(6),
+            constraints: const BoxConstraints(),
+            onPressed: controller.canRedo ? () => controller.redo() : null,
           ),
-        ),
-        const SizedBox(height: 20),
 
-        // Grid Details Card
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.cardBackground,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.headerBorder),
-            boxShadow: AppShadows.cardShadow,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                gridBreakdownText,
-                style: const TextStyle(color: AppColors.primaryText, fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-              const Divider(height: 20, color: AppColors.headerBorder),
-              _DetailRow(label: gridUnitText, value: '${result.poleSize} ft'),
-              _DetailRow(label: lengthBaysText, value: '${result.grid.lengthBays}'),
-              _DetailRow(label: widthBaysText, value: '${result.grid.widthBays}'),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+          // Right-aligned actions wrapped in SingleChildScrollView to prevent any overflow
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Project Name Badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.appBackground,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.headerBorder),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 55),
+                            child: Text(
+                              AppLocalizations.of(context)?.pipe ?? 'Pipe',
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: const TextStyle(
+                                color: AppColors.primaryText,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          const Icon(Icons.edit, size: 10, color: AppColors.secondaryText),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 4),
 
-  Widget _buildVisualization(BuildContext context, PoleCalculatorController controller) {
-    return Stack(
-      children: [
-        if (controller.result != null)
-          Positioned.fill(
-            child: ClipRect(
-              child: controller.viewMode == PoleViewMode.mode2D
-                  ? CustomPaint(painter: Pole2DPainter(result: controller.result!))
-                  : GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onScaleStart: (_) => controller.onScaleStart(),
-                      onScaleUpdate: (details) => controller.onScaleUpdate(details.scale, details.focalPointDelta),
-                      child: Container(
-                        color: Colors.transparent,
-                        width: double.infinity,
-                        height: double.infinity,
-                        child: CustomPaint(
-                          painter: Pole3DPainter(
-                            result: controller.result!,
-                            cameraAzimuth: controller.cameraAzimuth,
-                            cameraElevation: controller.cameraElevation,
-                            cameraZoom: controller.cameraZoom,
+                    // Save Button
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _handleSave(context, controller),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2563EB),
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF2563EB).withValues(alpha: 0.35),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.save_rounded, size: 14, color: Colors.white),
+                              SizedBox(width: 3),
+                              Text(
+                                'Save',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ),
-            ),
-          ),
-        Positioned(
-          top: 16,
-          right: 16,
-          child: Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E293B).withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF334155)),
-            ),
-            child: Row(
-              children: [
-                _ViewModeButton(
-                  label: '2D',
-                  isSelected: controller.viewMode == PoleViewMode.mode2D,
-                  onTap: () => controller.setViewMode(PoleViewMode.mode2D),
+                    const SizedBox(width: 4),
+
+                    // 2D / 3D Switcher
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.appBackground,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.headerBorder),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          InkWell(
+                            onTap: () => controller.setViewMode(PoleViewMode.mode2D),
+                            borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: controller.viewMode == PoleViewMode.mode2D ? const Color(0xFF2563EB) : Colors.transparent,
+                                borderRadius: const BorderRadius.horizontal(left: Radius.circular(7)),
+                              ),
+                              child: Text(
+                                '2D',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: controller.viewMode == PoleViewMode.mode2D ? Colors.white : AppColors.secondaryText,
+                                ),
+                              ),
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () => controller.setViewMode(PoleViewMode.mode3D),
+                            borderRadius: const BorderRadius.horizontal(right: Radius.circular(8)),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: controller.viewMode == PoleViewMode.mode3D ? const Color(0xFF2563EB) : Colors.transparent,
+                                borderRadius: const BorderRadius.horizontal(right: Radius.circular(7)),
+                              ),
+                              child: Text(
+                                '3D',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: controller.viewMode == PoleViewMode.mode3D ? Colors.white : AppColors.secondaryText,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+
+                    // Retrieve (History) Button
+                    IconButton(
+                      icon: const Icon(Icons.history_rounded, size: 17, color: AppColors.primaryText),
+                      tooltip: 'Retrieve Layout',
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(),
+                      onPressed: () {
+                        controller.resetCamera();
+                      },
+                    ),
+                    const SizedBox(width: 2),
+
+                    // Language button (tablet/desktop)
+                    if (!isCompact)
+                      IconButton(
+                        icon: const Icon(Icons.language_rounded, color: AppColors.primaryText, size: 17),
+                        tooltip: 'Language / भाषा',
+                        padding: const EdgeInsets.all(4),
+                        constraints: const BoxConstraints(),
+                        onPressed: () => LanguageSelectorDialog.show(context),
+                      ),
+                  ],
                 ),
-                _ViewModeButton(
-                  label: '3D',
-                  isSelected: controller.viewMode == PoleViewMode.mode3D,
-                  onTap: () => controller.setViewMode(PoleViewMode.mode3D),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-        if (controller.viewMode == PoleViewMode.mode3D && controller.result != null)
-          Positioned(
-            bottom: 16,
-            right: 16,
-            child: FloatingActionButton.small(
-              backgroundColor: const Color(0xFF1E293B),
-              foregroundColor: Colors.white,
-              tooltip: 'Reset View',
-              onPressed: () => controller.resetCamera(),
-              child: const Icon(Icons.refresh),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _DimensionInput extends StatelessWidget {
-  final String label;
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-
-  const _DimensionInput({
-    required this.label,
-    required this.controller,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(color: AppColors.secondaryText, fontSize: 11, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          style: const TextStyle(color: AppColors.primaryText, fontSize: 15, fontWeight: FontWeight.bold),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: AppColors.inputBackground,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.inputBorder),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.inputBorder),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.polePrimary, width: 2),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-          ),
-          onChanged: onChanged,
-        ),
-      ],
-    );
-  }
-}
-
-class _ResultRow extends StatelessWidget {
-  final String value;
-  final String label;
-  final Color color;
-
-  const _ResultRow({required this.value, required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.baseline,
-      textBaseline: TextBaseline.alphabetic,
-      children: [
-        Text(value, style: TextStyle(color: color, fontSize: 28, fontWeight: FontWeight.bold)),
-        const SizedBox(width: 10),
-        Text(label, style: const TextStyle(color: AppColors.secondaryText, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
-      ],
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _DetailRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: AppColors.secondaryText, fontSize: 12)),
-          Text(value, style: const TextStyle(color: AppColors.primaryText, fontSize: 12, fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
-}
 
-class _ModulePill extends StatelessWidget {
-  final String label;
-  final String icon;
-  final bool isActive;
-  final Color? activeColor;
-  final Color? activeBg;
-  final VoidCallback onTap;
+  Widget _buildInModelDimensionBadge(BuildContext context, PoleCalculatorController controller) {
+    final len = controller.length.toInt();
+    final wid = controller.width.toInt();
+    final pipe = controller.poleSize.toInt();
 
-  const _ModulePill({
-    required this.label,
-    required this.icon,
-    required this.isActive,
-    this.activeColor,
-    this.activeBg,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: isActive ? (activeBg ?? AppColors.trussLight) : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isActive ? (activeColor ?? AppColors.trussPrimary) : AppColors.headerBorder,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _handleEditDimensions(context, controller),
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.aspect_ratio_rounded, size: 15, color: Color(0xFF2563EB)),
+              const SizedBox(width: 6),
+              Text(
+                '$len/$wid ft · $pipe ft',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E293B),
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(Icons.edit_rounded, size: 13, color: Color(0xFF64748B)),
+            ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPipesBreakdownBadge(PoleCalculatorController controller, PoleCalculationResult result) {
+    final polesCount = result.totalVerticalPoles;
+    final upperCount = result.totalHorizontalPipes;
+    final totalCount = result.totalPipesUsed;
+
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F172A).withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: const Color(0xFF38BDF8).withValues(alpha: 0.5),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(icon, style: const TextStyle(fontSize: 10)),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive ? (activeColor ?? AppColors.trussPrimary) : AppColors.secondaryText,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-              ),
+            // 1. Pipes used as Poles (Vertical Poles) with Pole Logo
+            _buildPipeStatItem(
+              imagePath: 'assets/images/straight.png',
+              icon: Icons.view_column_rounded,
+              iconColor: const Color(0xFF38BDF8), // Cyan
+              count: polesCount,
+              label: 'Poles',
+            ),
+            _buildVerticalSeparator(),
+
+            // 2. Pipes used in Upper Side (Roof/Horizontal Pipes) with Upper Logo
+            _buildPipeStatItem(
+              imagePath: 'assets/images/straight2.png',
+              icon: Icons.roofing_rounded,
+              iconColor: const Color(0xFFF59E0B), // Amber
+              count: upperCount,
+              label: 'Upper Pipes',
+            ),
+            _buildVerticalSeparator(),
+
+            // 3. Total Pipes Used in Structure with Total Logo
+            _buildPipeStatItem(
+              icon: Icons.all_inbox_rounded,
+              iconColor: const Color(0xFF10B981), // Emerald
+              count: totalCount,
+              label: 'Total Pipes',
+              isHighlighted: true,
             ),
           ],
         ),
       ),
     );
   }
-}
 
-class _ViewModeButton extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _ViewModeButton({required this.label, required this.isSelected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.polePrimary.withValues(alpha: 0.3) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? const Color(0xFFFDBA74) : const Color(0xFF94A3B8),
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
+  Widget _buildPipeStatItem({
+    String? imagePath,
+    IconData? icon,
+    required Color iconColor,
+    required int count,
+    required String label,
+    bool isHighlighted = false,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 22,
+          height: 22,
+          decoration: BoxDecoration(
+            color: imagePath != null ? Colors.white : iconColor.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: iconColor.withValues(alpha: 0.4),
+              width: 1,
+            ),
+          ),
+          padding: EdgeInsets.all(imagePath != null ? 2 : 4),
+          child: Center(
+            child: imagePath != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: Image.asset(
+                      imagePath,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Icon(
+                        icon ?? Icons.circle,
+                        size: 13,
+                        color: iconColor,
+                      ),
+                    ),
+                  )
+                : Icon(icon, size: 13, color: iconColor),
           ),
         ),
+        const SizedBox(width: 6),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: isHighlighted ? const Color(0xFF34D399) : Colors.white,
+                height: 1.1,
+              ),
+            ),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w500,
+                color: isHighlighted ? const Color(0xFFA7F3D0) : const Color(0xFF94A3B8),
+                height: 1.1,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVerticalSeparator() {
+    return Container(
+      height: 18,
+      width: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      color: const Color(0xFF334155),
+    );
+  }
+
+  Widget _buildSimplifiedToolRail(BuildContext context, PoleCalculatorController controller) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A).withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Pencil Tool
+          IconButton(
+            icon: Icon(
+              Icons.edit_rounded,
+              color: _activeTool == 'pencil' ? const Color(0xFF34D399) : const Color(0xFF94A3B8),
+              size: 17,
+            ),
+            tooltip: 'Pen / Draw',
+            padding: const EdgeInsets.all(6),
+            constraints: const BoxConstraints(),
+            onPressed: () => setState(() => _activeTool = 'pencil'),
+          ),
+          const SizedBox(height: 5),
+          const Divider(height: 1, indent: 2, endIndent: 2, color: Color(0xFF334155)),
+          const SizedBox(height: 5),
+
+          // Eraser Tool
+          IconButton(
+            icon: Icon(
+              Icons.cleaning_services_rounded,
+              color: _activeTool == 'eraser' ? const Color(0xFF34D399) : const Color(0xFF94A3B8),
+              size: 17,
+            ),
+            tooltip: 'Eraser',
+            padding: const EdgeInsets.all(6),
+            constraints: const BoxConstraints(),
+            onPressed: () => setState(() => _activeTool = 'eraser'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomStatusChip(PoleCalculatorController controller, dynamic result) {
+    final len = controller.length.toInt();
+    final wid = controller.width.toInt();
+    final poles = result.totalVerticalPoles;
+    final pipes = result.totalHorizontalPipes;
+    final pipeSize = result.poleSize.toInt();
+
+    return Container(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width - 28,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A).withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF334155)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.view_column_rounded, size: 14, color: Color(0xFF38BDF8)),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              '$len × $wid ft · $poles poles · $pipes pipes (${pipeSize}ft)',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

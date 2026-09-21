@@ -26,8 +26,9 @@ MandapNode createNode({
   required double x,
   required double z,
   NodeType type = NodeType.corner,
+  double elevation = 0.0,
 }) {
   _nodeCounter++;
   final id = NodeId('n${DateTime.now().microsecondsSinceEpoch}_$_nodeCounter');
-  return MandapNode(id: id, x: x, z: z, type: type);
+  return MandapNode(id: id, x: x, z: z, type: type, elevation: elevation);
 }

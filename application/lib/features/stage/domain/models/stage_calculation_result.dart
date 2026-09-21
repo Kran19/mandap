@@ -39,4 +39,7 @@ class StageCalculationResult {
     required this.coveredWidth,
     required this.tableLayoutPoints,
   });
+
+  double get stageArea => stageLength * stageWidth;
+  double get coveredArea => coveredLength * coveredWidth;
 }

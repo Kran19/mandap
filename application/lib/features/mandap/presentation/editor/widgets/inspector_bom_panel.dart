@@ -4,6 +4,7 @@ import 'package:mandap/core/theme/app_theme.dart';
 import '../../../domain/entities/mandap_edge.dart';
 import '../../../domain/entities/mandap_node.dart';
 import '../../../domain/entities/node_id.dart';
+import '../../../domain/value_objects/truss_bom_summary.dart';
 import '../../../application/commands/move_node_command.dart';
 import '../../../application/commands/update_node_dimensions_command.dart';
 import '../../../application/commands/set_node_support_command.dart';
@@ -624,6 +625,7 @@ class _InspectorBomPanelState extends State<InspectorBomPanel>
 
     // Piece breakdown
     final requiredTruss = result.requiredTrussBySize;
+    final trussBom = result.trussBomSummary;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -631,7 +633,7 @@ class _InspectorBomPanelState extends State<InspectorBomPanel>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'BILL OF MATERIALS (BOM)',
+            'TRUSS BOM',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.bold,
@@ -641,31 +643,92 @@ class _InspectorBomPanelState extends State<InspectorBomPanel>
           ),
           const SizedBox(height: 14),
 
-          // Total Linear Truss
+          // ── PILLAR / VERTICAL TRUSS ──────────────────────────────────────────
+          _buildBomCategoryCard(
+            title: 'PILLAR / VERTICAL',
+            accentColor: const Color(0xFFF59E0B), // Warm amber/gold
+            quantity: trussBom.pillarQuantity,
+            totalFeet: trussBom.pillarTotalFeet,
+            members: trussBom.pillarMembers,
+          ),
+          const SizedBox(height: 12),
+
+          // ── UPPER / ROOF TRUSS ──────────────────────────────────────────────
+          _buildBomCategoryCard(
+            title: 'UPPER / ROOF',
+            accentColor: const Color(0xFF38BDF8), // Vibrant cyan/sky
+            quantity: trussBom.upperQuantity,
+            totalFeet: trussBom.upperTotalFeet,
+            members: trussBom.upperMembers,
+          ),
+          const SizedBox(height: 12),
+
+          // ── TOTAL TRUSS ─────────────────────────────────────────────────────
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFF0B0F19),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF1E293B)),
+              color: const Color(0xFF0F172A),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF10B981), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Geometric Truss Length', style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
-                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'TOTAL TRUSS',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.1,
+                        color: Color(0xFF10B981),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${trussBom.totalQuantity} members',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF34D399),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 Text(
-                  '${totalTruss.toStringAsFixed(1)} ft',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                  '${trussBom.totalFeet.toStringAsFixed(1)} ft',
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 16),
+          const Divider(color: Color(0xFF1E293B)),
+          const SizedBox(height: 12),
 
           // Box Truss Pieces Breakdown
           const Text(
-            'BOX TRUSS PIECES',
+            'INVENTORY PIECES',
             style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0, color: Color(0xFF60A5FA)),
           ),
           const SizedBox(height: 8),
@@ -705,26 +768,103 @@ class _InspectorBomPanelState extends State<InspectorBomPanel>
 
           // Vertical Towers
           const Text(
-            'PHYSICAL POLES',
+            'PHYSICAL SUPPORT TOWERS',
             style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0, color: Color(0xFFFBBF24)),
           ),
           const SizedBox(height: 8),
 
-          _buildDataRow('Total Support Towers', '$poleCount poles'),
-          const SizedBox(height: 16),
-          const Divider(color: Color(0xFF1E293B)),
-          const SizedBox(height: 12),
-
-          // Summary Totals
-          const Text(
-            'TOTALS SUMMARY',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0, color: Color(0xFF10B981)),
-          ),
-          const SizedBox(height: 8),
-          _buildDataRow('Total Truss Footage', '${totalTruss.toStringAsFixed(0)} ft'),
-          const SizedBox(height: 6),
-          _buildDataRow('Total Physical Poles', '$poleCount towers'),
+          _buildDataRow('Total Support Towers', '$poleCount towers'),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBomCategoryCard({
+    required String title,
+    required Color accentColor,
+    required int quantity,
+    required double totalFeet,
+    required List<TrussMemberBomItem> members,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B0F19),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF1E293B)),
+      ),
+      child: Theme(
+        data: ThemeData.dark().copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.0,
+                  color: accentColor,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Text(
+                  '$quantity members',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: accentColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              '${totalFeet.toStringAsFixed(1)} ft',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          children: [
+            if (members.isEmpty)
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('No members in this category', style: TextStyle(fontSize: 11, color: Colors.white38)),
+              )
+            else
+              ...List.generate(members.length, (idx) {
+                final m = members[idx];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Member #${idx + 1}',
+                        style: const TextStyle(fontSize: 12, color: Colors.white70),
+                      ),
+                      Text(
+                        '${m.lengthFeet.toStringAsFixed(1)} ft',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+          ],
+        ),
       ),
     );
   }

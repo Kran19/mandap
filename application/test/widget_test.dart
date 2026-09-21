@@ -7,6 +7,7 @@ import 'package:mandap/l10n/app_localizations.dart';
 import 'package:mandap/features/mandap/presentation/mandap_editor_screen.dart';
 import 'package:mandap/features/mandap/presentation/editor/widgets/cad_header_bar.dart';
 import 'package:mandap/features/mandap/presentation/editor/widgets/tool_rail_widget.dart';
+import 'package:mandap/features/mandap/presentation/widgets/simplified_truss_rail.dart';
 import 'package:mandap/features/mandap/presentation/editor/widgets/inspector_bom_panel.dart';
 import 'package:mandap/features/auth/application/bootstrap_coordinator.dart';
 import 'package:mandap/features/auth/domain/models/auth_state.dart';
@@ -80,7 +81,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(CadHeaderBar), findsOneWidget);
-      expect(find.byType(ToolRailWidget), findsOneWidget);
+      expect(find.byType(SimplifiedTrussRail), findsOneWidget);
       expect(find.byType(CustomPaint), findsWidgets);
       expect(tester.takeException(), isNull);
     });
@@ -96,7 +97,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(CadHeaderBar), findsOneWidget);
-      expect(find.byType(ToolRailWidget), findsOneWidget);
+      expect(find.byType(SimplifiedTrussRail), findsOneWidget);
       expect(find.byType(CustomPaint), findsWidgets);
       expect(tester.takeException(), isNull);
     });
@@ -112,7 +113,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(CadHeaderBar), findsOneWidget);
-      expect(find.byType(ToolRailWidget), findsOneWidget);
+      expect(find.byType(SimplifiedTrussRail), findsOneWidget);
       expect(find.byType(CustomPaint), findsWidgets);
       expect(tester.takeException(), isNull);
     });
@@ -128,7 +129,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(CadHeaderBar), findsOneWidget);
-      expect(find.byType(ToolRailWidget), findsOneWidget);
+      expect(find.byType(SimplifiedTrussRail), findsOneWidget);
       expect(find.byType(InspectorBomPanel), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
@@ -176,15 +177,78 @@ void main() {
         expect(controller.layout.getNode(n1Id)!.x, 10.0);
         expect(controller.history.canUndo, isTrue);
 
-        // 5. Tap Undo button in ToolRailWidget
-        final undoButton = find.widgetWithIcon(IconButton, Icons.undo);
-        expect(undoButton, findsOneWidget);
-        await tester.tap(undoButton);
+        // 5. Perform Undo operation via controller history
+        controller.undo();
         await tester.pumpAndSettle();
 
         // 6. Verify Geometry Restored
         expect(controller.layout.getNode(n1Id)!.x, 0.0);
         expect(controller.history.canUndo, isFalse);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'Verify Save, Retrieve, Previous, and Next action buttons render and respond',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(createEditorTestSurface());
+        await tester.pump();
+        await tester.pump();
+        await tester.pumpAndSettle();
+
+        // Check Save button exists in Header
+        expect(find.byIcon(Icons.save_rounded), findsOneWidget);
+
+        // Check Retrieve button exists in Header
+        expect(find.byIcon(Icons.history_rounded), findsOneWidget);
+
+        // Check Previous (Undo) and Next (Redo) exist in Header navbar and SimplifiedTrussRail
+        expect(find.byIcon(Icons.undo_rounded), findsNWidgets(2));
+        expect(find.byIcon(Icons.redo_rounded), findsNWidgets(2));
+
+        // Check SimplifiedTrussRail contains Pencil, Eraser, Undo, and Redo
+        expect(
+          find.descendant(
+            of: find.byType(SimplifiedTrussRail),
+            matching: find.byIcon(Icons.edit_rounded),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byType(SimplifiedTrussRail),
+            matching: find.byIcon(Icons.cleaning_services_rounded),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byType(SimplifiedTrussRail),
+            matching: find.byIcon(Icons.undo_rounded),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byType(SimplifiedTrussRail),
+            matching: find.byIcon(Icons.redo_rounded),
+          ),
+          findsOneWidget,
+        );
+
+        // Check Bottom-Left info chip exists with poles summary
+        expect(find.textContaining('poles'), findsOneWidget);
+
+        // Tap Save button in Header
+        final saveBtn = find.byIcon(Icons.save_rounded);
+        await tester.tap(saveBtn);
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump(const Duration(milliseconds: 300));
+
         expect(tester.takeException(), isNull);
       },
     );

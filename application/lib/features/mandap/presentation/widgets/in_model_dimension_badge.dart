@@ -1,0 +1,116 @@
+import 'package:flutter/material.dart';
+import '../../application/mandap_editor_controller.dart';
+import '../wizard/create_truss_dialog.dart';
+
+/// In-3D Model Dimension Badge & Quick-Edit Overlay.
+/// Compact floating overlay pinned top-center of 3D scene.
+class InModelDimensionBadge extends StatelessWidget {
+  final MandapEditorController controller;
+  final VoidCallback onDimensionUpdated;
+
+  const InModelDimensionBadge({
+    super.key,
+    required this.controller,
+    required this.onDimensionUpdated,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final widthVal = controller.plotWidth.toInt();
+    final lenVal = controller.plotDepth.toInt();
+    final lenStr = lenVal == 0 ? 100 : lenVal;
+    final widthStr = widthVal == 0 ? 100 : widthVal;
+    final sizeVal = controller.standardTrussPieceSize.toInt();
+    final sizeStr = sizeVal == 0 ? 30 : sizeVal;
+
+    final lPadded = lenStr.toString().padLeft(2, '0');
+    final wPadded = widthStr.toString().padLeft(2, '0');
+    final sPadded = sizeStr.toString().padLeft(2, '0');
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () async {
+          final params = await CreateTrussDialog.show(
+            context,
+            initialLength: lenVal > 0 ? lenVal.toDouble() : 100.0,
+            initialWidth: widthVal > 0 ? widthVal.toDouble() : 100.0,
+            initialTrussSize: controller.standardTrussPieceSize > 0 ? controller.standardTrussPieceSize : 30.0,
+          );
+          if (params == null) return;
+
+          controller.reconfigureTrussDimensions(
+            plotLength: params.plotLength,
+            plotWidth: params.plotWidth,
+            trussSize: params.trussSize,
+            poleHeight: 20.0,
+            includeTowers: true,
+          );
+          onDimensionUpdated();
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.94),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.7), width: 1.3),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF00E5FF).withValues(alpha: 0.2),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.4),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.aspect_ratio_rounded, color: Color(0xFF00E5FF), size: 15),
+                const SizedBox(width: 7),
+                // Length / Breadth (00/00 ft)
+                Text(
+                  '$lPadded/$wPadded ft',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Small Box Size Chip (00/00 ft)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00E5FF).withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.5), width: 0.9),
+                  ),
+                  child: Text(
+                    'Box: $sPadded/$sPadded ft',
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF00E5FF),
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 7),
+                const Icon(Icons.edit_rounded, color: Color(0xFF94A3B8), size: 13),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -19,8 +19,8 @@ void main() {
     test(
       'BeamTransformCalculator calculates correct center, length, and direction for horizontal beam',
       () {
-        final start = const MandapNode(id: NodeId('n1'), x: 0.0, z: 0.0);
-        final end = const MandapNode(id: NodeId('n2'), x: 40.0, z: 0.0);
+        final start = const MandapNode(id: NodeId('n1'), x: 0.0, z: 0.0, elevation: 10.0);
+        final end = const MandapNode(id: NodeId('n2'), x: 40.0, z: 0.0, elevation: 10.0);
 
         final transform = BeamTransformCalculator.calculate(
           startNode: start,

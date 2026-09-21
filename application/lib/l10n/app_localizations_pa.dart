@@ -199,6 +199,15 @@ class AppLocalizationsPa extends AppLocalizations {
   String get pole => 'Pole';
 
   @override
+  String get pipe => 'ਪਾਈਪ';
+
+  @override
+  String get modulePipeSubtitle => 'ਪਾਈਪ ਕੈਲਕੁਲੇਟਰ';
+
+  @override
+  String get createPipeStructure => 'ਪਾਈਪ ਢਾਂਚਾ ਬਣਾਓ';
+
+  @override
   String get stage => 'Stage';
 
   @override

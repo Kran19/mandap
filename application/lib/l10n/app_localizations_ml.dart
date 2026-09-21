@@ -199,6 +199,15 @@ class AppLocalizationsMl extends AppLocalizations {
   String get pole => 'Pole';
 
   @override
+  String get pipe => 'പൈപ്പ്';
+
+  @override
+  String get modulePipeSubtitle => 'പൈപ്പ് കാൽക്കുലേറ്റർ';
+
+  @override
+  String get createPipeStructure => 'പൈപ്പ് ഘടന സൃഷ്ടിക്കുക';
+
+  @override
   String get stage => 'Stage';
 
   @override

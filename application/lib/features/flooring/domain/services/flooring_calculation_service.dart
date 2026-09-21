@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import '../models/flooring_calculation_input.dart';
 import '../models/flooring_calculation_result.dart';
 import '../models/flooring_carpet.dart';
@@ -17,25 +18,19 @@ class FlooringCalculationService {
     final double cl = input.carpetLength;
     final double cw = input.carpetWidth;
 
-    // --- Evaluate Orientation A (no rotation: cl along plot length, cw along plot width) ---
-    final int aAlongLength = (pl / cl).ceil();
-    final int aAlongWidth  = (pw / cw).ceil();
-    final int aTotal       = aAlongLength * aAlongWidth;
+    final double cLong = math.max(cl, cw);
+    final double cShort = math.min(cl, cw);
 
-    // --- Evaluate Orientation B (rotated 90°: cw along plot length, cl along plot width) ---
-    final int bAlongLength = (pl / cw).ceil();
-    final int bAlongWidth  = (pw / cl).ceil();
-    final int bTotal       = bAlongLength * bAlongWidth;
+    final bool isSwapped = input.isRotated ?? false;
 
-    // --- Choose orientation with fewer carpets; Orientation A wins on tie ---
-    final bool useB = bTotal < aTotal;
+    // Default (Unswapped): Horizontal rolls (cLong along X, cShort along Z)
+    // Swapped (After Swap): Vertical rolls (cShort along X, cLong along Z)
+    final double orientedCarpetLength = isSwapped ? cShort : cLong;
+    final double orientedCarpetWidth  = isSwapped ? cLong  : cShort;
 
-    final int   carpetsAlongLength   = useB ? bAlongLength : aAlongLength;
-    final int   carpetsAlongWidth    = useB ? bAlongWidth  : aAlongWidth;
-    final int   totalCarpets         = useB ? bTotal       : aTotal;
-    final double orientedCarpetLength = useB ? cw           : cl; // along plot length (X)
-    final double orientedCarpetWidth  = useB ? cl           : cw; // along plot width (Z)
-    final double rotationAngle        = useB ? 90.0         : 0.0;
+    final int carpetsAlongLength = (pl / orientedCarpetLength).ceil();
+    final int carpetsAlongWidth  = (pw / orientedCarpetWidth).ceil();
+    final int totalCarpets       = carpetsAlongLength * carpetsAlongWidth;
 
     final double coveredLength = carpetsAlongLength * orientedCarpetLength;
     final double coveredWidth  = carpetsAlongWidth  * orientedCarpetWidth;
@@ -44,27 +39,25 @@ class FlooringCalculationService {
     final double carpetArea   = cl * cw;
     final double coveredArea  = coveredLength * coveredWidth;
 
-    final double extraCoverage        = coveredArea - plotArea;
-    final double extraCoveragePercent = (extraCoverage / plotArea) * 100.0;
+    final double extraCoverage        = math.max(0.0, coveredArea - plotArea);
+    final double extraCoveragePercent = plotArea > 0 ? (extraCoverage / plotArea) * 100.0 : 0.0;
 
-    // --- Generate individual carpet layout ---
     final List<FlooringCarpet> carpets = [];
     int id = 0;
+
+    // Row-by-row from top to bottom (Row 0: 1, 2, 3... Row 1: 4, 5, 6...)
     for (int row = 0; row < carpetsAlongWidth; row++) {
       for (int col = 0; col < carpetsAlongLength; col++) {
         carpets.add(FlooringCarpet(
-          id:       id++,
-          x:        col * orientedCarpetLength,
-          z:        row * orientedCarpetWidth,
-          width:    orientedCarpetLength,
-          depth:    orientedCarpetWidth,
-          rotation: rotationAngle,
+          id:        id++,
+          x:         col * orientedCarpetLength,
+          z:         row * orientedCarpetWidth,
+          width:     orientedCarpetLength,
+          depth:     orientedCarpetWidth,
+          rotation:  orientedCarpetLength == cl ? 0.0 : 90.0,
         ));
       }
     }
-
-    assert(carpets.length == totalCarpets,
-        'Generated ${carpets.length} carpets but expected $totalCarpets');
 
     return FlooringCalculationResult(
       plotLength:           pl,

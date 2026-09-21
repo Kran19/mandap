@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:vector_math/vector_math_64.dart' as v64;
 import '../../../domain/entities/edge_id.dart';
 import '../../../domain/entities/mandap_layout.dart';
+import '../../../domain/entities/mandap_node.dart';
 import '../../../domain/entities/node_id.dart';
 import '../../../domain/value_objects/mandap_calculation_result.dart';
+import '../../../domain/value_objects/pole_placement.dart';
 import 'math/beam_transform_calculator.dart';
 import 'math/render_entity_registry.dart';
 import '../../../application/coordinate_transform.dart';
@@ -12,14 +14,15 @@ import '../../../application/coordinate_transform.dart';
 /// Production controller managing 3D camera, entity registry, raycast picking, and gesture interactions.
 class Mandap3DController extends ChangeNotifier {
   double cameraAzimuth = 45.0 * math.pi / 180.0;
-  double cameraElevation = 35.0 * math.pi / 180.0;
-  double cameraDistance = 80.0;
-  v64.Vector3 cameraCenterTarget = v64.Vector3(20.0, 5.0, 15.0);
+  double cameraElevation = 32.0 * math.pi / 180.0; // Cinematic eye-level perspective matching professional event truss reference
+  double cameraDistance = 140.0;
+  v64.Vector3 cameraCenterTarget = v64.Vector3(50.0, 5.0, 50.0);
 
   final RenderEntityRegistry registry = RenderEntityRegistry();
 
   bool isDraggingHandle = false;
   bool isDraggingNode = false;
+  bool isDraggingEdge = false;
   NodeId? activeHandleNodeId;
   EdgeId? activeHandleEdgeId;
   double? dragPreviewLengthFeet;
@@ -28,6 +31,12 @@ class Mandap3DController extends ChangeNotifier {
   double dragStartNodeZ = 0.0;
   double dragStartOffsetX = 0.0;
   double dragStartOffsetZ = 0.0;
+  double dragStartPlaneX = 0.0;
+  double dragStartPlaneZ = 0.0;
+  double dragStartNode1X = 0.0;
+  double dragStartNode1Z = 0.0;
+  double dragStartNode2X = 0.0;
+  double dragStartNode2Z = 0.0;
 
   /// Default visual mandap height in feet.
   double mandapHeight;
@@ -49,25 +58,31 @@ class Mandap3DController extends ChangeNotifier {
     double maxX = -double.infinity;
     double minZ = double.infinity;
     double maxZ = -double.infinity;
+    double maxElev = mandapHeight;
 
     for (final node in layout.nodes.values) {
       if (node.x < minX) minX = node.x;
       if (node.x > maxX) maxX = node.x;
       if (node.z < minZ) minZ = node.z;
       if (node.z > maxZ) maxZ = node.z;
+      if (node.elevation > maxElev) maxElev = node.elevation;
+    }
+
+    if (maxElev > 0) {
+      mandapHeight = maxElev;
     }
 
     final centerX = (minX + maxX) / 2.0;
     final centerZ = (minZ + maxZ) / 2.0;
-    cameraCenterTarget = v64.Vector3(centerX, mandapHeight / 2.0, centerZ);
+    cameraCenterTarget = v64.Vector3(centerX, maxElev * 0.20, centerZ);
 
     final spanX = (maxX - minX).abs();
     final spanZ = (maxZ - minZ).abs();
     final maxSpan = math.max(spanX, spanZ);
 
-    cameraDistance = math.max(40.0, maxSpan * 1.8);
+    cameraDistance = math.max(115.0, maxSpan * 1.55 + maxElev * 1.2);
     cameraAzimuth = 45.0 * math.pi / 180.0;
-    cameraElevation = 35.0 * math.pi / 180.0;
+    cameraElevation = 32.0 * math.pi / 180.0; // Cinematic eye-level perspective
 
     notifyListeners();
   }
@@ -75,8 +90,8 @@ class Mandap3DController extends ChangeNotifier {
   /// Resets camera to default orientation.
   void resetCamera() {
     cameraAzimuth = 45.0 * math.pi / 180.0;
-    cameraElevation = 35.0 * math.pi / 180.0;
-    cameraDistance = 80.0;
+    cameraElevation = 32.0 * math.pi / 180.0;
+    cameraDistance = 140.0;
     notifyListeners();
   }
 
@@ -84,12 +99,20 @@ class Mandap3DController extends ChangeNotifier {
   void syncScene(MandapLayout layout, MandapCalculationResult result) {
     registry.clear();
 
-    // Register Handles for ALL nodes (so isolated nodes can be selected/deleted)
+    double maxElev = 0.0;
+    for (final node in layout.nodes.values) {
+      if (node.elevation > maxElev) maxElev = node.elevation;
+    }
+    if (maxElev > 0) {
+      mandapHeight = maxElev;
+    }
+
+    // Register Handles for ALL nodes using node elevation
     for (final node in layout.nodes.values) {
       registry.registerHandle(
         HandleRenderEntity(
           nodeId: node.id,
-          position: v64.Vector3(node.x, mandapHeight, node.z),
+          position: v64.Vector3(node.x, node.elevation, node.z),
         ),
       );
     }
@@ -127,29 +150,78 @@ class Mandap3DController extends ChangeNotifier {
       }
     }
 
-    // 2. Register Poles strictly from MandapCalculationResult.poles
+    // 2. Register Poles strictly from MandapCalculationResult.poles and layout nodes
+    final renderedKeys = <String>{};
     for (int i = 0; i < result.poles.length; i++) {
       final polePlacement = result.poles[i];
-      final poleId = PoleRenderId('pole_$i');
+      final poleId = PoleRenderId('pole_');
+
+      // Determine the exact top elevation of this tower from layout nodes or edges
+      MandapNode? matchingNode;
+      if (polePlacement.sourceNodeId != null) {
+        matchingNode = layout.getNode(polePlacement.sourceNodeId!);
+      }
+      if (matchingNode == null) {
+        for (final n in layout.nodes.values) {
+          if ((n.x - polePlacement.x).abs() < 0.5 && (n.z - polePlacement.z).abs() < 0.5) {
+            matchingNode = n;
+            break;
+          }
+        }
+      }
+
+      double poleHeight = (matchingNode != null && matchingNode.elevation > 0)
+          ? matchingNode.elevation
+          : mandapHeight;
 
       registry.registerPole(
         PoleRenderEntity(
           id: poleId,
           polePlacement: polePlacement,
           basePosition: v64.Vector3(polePlacement.x, 0.0, polePlacement.z),
-          heightFeet: mandapHeight,
+          heightFeet: poleHeight,
         ),
       );
+      renderedKeys.add('_');
+    }
+
+    // Also register any nodes designated with NodeSupport.pole or NodeType.corner
+    int extraPoleIndex = 0;
+    for (final node in layout.nodes.values) {
+      if (node.type == NodeType.controlPoint || node.type == NodeType.carpet || node.type == NodeType.stage) {
+        continue;
+      }
+      if (node.support == NodeSupport.pole || node.type == NodeType.corner) {
+        final key = '_';
+        if (!renderedKeys.contains(key)) {
+          final polePlacement = PolePlacement(
+            id: 'node_pole_',
+            x: node.x,
+            z: node.z,
+            reason: node.type == NodeType.corner ? PoleReason.corner : PoleReason.manual,
+            sourceNodeId: node.id,
+          );
+          registry.registerPole(
+            PoleRenderEntity(
+              id: PoleRenderId('pole_node__'),
+              polePlacement: polePlacement,
+              basePosition: v64.Vector3(node.x, 0.0, node.z),
+              heightFeet: node.elevation > 0 ? node.elevation : mandapHeight,
+            ),
+          );
+          renderedKeys.add(key);
+        }
+      }
     }
 
     notifyListeners();
   }
 
-  /// Orbit camera view.
+  /// Orbit camera view with refined, buttery-smooth sensitivity.
   void orbitCamera(double deltaX, double deltaY) {
-    cameraAzimuth += deltaX * 0.01;
-    cameraElevation = (cameraElevation - deltaY * 0.01).clamp(
-      0.05,
+    cameraAzimuth += deltaX * 0.0038;
+    cameraElevation = (cameraElevation - deltaY * 0.0038).clamp(
+      0.15, // Keep camera above turf to eliminate clipping
       math.pi / 2 - 0.05,
     );
     notifyListeners();
@@ -158,6 +230,27 @@ class Mandap3DController extends ChangeNotifier {
   /// Zoom camera view.
   void zoomCamera(double zoomFactor) {
     cameraDistance = (cameraDistance * zoomFactor).clamp(20.0, 300.0);
+    notifyListeners();
+  }
+
+  /// Pan camera view parallel to the view plane with smooth 1:1 finger tracking.
+  void panCamera(double deltaX, double deltaY) {
+    final cosAzim = math.cos(cameraAzimuth);
+    final sinAzim = math.sin(cameraAzimuth);
+    final cosElev = math.cos(cameraElevation);
+    final sinElev = math.sin(cameraElevation);
+
+    // Camera right vector in world space: (cosAzim, 0, -sinAzim)
+    final right = v64.Vector3(cosAzim, 0.0, -sinAzim);
+
+    // Camera up vector in world space: (-sinAzim * sinElev, cosElev, -cosAzim * sinElev)
+    final up = v64.Vector3(-sinAzim * sinElev, cosElev, -cosAzim * sinElev);
+
+    // Scaling factor proportional to distance so pan moves with finger
+    final scale = (cameraDistance / 950.0);
+    final displacement = (right * (-deltaX * scale)) + (up * (deltaY * scale));
+
+    cameraCenterTarget += displacement;
     notifyListeners();
   }
 

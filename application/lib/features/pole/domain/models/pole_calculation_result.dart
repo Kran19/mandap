@@ -25,4 +25,7 @@ class PoleCalculationResult {
     required this.totalCeilingSections,
     required this.poleLayoutPoints,
   });
+
+  /// Total pipes used in the entire structure (vertical poles + upper horizontal pipes).
+  int get totalPipesUsed => totalVerticalPoles + totalHorizontalPipes;
 }

@@ -17,6 +17,8 @@ class CadHeaderBar extends StatefulWidget {
   final ValueChanged<String> onProjectNameChanged;
   final ProjectSyncService? syncService;
   final VoidCallback? onSave;
+  final VoidCallback? onRetrieve;
+  final bool isSaving;
   final ViewMode? viewMode;
   final ValueChanged<ViewMode>? onViewModeChanged;
 
@@ -27,6 +29,8 @@ class CadHeaderBar extends StatefulWidget {
     required this.onProjectNameChanged,
     this.syncService,
     this.onSave,
+    this.onRetrieve,
+    this.isSaving = false,
     this.viewMode,
     this.onViewModeChanged,
   });
@@ -85,14 +89,21 @@ class _CadHeaderBarState extends State<CadHeaderBar> {
       child: Row(
         children: [
           // Menu Door Icon Button (Single Door Exit Gateway to 4-Module Menu)
-          IconButton(
-            icon: const Icon(Icons.meeting_room_outlined, color: AppColors.primaryText, size: 24),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-            tooltip: 'Exit to Menu',
-            onPressed: () => context.go('/modules'),
+          Tooltip(
+            message: 'Exit to Menu',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => context.go('/modules'),
+                borderRadius: BorderRadius.circular(8),
+                child: const Padding(
+                  padding: EdgeInsets.all(5),
+                  child: Icon(Icons.meeting_room_outlined, color: AppColors.primaryText, size: 22),
+                ),
+              ),
+            ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 2),
 
           // Brand Logo & Name
           InkWell(
@@ -106,11 +117,11 @@ class _CadHeaderBarState extends State<CadHeaderBar> {
                     borderRadius: BorderRadius.circular(8),
                     child: Image.asset(
                       'assets/images/logo.png',
-                      width: 30,
-                      height: 30,
-                      fit: BoxFit.cover,
+                      width: 32,
+                      height: 32,
+                      fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) => Container(
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
                           color: AppColors.trussLight,
                           borderRadius: BorderRadius.circular(8),
@@ -126,11 +137,11 @@ class _CadHeaderBarState extends State<CadHeaderBar> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'MANDAP',
+                          'MANDAP BUILDER',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
+                            letterSpacing: 1.0,
                             color: AppColors.primaryText,
                           ),
                         ),
@@ -151,115 +162,227 @@ class _CadHeaderBarState extends State<CadHeaderBar> {
               ),
             ),
           ),
-          SizedBox(width: isVeryCompact ? 4 : (isCompact ? 8 : 12)),
 
-          const Spacer(),
 
-          // Project Name Editor
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.inputBackground,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.inputBorder),
-            ),
-            child: _isEditingName
-                ? SizedBox(
-                    width: isVeryCompact ? 80 : 120,
-                    child: TextField(
-                      controller: _nameController,
-                      autofocus: true,
-                      style: const TextStyle(color: AppColors.primaryText, fontSize: 12, fontWeight: FontWeight.bold),
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                        border: InputBorder.none,
+
+          // Right Controls (Right-aligned, zero-overflow across all viewports)
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Project Name Editor
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.inputBackground,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.inputBorder),
                       ),
-                      onSubmitted: (val) {
-                        setState(() => _isEditingName = false);
-                        if (val.trim().isNotEmpty) {
-                          widget.onProjectNameChanged(val.trim());
-                        }
-                      },
+                      child: _isEditingName
+                          ? SizedBox(
+                              width: isVeryCompact ? 45 : (screenWidth < 600 ? 55 : 120),
+                              child: TextField(
+                                controller: _nameController,
+                                autofocus: true,
+                                style: const TextStyle(color: AppColors.primaryText, fontSize: 12, fontWeight: FontWeight.bold),
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                  border: InputBorder.none,
+                                ),
+                                onSubmitted: (val) {
+                                  setState(() => _isEditingName = false);
+                                  if (val.trim().isNotEmpty) {
+                                    widget.onProjectNameChanged(val.trim());
+                                  }
+                                },
+                              ),
+                            )
+                          : InkWell(
+                              onTap: () => setState(() => _isEditingName = true),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ConstrainedBox(
+                                    constraints: BoxConstraints(maxWidth: isVeryCompact ? 45 : (screenWidth < 600 ? 55 : 120)),
+                                    child: Text(
+                                      widget.projectName,
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                      style: const TextStyle(
+                                        color: AppColors.primaryText,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 2),
+                                  const Icon(Icons.edit_outlined, size: 11, color: AppColors.secondaryText),
+                                ],
+                              ),
+                            ),
                     ),
-                  )
-                : InkWell(
-                    onTap: () => setState(() => _isEditingName = true),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: isVeryCompact ? 80 : 120),
-                          child: Text(
-                            widget.projectName,
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                            style: const TextStyle(
-                              color: AppColors.primaryText,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+
+                    SizedBox(width: isVeryCompact ? 2 : 4),
+
+                    // Retrieve Button
+                    if (widget.onRetrieve != null) ...[
+                      Tooltip(
+                        message: 'Retrieve Saved Design',
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: widget.onRetrieve,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isVeryCompact ? 4 : 6,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.inputBackground,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: AppColors.inputBorder),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.history_rounded, size: 16, color: AppColors.primaryText),
+                                  if (screenWidth >= 600) ...[
+                                    const SizedBox(width: 4),
+                                    const Text(
+                                      'Retrieve',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primaryText,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 2),
-                        const Icon(Icons.edit_outlined, size: 11, color: AppColors.secondaryText),
-                      ],
-                    ),
-                  ),
+                      ),
+                      SizedBox(width: isVeryCompact ? 2 : 4),
+                    ],
+
+                    // Save Button
+                    if (widget.onSave != null) ...[
+                      Tooltip(
+                        message: 'Save Project',
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: widget.isSaving ? null : widget.onSave,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isVeryCompact ? 6 : 9,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2563EB),
+                                borderRadius: BorderRadius.circular(8),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF2563EB).withValues(alpha: 0.35),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (widget.isSaving)
+                                    const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    )
+                                  else
+                                    const Icon(Icons.save_rounded, size: 15, color: Colors.white),
+                                  const SizedBox(width: 3),
+                                  const Text(
+                                    'Save',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: isVeryCompact ? 2 : 4),
+                    ],
+
+                    // 2D / 3D Mode Switcher
+                    if (widget.viewMode != null && widget.onViewModeChanged != null)
+                      Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: AppColors.inputBackground,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.inputBorder),
+                        ),
+                        child: Row(
+                          children: [
+                            _buildViewModeButton(
+                              label: '2D',
+                              isSelected: widget.viewMode == ViewMode.topView2D,
+                              onTap: () => widget.onViewModeChanged!(ViewMode.topView2D),
+                              isVeryCompact: isVeryCompact,
+                            ),
+                            _buildViewModeButton(
+                              label: '3D',
+                              isSelected: widget.viewMode == ViewMode.view3D,
+                              onTap: () => widget.onViewModeChanged!(ViewMode.view3D),
+                              isVeryCompact: isVeryCompact,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Language Selector Button
+                    if (!isCompact) ...[
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(Icons.language_rounded, color: AppColors.primaryText, size: 18),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        tooltip: 'Language / भाषा',
+                        onPressed: () => LanguageSelectorDialog.show(context),
+                      ),
+                    ],
+
+                    // Profile Initials (Desktop / Tablet view)
+                    if (user != null && screenWidth >= 600) ...[
+                      const SizedBox(width: 4),
+                      CircleAvatar(
+                        radius: 13,
+                        backgroundColor: AppColors.trussPrimary,
+                        child: Text(
+                          initials,
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
           ),
-
-          SizedBox(width: isVeryCompact ? 4 : 6),
-
-          // 2D / 3D Mode Switcher
-          if (widget.viewMode != null && widget.onViewModeChanged != null)
-            Container(
-              padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(
-                color: AppColors.inputBackground,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.inputBorder),
-              ),
-              child: Row(
-                children: [
-                  _buildViewModeButton(
-                    label: '2D',
-                    isSelected: widget.viewMode == ViewMode.topView2D,
-                    onTap: () => widget.onViewModeChanged!(ViewMode.topView2D),
-                    isVeryCompact: isVeryCompact,
-                  ),
-                  _buildViewModeButton(
-                    label: '3D',
-                    isSelected: widget.viewMode == ViewMode.view3D,
-                    onTap: () => widget.onViewModeChanged!(ViewMode.view3D),
-                    isVeryCompact: isVeryCompact,
-                  ),
-                ],
-              ),
-            ),
-
-          // Language Selector Button
-          if (!isCompact) ...[
-            IconButton(
-              icon: const Icon(Icons.language_rounded, color: AppColors.primaryText, size: 18),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-              tooltip: 'Language / भाषा',
-              onPressed: () => LanguageSelectorDialog.show(context),
-            ),
-            const SizedBox(width: 4),
-          ],
-
-          // Profile Initials & Save Button
-          if (user != null) ...[
-            CircleAvatar(
-              radius: 13,
-              backgroundColor: AppColors.trussPrimary,
-              child: Text(
-                initials,
-                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-            ),
-          ],
         ],
       ),
     );

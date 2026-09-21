@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+
+import '../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 import '../../features/auth/application/bootstrap_coordinator.dart';
 import '../../features/auth/domain/models/auth_state.dart';
@@ -22,6 +26,7 @@ import '../../features/projects/presentation/component_wizard_screen.dart';
 import '../../features/pole/presentation/pole_calculator_screen.dart';
 import '../../features/stage/presentation/stage_calculator_screen.dart';
 import '../../features/flooring/presentation/flooring_calculator_screen.dart';
+import '../../features/truss_boundary/presentation/truss_boundary_planner_screen.dart';
 
 class PlaceholderScreen extends StatelessWidget {
   final String title;
@@ -169,12 +174,77 @@ class AppRouter {
         GoRoute(
           path: '/modules',
           builder: (context, state) => const ModuleSelectionScreen(),
+          onExit: (context) async {
+            final l10n = AppLocalizations.of(context);
+            final shouldExit = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                backgroundColor: const Color(0xFF1E293B),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: const BorderSide(color: Color(0xFF334155), width: 1),
+                ),
+                title: Text(
+                  l10n?.exitApp ?? 'Exit MANDAP?',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 18,
+                  ),
+                ),
+                content: Text(
+                  l10n?.confirmExit ?? 'Are you sure you want to exit the application?',
+                  style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 14),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                    child: Text(
+                      l10n?.cancel ?? 'Cancel',
+                      style: const TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.trussPrimary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () => Navigator.of(ctx).pop(true),
+                    child: Text(l10n?.exit ?? 'Exit'),
+                  ),
+                ],
+              ),
+            );
+            if (shouldExit == true) {
+              SystemNavigator.pop();
+            }
+            return shouldExit ?? false;
+          },
         ),
         GoRoute(
           path: '/truss-wizard',
           builder: (context, state) {
             final projectId = state.uri.queryParameters['projectId'];
             return TrussConfigurationWizardScreen(existingProjectId: projectId);
+          },
+        ),
+        GoRoute(
+          path: '/truss-planner',
+          builder: (context, state) {
+            final projectId = state.uri.queryParameters['projectId'];
+            final trussSizeStr = state.uri.queryParameters['trussSize'];
+            final widthStr = state.uri.queryParameters['width'];
+            final lengthStr = state.uri.queryParameters['length'];
+            final trussSize = trussSizeStr != null ? double.tryParse(trussSizeStr) : null;
+            final width = widthStr != null ? double.tryParse(widthStr) : null;
+            final length = lengthStr != null ? double.tryParse(lengthStr) : null;
+            return MandapEditorScreen(
+              projectId: projectId ?? 'new',
+              initialTrussSize: trussSize,
+              initialPlotWidth: width,
+              initialPlotLength: length,
+            );
           },
         ),
         // --- App Routes (Entitlement Protected) ---
@@ -186,7 +256,18 @@ class AppRouter {
           path: '/editor',
           builder: (context, state) {
             final projectId = state.uri.queryParameters['projectId'] ?? 'new';
-            return MandapEditorScreen(projectId: projectId);
+            final trussSizeStr = state.uri.queryParameters['trussSize'];
+            final widthStr = state.uri.queryParameters['width'];
+            final lengthStr = state.uri.queryParameters['length'];
+            final trussSize = trussSizeStr != null ? double.tryParse(trussSizeStr) : null;
+            final width = widthStr != null ? double.tryParse(widthStr) : null;
+            final length = lengthStr != null ? double.tryParse(lengthStr) : null;
+            return MandapEditorScreen(
+              projectId: projectId ?? 'new',
+              initialTrussSize: trussSize,
+              initialPlotWidth: width,
+              initialPlotLength: length,
+            );
           },
         ),
         GoRoute(
@@ -198,15 +279,52 @@ class AppRouter {
         ),
         GoRoute(
           path: '/pole',
-          builder: (context, state) => const PoleCalculatorScreen(),
+          builder: (context, state) {
+            final projectId = state.uri.queryParameters['projectId'];
+            final len = double.tryParse(state.uri.queryParameters['length'] ?? '');
+            final wid = double.tryParse(state.uri.queryParameters['width'] ?? '');
+            final pipe = double.tryParse(state.uri.queryParameters['pipeSize'] ?? '');
+            return PoleCalculatorScreen(
+              projectId: projectId ?? 'new',
+              initialLength: len,
+              initialWidth: wid,
+              initialPipeSize: pipe,
+            );
+          },
         ),
         GoRoute(
           path: '/stage',
-          builder: (context, state) => const StageCalculatorScreen(),
+          builder: (context, state) {
+            final projectId = state.uri.queryParameters['projectId'];
+            final len = double.tryParse(state.uri.queryParameters['length'] ?? '');
+            final wid = double.tryParse(state.uri.queryParameters['width'] ?? '');
+            final tl = double.tryParse(state.uri.queryParameters['tableLength'] ?? '');
+            final tw = double.tryParse(state.uri.queryParameters['tableWidth'] ?? '');
+            return StageCalculatorScreen(
+              projectId: projectId ?? 'new',
+              initialLength: len,
+              initialWidth: wid,
+              initialTableLength: tl,
+              initialTableWidth: tw,
+            );
+          },
         ),
         GoRoute(
           path: '/flooring',
-          builder: (context, state) => const FlooringCalculatorScreen(),
+          builder: (context, state) {
+            final projectId = state.uri.queryParameters['projectId'];
+            final len = double.tryParse(state.uri.queryParameters['length'] ?? '');
+            final wid = double.tryParse(state.uri.queryParameters['width'] ?? '');
+            final cl = double.tryParse(state.uri.queryParameters['carpetLength'] ?? '');
+            final cw = double.tryParse(state.uri.queryParameters['carpetWidth'] ?? '');
+            return FlooringCalculatorScreen(
+              projectId: projectId ?? 'new',
+              initialLength: len,
+              initialWidth: wid,
+              initialCarpetLength: cl,
+              initialCarpetWidth: cw,
+            );
+          },
         ),
       ],
     );

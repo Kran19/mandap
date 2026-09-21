@@ -207,6 +207,62 @@ class RenderEntityRegistry {
     return closestEdgeId;
   }
 
+  /// Performs 3D ray-to-segment distance picking directly in 3D for vertical pole/tower entities.
+  PoleRenderEntity? pickPoleWithRay({
+    required v64.Ray cameraRay,
+    double maxHitDistanceFeet = 5.0,
+  }) {
+    PoleRenderEntity? closestPole;
+    double minDistance = maxHitDistanceFeet;
+
+    final rayOrigin = cameraRay.origin;
+    final rayDir = cameraRay.direction.normalized();
+
+    for (final pole in _poles.values) {
+      final p1 = pole.basePosition;
+      final p2 = v64.Vector3(p1.x, p1.y + pole.heightFeet, p1.z);
+      final segDir = p2 - p1;
+      final segLengthSq = segDir.length2;
+
+      if (segLengthSq < 1e-6) continue;
+
+      final w0 = rayOrigin - p1;
+      final a = rayDir.dot(rayDir); // 1.0
+      final b = rayDir.dot(segDir);
+      final c = segLengthSq;
+      final d = rayDir.dot(w0);
+      final e = segDir.dot(w0);
+
+      final denom = a * c - b * b;
+      double sc, tc;
+
+      if (denom < 1e-6) {
+        tc = 0.0;
+        sc = d / a;
+      } else {
+        tc = (a * e - b * d) / denom;
+        tc = tc.clamp(0.0, 1.0);
+        sc = (b * tc - d) / a;
+      }
+
+      if (sc < 0.0) {
+        sc = 0.0;
+        tc = (e / c).clamp(0.0, 1.0);
+      }
+
+      final closestOnRay = rayOrigin + rayDir * sc;
+      final closestOnSeg = p1 + segDir * tc;
+      final dist = (closestOnRay - closestOnSeg).length;
+
+      if (dist <= minDistance) {
+        minDistance = dist;
+        closestPole = pole;
+      }
+    }
+
+    return closestPole;
+  }
+
   /// Performs 3D raycast picking to find the closest beam entity via plane intersection.
   EdgeId? pickBeam({
     required v64.Vector3 planeIntersectionPoint,

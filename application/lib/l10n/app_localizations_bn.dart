@@ -199,6 +199,15 @@ class AppLocalizationsBn extends AppLocalizations {
   String get pole => 'পোল';
 
   @override
+  String get pipe => 'পাইপ';
+
+  @override
+  String get modulePipeSubtitle => 'পাইপ ক্যালকুলেটর';
+
+  @override
+  String get createPipeStructure => 'পাইপ স্ট্রাকচার তৈরি করুন';
+
+  @override
   String get stage => 'স্টেজ';
 
   @override

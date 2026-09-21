@@ -80,12 +80,23 @@ class _Mandap2DCanvasState extends State<Mandap2DCanvas> {
         
         if (hit < 0.3) { // 0.3 feet tolerance
           widget.controller.selectEdge(edge.id);
+          widget.controller.deselectBay();
+          return;
+        }
+      }
+
+      // Hit test truss bays
+      for (final bay in widget.controller.bays) {
+        if (bay.containsPoint(worldPos.dx, worldPos.dy)) {
+          widget.controller.clearSelection();
+          widget.controller.selectBay(bay.id);
           return;
         }
       }
       
       // If nothing hit, clear selection
       widget.controller.clearSelection();
+      widget.controller.deselectBay();
     }
   }
 
@@ -175,6 +186,8 @@ class _Mandap2DCanvasState extends State<Mandap2DCanvas> {
                 layout: widget.controller.layout,
                 result: widget.controller.result,
                 selectedEdgeId: widget.controller.selectedEdgeId,
+                bays: widget.controller.bays,
+                selectedBayId: widget.controller.selectedBayId,
               ),
             ),
           ),

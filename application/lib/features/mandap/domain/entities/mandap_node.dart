@@ -108,6 +108,9 @@ class MandapNode {
   /// Semantic role alias.
   NodeRole get role => type;
 
+  /// Y-axis world coordinate (equivalent to elevation).
+  double get y => elevation;
+
   /// Whether this node has an active vertical pole.
   bool get hasPole => support == NodeSupport.pole;
 

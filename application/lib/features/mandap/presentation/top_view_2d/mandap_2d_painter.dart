@@ -1,19 +1,28 @@
 import 'package:flutter/material.dart';
+import '../../domain/entities/node_id.dart';
 import '../../domain/entities/edge_id.dart';
 import '../../domain/entities/mandap_layout.dart';
 import '../../domain/value_objects/mandap_calculation_result.dart';
 import '../../domain/value_objects/pole_placement.dart';
+import '../../domain/services/truss_display_numbering_service.dart';
+import '../../domain/entities/truss_bay.dart';
 
 /// 2D Canvas painter rendering [MandapLayout] and calculated poles top-down.
 class Mandap2DPainter extends CustomPainter {
   final MandapLayout layout;
   final MandapCalculationResult result;
   final EdgeId? selectedEdgeId;
+  final NodeId? selectedNodeId;
+  final List<TrussBay> bays;
+  final String? selectedBayId;
 
   Mandap2DPainter({
     required this.layout,
     required this.result,
     this.selectedEdgeId,
+    this.selectedNodeId,
+    this.bays = const [],
+    this.selectedBayId,
   });
 
   @override
@@ -47,6 +56,41 @@ class Mandap2DPainter extends CustomPainter {
       canvas.drawLine(p1, p2, gridPaint);
     }
 
+    // 1.5 Draw Bays
+    final selectedBayPaint = Paint()
+      ..color = const Color(0xFF00E5FF).withValues(alpha: 0.22)
+      ..style = PaintingStyle.fill;
+    final selectedBayBorderPaint = Paint()
+      ..color = const Color(0xFF00E5FF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5;
+    final bayBorderPaint = Paint()
+      ..color = const Color(0xFF38BDF8).withValues(alpha: 0.20)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    for (final bay in bays) {
+      final p1 = toCanvasOffset(bay.minX, bay.minZ);
+      final p2 = toCanvasOffset(bay.maxX, bay.maxZ);
+      final rect = Rect.fromPoints(p1, p2);
+      final isSelected = bay.id == selectedBayId;
+
+      if (isSelected) {
+        canvas.drawRect(rect, selectedBayPaint);
+        canvas.drawRect(rect, selectedBayBorderPaint);
+        final midPoint = Offset((p1.dx + p2.dx) / 2, (p1.dy + p2.dy) / 2);
+        _drawText(
+          canvas,
+          midPoint,
+          '${bay.widthFt.toStringAsFixed(bay.widthFt % 1 == 0 ? 0 : 1)} × ${bay.lengthFt.toStringAsFixed(bay.lengthFt % 1 == 0 ? 0 : 1)} ft',
+          const Color(0xFF00E5FF),
+          isBold: true,
+        );
+      } else {
+        canvas.drawRect(rect, bayBorderPaint);
+      }
+    }
+
     // 2. Draw Edges
     final edgePaint = Paint()
       ..color = const Color(0xFF1E293B)
@@ -58,6 +102,7 @@ class Mandap2DPainter extends CustomPainter {
       ..strokeWidth = 6.0
       ..strokeCap = StrokeCap.round;
 
+    final edgeNumbers = const TrussDisplayNumberingService().buildEdgeNumbers(layout);
     for (final edge in layout.edges.values) {
       final startNode = layout.getNode(edge.startNodeId);
       final endNode = layout.getNode(edge.endNodeId);
@@ -75,7 +120,9 @@ class Mandap2DPainter extends CustomPainter {
         final pieceStr = sol != null && sol.exactFit
             ? ' (${sol.pieces.map((p) => p.length.ticks ~/ 2).join("+")})'
             : '';
-        final labelText = '${len.toString()}$pieceStr';
+        final trussNumber = edgeNumbers[edge.id];
+        final prefix = trussNumber != null ? '#$trussNumber · ' : '';
+        final labelText = '$prefix${len.toString()}$pieceStr';
 
         final midPoint = Offset((p1.dx + p2.dx) / 2, (p1.dy + p2.dy) / 2);
         _drawText(
@@ -90,7 +137,11 @@ class Mandap2DPainter extends CustomPainter {
 
     // 3. Draw Nodes (including poles)
     final cornerNodePaint = Paint()
-      ..color = const Color(0xFF0F172A)
+      ..color = const Color(0xFFEF4444) // Red for unselected support poles
+      ..style = PaintingStyle.fill;
+
+    final selectedNodePaint = Paint()
+      ..color = const Color(0xFF00E5FF) // Blue for selected nodes
       ..style = PaintingStyle.fill;
 
     final controlNodePaint = Paint()
@@ -99,13 +150,13 @@ class Mandap2DPainter extends CustomPainter {
 
     for (final node in layout.nodes.values) {
       final center = toCanvasOffset(node.x, node.z);
-      
-      // Determine if it's a control point (e.g. Center Control for roof)
-      // For now, if elevation is > 0 and it's a structural point, we mark it
       final isControl = node.elevation > 0;
+      final isSelected = node.id == selectedNodeId;
       
-      final radius = isControl ? 6.0 : 4.0;
-      final paint = isControl ? controlNodePaint : cornerNodePaint;
+      final radius = isControl ? 6.0 : (isSelected ? 6.0 : 4.5);
+      final paint = isSelected
+          ? selectedNodePaint
+          : (isControl ? controlNodePaint : cornerNodePaint);
 
       canvas.drawCircle(center, radius, paint);
       canvas.drawCircle(
@@ -163,5 +214,7 @@ class Mandap2DPainter extends CustomPainter {
   bool shouldRepaint(covariant Mandap2DPainter oldDelegate) =>
       layout != oldDelegate.layout ||
       result != oldDelegate.result ||
-      selectedEdgeId != oldDelegate.selectedEdgeId;
+      selectedEdgeId != oldDelegate.selectedEdgeId ||
+      bays != oldDelegate.bays ||
+      selectedBayId != oldDelegate.selectedBayId;
 }

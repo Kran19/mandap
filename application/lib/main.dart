@@ -72,7 +72,7 @@ class MandapApp extends StatelessWidget {
           final router = AppRouter.createRouter(coordinator);
           
           return MaterialApp.router(
-            title: 'MANDAP — Mandap Truss Calculator',
+            title: 'Mandap Builder',
             debugShowCheckedModeBanner: false,
             theme: ThemeData(
               brightness: Brightness.dark,

@@ -1,4 +1,4 @@
-import 'dart:math';
+import 'dart:math' as math;
 import '../models/stage_calculation_input.dart';
 import '../models/stage_calculation_result.dart';
 import '../models/stage_table.dart';
@@ -19,31 +19,27 @@ class StageCalculationService {
     final double tl = input.tableLength;
     final double tw = input.tableWidth;
 
-    // --- Evaluate Orientation A (no rotation) ---
-    final int aAlongLength = (sl / tl).ceil();
-    final int aAlongWidth  = (sw / tw).ceil();
-    final int aTotal       = aAlongLength * aAlongWidth;
+    final double tLong = math.max(tl, tw);
+    final double tShort = math.min(tl, tw);
 
-    // --- Evaluate Orientation B (table rotated 90 degrees) ---
-    final int bAlongLength = (sl / tw).ceil();
-    final int bAlongWidth  = (sw / tl).ceil();
-    final int bTotal       = bAlongLength * bAlongWidth;
+    final bool isSwapped = input.isRotated ?? false;
 
-    // --- Choose orientation with fewer tables; A wins on tie ---
-    final bool useB = bTotal < aTotal;
+    // Default (Unswapped): Horizontal sections across the stage
+    // Swapped (After clicking Swap): Vertical sections (e.g. 5x4 = 20 tables)
+    final double orientedTableLength = isSwapped ? tLong : tShort;
+    final double orientedTableWidth  = isSwapped ? tShort : tLong;
 
-    final int   tablesAlongLength   = useB ? bAlongLength : aAlongLength;
-    final int   tablesAlongWidth    = useB ? bAlongWidth  : aAlongWidth;
-    final int   totalTables         = useB ? bTotal       : aTotal;
-    final double orientedTableLength = useB ? tw           : tl; // along stage length
-    final double orientedTableWidth  = useB ? tl           : tw; // along stage width
+    final int tablesAlongLength = (sl / orientedTableLength).ceil();
+    final int tablesAlongWidth  = (sw / orientedTableWidth).ceil();
+    final int totalTables       = tablesAlongLength * tablesAlongWidth;
 
     final double coveredLength = tablesAlongLength * orientedTableLength;
     final double coveredWidth  = tablesAlongWidth  * orientedTableWidth;
 
-    // --- Generate individual table layout ---
     final List<StageTable> tables = [];
     int id = 0;
+
+    // Row-by-row from top to bottom (Row 0: 1, 2, 3... Row 1: 4, 5, 6...)
     for (int row = 0; row < tablesAlongWidth; row++) {
       for (int col = 0; col < tablesAlongLength; col++) {
         tables.add(StageTable(
@@ -56,7 +52,6 @@ class StageCalculationService {
       }
     }
 
-    // Sanity check
     assert(tables.length == totalTables,
         'Generated ${tables.length} tables but expected $totalTables');
 

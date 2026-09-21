@@ -5,6 +5,7 @@ import 'edge_solution.dart';
 import 'inventory_shortage.dart';
 import 'pole_placement.dart';
 import 'structural_analysis_report.dart';
+import 'truss_bom_summary.dart';
 
 /// Complete, validated output result of the Mandap calculation engine.
 @immutable
@@ -22,6 +23,9 @@ class MandapCalculationResult {
   final double totalFlooringAreaSqFt;
   final double totalStageAreaSqFt;
 
+  /// Authoritative separate Pillar vs Upper BOM summary.
+  final TrussBomSummary trussBomSummary;
+
   const MandapCalculationResult({
     required this.layoutIssues,
     required this.edgeSolutions,
@@ -33,6 +37,7 @@ class MandapCalculationResult {
     this.totalTrussLengthFt = 0.0,
     this.totalFlooringAreaSqFt = 0.0,
     this.totalStageAreaSqFt = 0.0,
+    this.trussBomSummary = TrussBomSummary.empty,
   });
 
   /// True if layout is structurally valid and all edges have exact truss fits.
@@ -62,7 +67,8 @@ class MandapCalculationResult {
           _listEquals(warnings, other.warnings) &&
           totalTrussLengthFt == other.totalTrussLengthFt &&
           totalFlooringAreaSqFt == other.totalFlooringAreaSqFt &&
-          totalStageAreaSqFt == other.totalStageAreaSqFt);
+          totalStageAreaSqFt == other.totalStageAreaSqFt &&
+          trussBomSummary == other.trussBomSummary);
 
   @override
   int get hashCode => Object.hash(
@@ -75,6 +81,7 @@ class MandapCalculationResult {
     totalTrussLengthFt,
     totalFlooringAreaSqFt,
     totalStageAreaSqFt,
+    trussBomSummary,
   );
 
   static bool _listEquals<T>(List<T> l1, List<T> l2) {

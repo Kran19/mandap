@@ -4,6 +4,7 @@ class StageCalculationInput {
   final double stageHeight;
   final double tableLength;
   final double tableWidth;
+  final bool? isRotated;
 
   const StageCalculationInput({
     required this.stageLength,
@@ -11,6 +12,7 @@ class StageCalculationInput {
     required this.stageHeight,
     required this.tableLength,
     required this.tableWidth,
+    this.isRotated,
   });
 
   bool get isValid =>

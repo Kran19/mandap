@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../application/editor_mode.dart';
@@ -7,19 +8,21 @@ import '../../domain/entities/mandap_node.dart';
 import '../../domain/entities/mandap_zone.dart';
 import '../../domain/entities/node_id.dart';
 import '../../domain/value_objects/mandap_calculation_result.dart';
-import '../../domain/value_objects/pole_placement.dart';
 import '../../domain/value_objects/grid_settings.dart';
+import '../../domain/services/truss_display_numbering_service.dart';
+import '../../domain/services/truss_bay_detector.dart';
+import '../../domain/entities/truss_bay.dart';
 import '../viewport_transform.dart';
 
-/// Full-featured interactive 2D painter for the Mandap layout editor.
-///
+/// Full-featured interactive 2D engineering CAD painter for the Mandap layout editor.
 /// Renders:
-///   - 10 ft major / 5 ft minor grid
-///   - Edges (with selection highlight, length label, truss decomposition)
-///   - Corner / generated support poles
-///   - Selection handles on selected node
-///   - Pending edge source node highlight
-///   - Snap cursor dot (when in addNode / move mode)
+///   - Dark blueprint/engineering grid
+///   - Top-right Compass Rose (N/E/S/W)
+///   - Dual-chord aluminum box truss with X lattice bracing
+///   - Red circle markers for Support Poles
+///   - White circle markers for Joint / Connection
+///   - Center Dot (Center Light)
+///   - Interactive selection / drawing feedback
 class Mandap2DInteractivePainter extends CustomPainter {
   final MandapLayout layout;
   final MandapCalculationResult result;
@@ -28,6 +31,11 @@ class Mandap2DInteractivePainter extends CustomPainter {
   final EdgeId? selectedEdgeId;
   final NodeId? selectedNodeId;
   final NodeId? pendingEdgeSourceId;
+  final TrussDisplayNumberingResult? displayNumbering;
+  final List<TrussBay> bays;
+  final String? selectedBayId;
+  final double plotWidth;
+  final double plotDepth;
 
   /// Current snap position to render as a cursor dot (world coords), or null.
   final ({double x, double z})? snapCursor;
@@ -45,99 +53,107 @@ class Mandap2DInteractivePainter extends CustomPainter {
     this.selectedEdgeId,
     this.selectedNodeId,
     this.pendingEdgeSourceId,
+    this.displayNumbering,
+    this.bays = const [],
+    this.selectedBayId,
     this.snapCursor,
     this.zoneDragStartWorld,
     this.zoneDragEndWorld,
     required this.gridSettings,
+    this.plotWidth = 100.0,
+    this.plotDepth = 100.0,
   });
 
-  // ── Paints ─────────────────────────────────────────────────────────────────
-
-  static final _lawnBackgroundPaint = Paint()
-    ..color = const Color(0xFF0F2B1D) // Rich green event lawn
+  // Paints
+  static final _cadBackgroundPaint = Paint()
+    ..color = const Color(0xFF0A1118) // Dark blueprint background
     ..style = PaintingStyle.fill;
 
   static final _majorGridPaint = Paint()
-    ..color = const Color(0xFF52B788).withValues(alpha: 0.35)
+    ..color = const Color(0xFF1E3A5F).withValues(alpha: 0.5)
     ..strokeWidth = 0.9;
 
   static final _minorGridPaint = Paint()
-    ..color = const Color(0xFF52B788).withValues(alpha: 0.15)
+    ..color = const Color(0xFF1E293B).withValues(alpha: 0.35)
     ..strokeWidth = 0.5;
 
-  static final _edgePaint = Paint()
-    ..color = const Color(0xFFFBBF24) // Bright Festive Gold
-    ..strokeWidth = 5.0
-    ..strokeCap = StrokeCap.round;
+  static final _trussChordPaint = Paint()
+    ..color = const Color(0xFFCBD5E1) // Silver aluminum
+    ..strokeWidth = 1.8
+    ..style = PaintingStyle.stroke;
 
-  static final _selectedEdgePaint = Paint()
-    ..color = const Color(0xFF00F0FF) // Electric Neon Cyan
-    ..strokeWidth = 7.0
-    ..strokeCap = StrokeCap.round;
+  static final _trussLatticePaint = Paint()
+    ..color = const Color(0xFF94A3B8).withValues(alpha: 0.85)
+    ..strokeWidth = 1.0
+    ..style = PaintingStyle.stroke;
 
-  static final _cornerNodePaint = Paint()
+  static final _selectedTrussChordPaint = Paint()
+    ..color = const Color(0xFF00E5FF) // Neon Cyan
+    ..strokeWidth = 2.4
+    ..style = PaintingStyle.stroke;
+
+  static final _supportPolePaint = Paint()
+    ..color = const Color(0xFFEF4444) // Vibrant Red
+    ..style = PaintingStyle.fill;
+
+  static final _supportPoleBorderPaint = Paint()
+    ..color = Colors.white
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.6;
+
+  static final _jointPaint = Paint()
     ..color = Colors.white
     ..style = PaintingStyle.fill;
 
-  static final _selectedNodePaint = Paint()
-    ..color = const Color(0xFF00F0FF)
-    ..style = PaintingStyle.fill;
-
-  static final _pendingSourcePaint = Paint()
-    ..color = const Color(0xFF10B981)
-    ..style = PaintingStyle.fill;
-
-  static final _generatedPolePaint = Paint()
-    ..color = const Color(0xFFF59E0B) // Amber
-    ..style = PaintingStyle.fill;
-
-  static final _snapCursorPaint = Paint()
-    ..color = const Color(0xFF00F0FF).withValues(alpha: 0.6)
-    ..style = PaintingStyle.fill;
-
-  static final _nodeRingPaint = Paint()
-    ..color = const Color(0xFFF59E0B)
+  static final _jointBorderPaint = Paint()
+    ..color = const Color(0xFF0F172A)
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 2.0;
+    ..strokeWidth = 1.4;
 
-  static final _flooringPaint = Paint()
-    ..color = const Color(0xFF7C3AED).withValues(alpha: 0.5) // Royal Purple
+  static final _centerDotGlowPaint = Paint()
+    ..color = const Color(0xFF00E5FF).withValues(alpha: 0.3)
     ..style = PaintingStyle.fill;
 
-  static final _flooringBorderPaint = Paint()
-    ..color = const Color(0xFFA78BFA)
+  static final _centerDotPaint = Paint()
+    ..color = const Color(0xFF00E5FF)
+    ..style = PaintingStyle.fill;
+
+  static final _centerDotBorderPaint = Paint()
+    ..color = Colors.white
     ..style = PaintingStyle.stroke
     ..strokeWidth = 1.5;
 
-  static final _stagePaint = Paint()
-    ..color = const Color(0xFFDC2626).withValues(alpha: 0.7) // Royal Red
-    ..style = PaintingStyle.fill;
-
-  static final _stageBorderPaint = Paint()
-    ..color = const Color(0xFFFBBF24) // Gold trim
-    ..style = PaintingStyle.stroke
-    ..strokeWidth = 2.0;
-
-  static final _activeZonePaint = Paint()
-    ..color = const Color(0xFF00F0FF).withValues(alpha: 0.25)
-    ..style = PaintingStyle.fill;
-
-  static final _activeZoneBorderPaint = Paint()
-    ..color = const Color(0xFF00F0FF)
-    ..style = PaintingStyle.stroke
-    ..strokeWidth = 2.0;
-
-  // ── Paint ─────────────────────────────────────────────────────────────────
-
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), _lawnBackgroundPaint);
+    // 1. Dark Blueprint Background
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), _cadBackgroundPaint);
+
+    // 2. Engineering Grid
     _drawGrid(canvas, size);
-    _drawZones(canvas);
-    _drawEdges(canvas);
-    _drawPoles(canvas);
+
+    // 3. Plot Boundary Box (Cyan Luminous Glow Matching Stage)
+    _drawPlotBoundaryBox(canvas);
+
+    // 4. Truss Edges (with dual chords & X lattice bracing)
+    _drawTrussEdges(canvas);
+
+    // 5. Nodes (Red Support Poles, White Joints, Center Dot)
     _drawNodes(canvas);
+
+    // 6. Center Dot if not created yet
+    _drawCenterDot(canvas);
+
+    // 7. Stage-Type Architectural CAD Dimension Lines & Badges
+    _drawStageTypeDimensionLines(canvas);
+
+    // 8. Box Size Badges (00/00) in all created/detected bays
+    _drawBayBoxSizeBadges(canvas);
+
+    // 9. Snap cursor if active
     if (snapCursor != null) _drawSnapCursor(canvas);
+
+    // 10. Compass Rose in Top-Right
+    _drawCompassRose(canvas, size);
   }
 
   void _drawGrid(Canvas canvas, Size size) {
@@ -146,17 +162,13 @@ class Mandap2DInteractivePainter extends CustomPainter {
     final topLeft = transform.screenToWorld(Offset.zero);
     final bottomRight = transform.screenToWorld(Offset(size.width, size.height));
 
-    final major = gridSettings.majorSpacing;
-    final minor = gridSettings.minorSpacing;
-    final precision = gridSettings.displayPrecision;
+    final major = gridSettings.majorSpacing > 0 ? gridSettings.majorSpacing : 10.0;
+    final minor = gridSettings.minorSpacing > 0 ? gridSettings.minorSpacing : 2.0;
 
     final startX = (topLeft.x / minor).floor() * minor - minor;
     final endX = (bottomRight.x / minor).ceil() * minor + minor;
     final startZ = (topLeft.z / minor).floor() * minor - minor;
     final endZ = (bottomRight.z / minor).ceil() * minor + minor;
-
-    // Only draw sub grid if zoomed in enough (e.g. scale > 15)
-    final drawSubGrid = transform.scale > 15.0;
 
     final numLinesX = ((endX - startX) / minor).abs();
     final numLinesZ = ((endZ - startZ) / minor).abs();
@@ -169,64 +181,20 @@ class Mandap2DInteractivePainter extends CustomPainter {
 
     for (var wx = startX; wx <= endX; wx += minor) {
       final isMajor = (wx % major).abs() < 0.001 || (wx % major - major).abs() < 0.001;
-      if (!isMajor && !drawSubGrid) continue;
-      
       final p1 = transform.worldToScreen(wx, startZ);
       final p2 = transform.worldToScreen(wx, endZ);
       canvas.drawLine(p1, p2, isMajor ? _majorGridPaint : _minorGridPaint);
-
-      // Coordinate Label for X (along the top edge)
-      if (isMajor || (drawSubGrid && transform.scale > 40.0)) {
-        final labelPos = transform.worldToScreen(wx, topLeft.z);
-        if (labelPos.dx > 0 && labelPos.dx < size.width) {
-          _drawLabel(canvas, Offset(labelPos.dx + 2, 10), wx.toStringAsFixed(precision), color: const Color(0xFF64748B), fontSize: 9);
-        }
-      }
     }
 
     for (var wz = startZ; wz <= endZ; wz += minor) {
       final isMajor = (wz % major).abs() < 0.001 || (wz % major - major).abs() < 0.001;
-      if (!isMajor && !drawSubGrid) continue;
-
       final p1 = transform.worldToScreen(startX, wz);
       final p2 = transform.worldToScreen(endX, wz);
       canvas.drawLine(p1, p2, isMajor ? _majorGridPaint : _minorGridPaint);
-
-      // Coordinate Label for Z (along the left edge)
-      if (isMajor || (drawSubGrid && transform.scale > 40.0)) {
-        final labelPos = transform.worldToScreen(topLeft.x, wz);
-        if (labelPos.dy > 0 && labelPos.dy < size.height) {
-          _drawLabel(canvas, Offset(20, labelPos.dy + 2), wz.toStringAsFixed(precision), color: const Color(0xFF64748B), fontSize: 9);
-        }
-      }
     }
   }
 
-  void _drawZones(Canvas canvas) {
-    for (final zone in layout.zones) {
-      final p1 = transform.worldToScreen(zone.x1, zone.y1);
-      final p2 = transform.worldToScreen(zone.x2, zone.y2);
-      final rect = Rect.fromPoints(p1, p2);
-
-      if (zone.type == ZoneType.flooring) {
-        canvas.drawRect(rect, _flooringPaint);
-        canvas.drawRect(rect, _flooringBorderPaint);
-      } else {
-        canvas.drawRect(rect, _stagePaint);
-        canvas.drawRect(rect, _stageBorderPaint);
-      }
-    }
-
-    if (zoneDragStartWorld != null && zoneDragEndWorld != null) {
-      final p1 = transform.worldToScreen(zoneDragStartWorld!.x, zoneDragStartWorld!.z);
-      final p2 = transform.worldToScreen(zoneDragEndWorld!.x, zoneDragEndWorld!.z);
-      final rect = Rect.fromPoints(p1, p2);
-      canvas.drawRect(rect, _activeZonePaint);
-      canvas.drawRect(rect, _activeZoneBorderPaint);
-    }
-  }
-
-  void _drawEdges(Canvas canvas) {
+  void _drawTrussEdges(Canvas canvas) {
     for (final edge in layout.edges.values) {
       final startNode = layout.getNode(edge.startNodeId);
       final endNode = layout.getNode(edge.endNodeId);
@@ -236,233 +204,401 @@ class Mandap2DInteractivePainter extends CustomPainter {
       final p2 = transform.worldToScreen(endNode.x, endNode.z);
       final isSelected = edge.id == selectedEdgeId;
 
-      canvas.drawLine(p1, p2, isSelected ? _selectedEdgePaint : _edgePaint);
+      final dx = p2.dx - p1.dx;
+      final dy = p2.dy - p1.dy;
+      final length = math.sqrt(dx * dx + dy * dy);
+      if (length < 1.0) continue;
 
-      // Label: length + truss decomposition
-      String lenStr;
-      try {
-        lenStr = layout.getEdgeLength(edge).toString();
-      } on ArgumentError {
-        final dist = edge.calculateGeometricDistanceFeet(startNode, endNode);
-        lenStr = '${dist.toStringAsFixed(1)} ft';
+      final nx = -dy / length;
+      final ny = dx / length;
+      const halfWidth = 3.5; // 7px full visual width for box truss
+
+      // Dual outer chords
+      final chord1Start = Offset(p1.dx + nx * halfWidth, p1.dy + ny * halfWidth);
+      final chord1End = Offset(p2.dx + nx * halfWidth, p2.dy + ny * halfWidth);
+      final chord2Start = Offset(p1.dx - nx * halfWidth, p1.dy - ny * halfWidth);
+      final chord2End = Offset(p2.dx - nx * halfWidth, p2.dy - ny * halfWidth);
+
+      final chordPaint = isSelected ? _selectedTrussChordPaint : _trussChordPaint;
+      canvas.drawLine(chord1Start, chord1End, chordPaint);
+      canvas.drawLine(chord2Start, chord2End, chordPaint);
+
+      // X Lattice cross bracing along truss length
+      final segmentCount = (length / 14.0).floor().clamp(1, 150);
+      for (int i = 0; i < segmentCount; i++) {
+        final t0 = i / segmentCount;
+        final t1 = (i + 1) / segmentCount;
+
+        final a = Offset(p1.dx + dx * t0 + nx * halfWidth, p1.dy + dy * t0 + ny * halfWidth);
+        final b = Offset(p1.dx + dx * t0 - nx * halfWidth, p1.dy + dy * t0 - ny * halfWidth);
+        final c = Offset(p1.dx + dx * t1 + nx * halfWidth, p1.dy + dy * t1 + ny * halfWidth);
+        final d = Offset(p1.dx + dx * t1 - nx * halfWidth, p1.dy + dy * t1 - ny * halfWidth);
+
+        // Cross braces
+        canvas.drawLine(a, d, _trussLatticePaint);
+        canvas.drawLine(b, c, _trussLatticePaint);
+        // Cross strut
+        canvas.drawLine(c, d, _trussLatticePaint);
       }
-      final sol = result.edgeSolutions[edge.id];
-      final pieceStr = sol != null && sol.exactFit
-          ? ' (${sol.pieces.map((p) => '${p.length.ticks ~/ 2}ft').join('+')})'
-          : '';
-      final midPoint = Offset((p1.dx + p2.dx) / 2, (p1.dy + p2.dy) / 2);
-      _drawLabel(canvas, midPoint, '$lenStr$pieceStr', isBold: isSelected);
-    }
-  }
-
-  void _drawPoles(Canvas canvas) {
-    for (final pole in result.poles) {
-      final center = transform.worldToScreen(pole.x, pole.z);
-      final isCorner = pole.reason == PoleReason.corner;
-      final radius = isCorner ? 7.0 : 5.0;
-      canvas.drawCircle(
-        center,
-        radius,
-        isCorner ? _cornerNodePaint : _generatedPolePaint,
-      );
-      canvas.drawCircle(center, radius, _nodeRingPaint);
     }
   }
 
   void _drawNodes(Canvas canvas) {
+    final selectedEdge = selectedEdgeId != null ? layout.edges[selectedEdgeId] : null;
+
+    final selectedPolePaint = Paint()
+      ..color = const Color(0xFF00E5FF) // Electric Blue/Cyan when selected
+      ..style = PaintingStyle.fill;
+
+    final selectedPoleGlowPaint = Paint()
+      ..color = const Color(0xFF00E5FF).withValues(alpha: 0.45)
+      ..style = PaintingStyle.fill;
+
     for (final node in layout.nodes.values) {
+      if (node.isControlPoint) continue; // Handled separately in _drawCenterDot
+
       final center = transform.worldToScreen(node.x, node.z);
-      final isSelected = node.id == selectedNodeId;
-      final isPendingSource = node.id == pendingEdgeSourceId;
+      final isSelected = node.id == selectedNodeId ||
+          node.id == pendingEdgeSourceId ||
+          (selectedEdge != null && (selectedEdge.startNodeId == node.id || selectedEdge.endNodeId == node.id));
+      final isSupportPole = node.support == NodeSupport.pole || node.type == NodeType.corner || node.type == NodeType.pole;
 
-      if (node.type == NodeType.stage) {
-        _drawAreaNode(canvas, node, center, const Color(0xFF334155).withValues(alpha: 0.8), isSelected);
-        continue;
-      } else if (node.type == NodeType.carpet) {
-        _drawAreaNode(canvas, node, center, const Color(0xFF8B5CF6).withValues(alpha: 0.4), isSelected);
-        continue;
-      } else if (node.type == NodeType.pole) {
-        _drawPoleNode(canvas, node, center, isSelected);
-        continue;
-      }
-
-      if (node.isControlPoint) {
-        // Distinct diamond glyph for center control point
-        final diamondPaint = Paint()
-          ..color = isSelected ? const Color(0xFF00F0FF) : const Color(0xFFF59E0B)
-          ..style = PaintingStyle.fill;
-        final path = Path()
-          ..moveTo(center.dx, center.dy - 10)
-          ..lineTo(center.dx + 10, center.dy)
-          ..lineTo(center.dx, center.dy + 10)
-          ..lineTo(center.dx - 10, center.dy)
-          ..close();
-        canvas.drawPath(path, diamondPaint);
-        canvas.drawPath(
-          path,
-          Paint()
-            ..color = Colors.white
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.5,
-        );
-        continue;
-      }
-
-      // If node has NO physical support, render as a hollow warning circle
-      if (!node.hasPhysicalSupport) {
-        final unsupportedPaint = Paint()
-          ..color = isSelected ? const Color(0xFF00F0FF) : const Color(0xFFEF4444)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.5;
-        canvas.drawCircle(center, isSelected ? 9.0 : 6.5, unsupportedPaint);
-        canvas.drawCircle(
-          center,
-          isSelected ? 4.0 : 3.0,
-          Paint()
-            ..color = (isSelected ? const Color(0xFF00F0FF) : const Color(0xFFEF4444)).withValues(alpha: 0.3)
-            ..style = PaintingStyle.fill,
-        );
-        continue;
-      }
-
-      Paint fill;
-      double radius;
-      if (isPendingSource) {
-        fill = _pendingSourcePaint;
-        radius = 10.0;
-      } else if (isSelected) {
-        fill = _selectedNodePaint;
-        radius = 10.0;
+      if (isSupportPole) {
+        if (isSelected) {
+          // Selected: Turn red dot into vibrant blue with glowing halo
+          canvas.drawCircle(center, 12.0, selectedPoleGlowPaint);
+          canvas.drawCircle(center, 8.0, selectedPolePaint);
+          canvas.drawCircle(center, 8.0, _supportPoleBorderPaint);
+        } else {
+          // Unselected: Red circular marker with white border
+          canvas.drawCircle(center, 7.5, _supportPolePaint);
+          canvas.drawCircle(center, 7.5, _supportPoleBorderPaint);
+        }
       } else {
-        fill = _cornerNodePaint;
-        radius = 7.0;
-      }
-
-      // Draw selection ring
-      if (isSelected || isPendingSource) {
-        canvas.drawCircle(
-          center,
-          radius + 5,
-          Paint()
-            ..color =
-                (isPendingSource
-                        ? const Color(0xFF16A34A)
-                        : const Color(0xFF2563EB))
-                    .withValues(alpha: 0.25)
-            ..style = PaintingStyle.fill,
-        );
-      }
-
-      canvas.drawCircle(center, radius, fill);
-      canvas.drawCircle(center, radius, _nodeRingPaint);
-
-      // Node ID label (small, above node)
-      if (isSelected || isPendingSource) {
-        _drawLabel(
-          canvas,
-          center - const Offset(0, 18),
-          node.id.value,
-          fontSize: 10,
-          color: const Color(0xFF334155),
-        );
+        if (isSelected) {
+          canvas.drawCircle(center, 10.0, selectedPoleGlowPaint);
+          canvas.drawCircle(center, 6.5, selectedPolePaint);
+          canvas.drawCircle(center, 6.5, _supportPoleBorderPaint);
+        } else {
+          // White circular joint marker with dark border
+          canvas.drawCircle(center, 5.5, _jointPaint);
+          canvas.drawCircle(center, 5.5, _jointBorderPaint);
+        }
       }
     }
   }
 
-  void _drawAreaNode(Canvas canvas, MandapNode node, Offset center, Color color, bool isSelected) {
-    final widthScreen = (node.width ?? 10.0) * transform.scale;
-    final depthScreen = (node.depth ?? 10.0) * transform.scale;
-
-    canvas.save();
-    canvas.translate(center.dx, center.dy);
-    canvas.rotate(node.rotation);
-
-    final rect = Rect.fromCenter(center: Offset.zero, width: widthScreen, height: depthScreen);
-    
-    final paint = Paint()..color = color..style = PaintingStyle.fill;
-    canvas.drawRect(rect, paint);
-
-    if (isSelected) {
-      final borderPaint = Paint()..color = const Color(0xFF2563EB)..style = PaintingStyle.stroke..strokeWidth = 2;
-      canvas.drawRect(rect, borderPaint);
-    } else {
-      final borderPaint = Paint()..color = Colors.white24..style = PaintingStyle.stroke..strokeWidth = 1;
-      canvas.drawRect(rect, borderPaint);
+  void _drawCenterDot(Canvas canvas) {
+    // Check if center node already exists in layout
+    MandapNode? centerNode;
+    for (final node in layout.nodes.values) {
+      if (node.isControlPoint || node.type == NodeType.controlPoint || node.id.value.contains('center')) {
+        centerNode = node;
+        break;
+      }
     }
-    canvas.restore();
-  }
+    final cX = centerNode?.x ?? (plotWidth / 2.0);
+    final cZ = centerNode?.z ?? (plotDepth / 2.0);
+    final centerScreen = transform.worldToScreen(cX, cZ);
 
-  void _drawPoleNode(Canvas canvas, MandapNode node, Offset center, bool isSelected) {
-    final widthScreen = (node.width ?? 1.0) * transform.scale;
-    final depthScreen = (node.depth ?? 1.0) * transform.scale;
-
-    canvas.save();
-    canvas.translate(center.dx, center.dy);
-    canvas.rotate(node.rotation);
-
-    final rect = Rect.fromCenter(center: Offset.zero, width: widthScreen, height: depthScreen);
-    
-    final paint = Paint()..color = const Color(0xFFF59E0B)..style = PaintingStyle.fill; // Amber for user pole
-    canvas.drawRect(rect, paint);
-
-    if (isSelected) {
-      final borderPaint = Paint()..color = const Color(0xFF2563EB)..style = PaintingStyle.stroke..strokeWidth = 2;
-      canvas.drawRect(rect, borderPaint);
-    }
-    canvas.restore();
+    // Glowing cyan/white center dot
+    canvas.drawCircle(centerScreen, 12.0, _centerDotGlowPaint);
+    canvas.drawCircle(centerScreen, 6.0, _centerDotPaint);
+    canvas.drawCircle(centerScreen, 6.0, _centerDotBorderPaint);
   }
 
   void _drawSnapCursor(Canvas canvas) {
     final center = transform.worldToScreen(snapCursor!.x, snapCursor!.z);
-    canvas.drawCircle(center, 5, _snapCursorPaint);
-    canvas.drawCircle(
-      center,
-      12,
-      Paint()
-        ..color = const Color(0xFF2563EB).withValues(alpha: 0.2)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5,
-    );
+    final paint = Paint()
+      ..color = const Color(0xFF00E5FF)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, 4.0, paint);
   }
 
-  void _drawLabel(
-    Canvas canvas,
-    Offset point,
-    String text, {
-    bool isBold = false,
-    double fontSize = 11,
-    Color color = Colors.black87,
-  }) {
-    final span = TextSpan(
-      text: text,
-      style: TextStyle(
-        color: color,
-        fontSize: fontSize,
-        fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-        backgroundColor: Colors.white.withValues(alpha: 0.85),
-      ),
-    );
+  void _drawCompassRose(Canvas canvas, Size size) {
+    const double margin = 20.0;
+    const double radius = 22.0;
+    final center = Offset(size.width - margin - radius, margin + radius);
 
-    final painter = TextPainter(
-      text: span,
+    // Compass circle background
+    final bgPaint = Paint()
+      ..color = const Color(0xFF0F263B).withValues(alpha: 0.85)
+      ..style = PaintingStyle.fill;
+    final borderPaint = Paint()
+      ..color = const Color(0xFF00E5FF).withValues(alpha: 0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+
+    canvas.drawCircle(center, radius, bgPaint);
+    canvas.drawCircle(center, radius, borderPaint);
+
+    // North arrow needle (Red)
+    final northPath = Path()
+      ..moveTo(center.dx, center.dy - radius + 4)
+      ..lineTo(center.dx - 3.5, center.dy)
+      ..lineTo(center.dx + 3.5, center.dy)
+      ..close();
+    canvas.drawPath(northPath, Paint()..color = const Color(0xFFEF4444)..style = PaintingStyle.fill);
+
+    // South arrow needle (White)
+    final southPath = Path()
+      ..moveTo(center.dx, center.dy + radius - 4)
+      ..lineTo(center.dx - 3.5, center.dy)
+      ..lineTo(center.dx + 3.5, center.dy)
+      ..close();
+    canvas.drawPath(southPath, Paint()..color = const Color(0xFF94A3B8)..style = PaintingStyle.fill);
+
+    // Letters: N, E, S, W
+    _drawCompassLetter(canvas, Offset(center.dx, center.dy - radius + 8), 'N', const Color(0xFFEF4444));
+    _drawCompassLetter(canvas, Offset(center.dx + radius - 7, center.dy), 'E', Colors.white70);
+    _drawCompassLetter(canvas, Offset(center.dx, center.dy + radius - 8), 'S', Colors.white70);
+    _drawCompassLetter(canvas, Offset(center.dx - radius + 7, center.dy), 'W', Colors.white70);
+  }
+
+  void _drawCompassLetter(Canvas canvas, Offset pos, String text, Color color) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(color: color, fontSize: 8.5, fontWeight: FontWeight.bold),
+      ),
       textAlign: TextAlign.center,
       textDirection: TextDirection.ltr,
     )..layout();
+    tp.paint(canvas, Offset(pos.dx - tp.width / 2, pos.dy - tp.height / 2));
+  }
 
-    painter.paint(
-      canvas,
-      point - Offset(painter.width / 2, painter.height / 2),
+  void _drawPlotBoundaryBox(Canvas canvas) {
+    final p0 = transform.worldToScreen(0, 0);
+    final p1 = transform.worldToScreen(plotWidth, plotDepth);
+    final plotRect = Rect.fromPoints(p0, p1);
+
+    // Cyan glow halo
+    canvas.drawRect(
+      plotRect,
+      Paint()
+        ..color = const Color(0xFF00E5FF).withValues(alpha: 0.35)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4.0
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+
+    // Crisp cyan line
+    canvas.drawRect(
+      plotRect,
+      Paint()
+        ..color = const Color(0xFF00E5FF)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.8
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
     );
   }
 
+  void _drawStageTypeDimensionLines(Canvas canvas) {
+    void draw2DDimensionLine({
+      required Offset pStart,
+      required Offset pEnd,
+      required String text,
+      Color lineColor = const Color(0xFF00E5FF),
+      Color badgeBg = const Color(0xEE0F172A),
+      Color badgeBorder = const Color(0xFF00E5FF),
+      Color textColor = Colors.white,
+      double fontSize = 8.5,
+    }) {
+      final linePaint = Paint()
+        ..color = lineColor
+        ..strokeWidth = 1.4
+        ..strokeCap = StrokeCap.round;
+
+      canvas.drawLine(pStart, pEnd, linePaint);
+
+      final dir = pEnd - pStart;
+      final dist = dir.distance;
+      if (dist > 3.0) {
+        final norm = Offset(dir.dx / dist, dir.dy / dist);
+        final perp = Offset(-norm.dy, norm.dx) * 3.5;
+
+        // End-ticks
+        canvas.drawLine(pStart - perp, pStart + perp, linePaint);
+        canvas.drawLine(pEnd - perp, pEnd + perp, linePaint);
+
+        // Arrows
+        final arrowArm1 = (-norm + Offset(-norm.dy, norm.dx) * 0.5) * 4.5;
+        final arrowArm2 = (-norm - Offset(-norm.dy, norm.dx) * 0.5) * 4.5;
+        canvas.drawLine(pEnd, pEnd + arrowArm1, linePaint);
+        canvas.drawLine(pEnd, pEnd + arrowArm2, linePaint);
+
+        final startArm1 = (norm + Offset(-norm.dy, norm.dx) * 0.5) * 4.5;
+        final startArm2 = (norm - Offset(-norm.dy, norm.dx) * 0.5) * 4.5;
+        canvas.drawLine(pStart, pStart + startArm1, linePaint);
+        canvas.drawLine(pStart, pStart + startArm2, linePaint);
+      }
+
+      final mid = Offset((pStart.dx + pEnd.dx) / 2.0, (pStart.dy + pEnd.dy) / 2.0);
+      final tp = TextPainter(
+        text: TextSpan(
+          text: text,
+          style: TextStyle(
+            color: textColor,
+            fontSize: fontSize,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      final badgeW = tp.width + 8.0;
+      final badgeH = tp.height + 4.0;
+      final badgeRect = RRect.fromRectAndRadius(
+        Rect.fromCenter(center: mid, width: badgeW, height: badgeH),
+        const Radius.circular(4),
+      );
+
+      canvas.drawRRect(badgeRect, Paint()..color = badgeBg);
+      canvas.drawRRect(
+        badgeRect,
+        Paint()
+          ..color = badgeBorder
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.0,
+      );
+      tp.paint(canvas, Offset(mid.dx - tp.width / 2.0, mid.dy - tp.height / 2.0));
+    }
+
+    final p0 = transform.worldToScreen(0, 0);
+    final p1 = transform.worldToScreen(plotWidth, plotDepth);
+    final plotRect = Rect.fromPoints(p0, p1);
+
+    // 1. Overall Width Dimension Line along Top
+    final topY = plotRect.top - 20.0;
+    draw2DDimensionLine(
+      pStart: Offset(plotRect.left, topY),
+      pEnd: Offset(plotRect.right, topY),
+      text: '${plotWidth.toInt()} ft',
+      fontSize: 9.5,
+    );
+
+    // 2. Overall Depth Dimension Line along Right
+    final rightX = plotRect.right + 20.0;
+    draw2DDimensionLine(
+      pStart: Offset(rightX, plotRect.top),
+      pEnd: Offset(rightX, plotRect.bottom),
+      text: '${plotDepth.toInt()} ft',
+      fontSize: 9.5,
+    );
+
+    // 3. Size badges placed directly on each truss member
+    for (final edge in layout.edges.values) {
+      final sn = layout.getNode(edge.startNodeId);
+      final en = layout.getNode(edge.endNodeId);
+      if (sn == null || en == null) continue;
+
+      final pStart = transform.worldToScreen(sn.x, sn.z);
+      final pEnd = transform.worldToScreen(en.x, en.z);
+      final dx = en.x - sn.x;
+      final dz = en.z - sn.z;
+      final spanFeet = math.sqrt(dx * dx + dz * dz);
+      final screenDist = (pEnd - pStart).distance;
+
+      if (screenDist > 20.0 && spanFeet > 1.0) {
+        final text = spanFeet % 1 == 0 ? '${spanFeet.toInt()} ft' : '${spanFeet.toStringAsFixed(1)} ft';
+        final mid = (pStart + pEnd) / 2.0;
+
+        final isSelected = edge.id == selectedEdgeId;
+        final tp = TextPainter(
+          text: TextSpan(
+            text: text,
+            style: TextStyle(
+              color: isSelected ? const Color(0xFF00E5FF) : Colors.white,
+              fontSize: 8.5,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+
+        final badgeW = tp.width + 8.0;
+        final badgeH = tp.height + 4.0;
+        final badgeRect = RRect.fromRectAndRadius(
+          Rect.fromCenter(center: mid, width: badgeW, height: badgeH),
+          const Radius.circular(4),
+        );
+
+        canvas.drawRRect(badgeRect, Paint()..color = const Color(0xEE0F172A));
+        canvas.drawRRect(
+          badgeRect,
+          Paint()
+            ..color = isSelected ? const Color(0xFF00E5FF) : const Color(0xFF334155)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = isSelected ? 1.4 : 0.8,
+        );
+        tp.paint(canvas, Offset(mid.dx - tp.width / 2.0, mid.dy - tp.height / 2.0));
+      }
+    }
+  }
+
+  void _drawBayBoxSizeBadges(Canvas canvas) {
+    final effectiveBays = bays.isNotEmpty ? bays : const TrussBayDetector().detectBays(layout);
+    for (final bay in effectiveBays) {
+      final centerScreen = transform.worldToScreen(bay.centerX, bay.centerZ);
+      final isSelected = bay.id == selectedBayId;
+
+      final w = bay.widthFt.toInt().toString().padLeft(2, '0');
+      final l = bay.lengthFt.toInt().toString().padLeft(2, '0');
+      final text = '$w/$l';
+
+      final tp = TextPainter(
+        text: TextSpan(
+          text: text,
+          style: TextStyle(
+            color: isSelected ? const Color(0xFF00E5FF) : const Color(0xFFF1F5F9),
+            fontSize: isSelected ? 10.5 : 9.5,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.4,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      final badgeW = tp.width + 10.0;
+      final badgeH = tp.height + 6.0;
+      final badgeRect = RRect.fromRectAndRadius(
+        Rect.fromCenter(center: centerScreen, width: badgeW, height: badgeH),
+        const Radius.circular(5),
+      );
+
+      if (isSelected) {
+        // Selected cyan glow
+        canvas.drawRRect(
+          badgeRect.inflate(2.0),
+          Paint()
+            ..color = const Color(0xFF00E5FF).withValues(alpha: 0.3)
+            ..style = PaintingStyle.fill,
+        );
+      }
+
+      canvas.drawRRect(badgeRect, Paint()..color = const Color(0xFA0F172A));
+      canvas.drawRRect(
+        badgeRect,
+        Paint()
+          ..color = isSelected ? const Color(0xFF00E5FF) : const Color(0xFF475569)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = isSelected ? 1.5 : 1.0,
+      );
+      tp.paint(canvas, Offset(centerScreen.dx - tp.width / 2.0, centerScreen.dy - tp.height / 2.0));
+    }
+  }
+
   @override
-  bool shouldRepaint(covariant Mandap2DInteractivePainter oldDelegate) =>
-      layout != oldDelegate.layout ||
-      result != oldDelegate.result ||
-      transform != oldDelegate.transform ||
-      mode != oldDelegate.mode ||
-      selectedEdgeId != oldDelegate.selectedEdgeId ||
-      selectedNodeId != oldDelegate.selectedNodeId ||
-      pendingEdgeSourceId != oldDelegate.pendingEdgeSourceId ||
-      snapCursor != oldDelegate.snapCursor;
+  bool shouldRepaint(covariant Mandap2DInteractivePainter oldDelegate) {
+    return oldDelegate.layout != layout ||
+        oldDelegate.transform != transform ||
+        oldDelegate.mode != mode ||
+        oldDelegate.selectedEdgeId != selectedEdgeId ||
+        oldDelegate.selectedNodeId != selectedNodeId ||
+        oldDelegate.selectedBayId != selectedBayId ||
+        oldDelegate.bays != bays ||
+        oldDelegate.snapCursor != snapCursor;
+  }
 }

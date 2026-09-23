@@ -188,6 +188,45 @@ class MandapEditorController extends ChangeNotifier {
     final isAlongX = dz.abs() < 0.001;
     final isAlongZ = dx.abs() < 0.001;
 
+    // Check if endNode is an intermediate node before another node along the same line
+    if (isAlongX) {
+      final signX = dx >= 0 ? 1.0 : -1.0;
+      double? nextX;
+      for (final candidate in layout.nodes.values) {
+        if (candidate.id != startNode.id && candidate.id != endNode.id && (candidate.z - startNode.z).abs() < 0.1) {
+          if (signX > 0 && candidate.x > endNode.x) {
+            if (nextX == null || candidate.x < nextX) nextX = candidate.x;
+          } else if (signX < 0 && candidate.x < endNode.x) {
+            if (nextX == null || candidate.x > nextX) nextX = candidate.x;
+          }
+        }
+      }
+      if (nextX != null) {
+        final maxAllowed = (nextX - startNode.x).abs() - 5.0;
+        if (maxAllowed >= 5.0 && newLengthFt > maxAllowed) {
+          newLengthFt = maxAllowed;
+        }
+      }
+    } else if (isAlongZ) {
+      final signZ = dz >= 0 ? 1.0 : -1.0;
+      double? nextZ;
+      for (final candidate in layout.nodes.values) {
+        if (candidate.id != startNode.id && candidate.id != endNode.id && (candidate.x - startNode.x).abs() < 0.1) {
+          if (signZ > 0 && candidate.z > endNode.z) {
+            if (nextZ == null || candidate.z < nextZ) nextZ = candidate.z;
+          } else if (signZ < 0 && candidate.z < endNode.z) {
+            if (nextZ == null || candidate.z > nextZ) nextZ = candidate.z;
+          }
+        }
+      }
+      if (nextZ != null) {
+        final maxAllowed = (nextZ - startNode.z).abs() - 5.0;
+        if (maxAllowed >= 5.0 && newLengthFt > maxAllowed) {
+          newLengthFt = maxAllowed;
+        }
+      }
+    }
+
     double newX;
     double newZ;
     if (isAlongX) {
@@ -204,35 +243,58 @@ class MandapEditorController extends ChangeNotifier {
     newX = double.parse(newX.toStringAsFixed(4));
     newZ = double.parse(newZ.toStringAsFixed(4));
 
-    // Find corresponding parallel support node on opposing parallel wall
+    final additionalOld = <NodeId, v64.Vector3>{};
+    final additionalNew = <NodeId, v64.Vector3>{};
     NodeId? parallelNodeId;
     v64.Vector3? oldParallelPos;
     v64.Vector3? newParallelPos;
 
     if (isAlongX) {
-      // Wall runs along X at z = startNode.z. Search for parallel wall node at same X offset:
-      for (final candidate in layout.nodes.values) {
-        if (candidate.id != endNode.id &&
-            candidate.id != startNode.id &&
-            (candidate.x - endNode.x).abs() < 0.5 &&
-            (candidate.z - endNode.z).abs() > 5.0) {
-          parallelNodeId = candidate.id;
-          oldParallelPos = v64.Vector3(candidate.x, candidate.elevation, candidate.z);
-          newParallelPos = v64.Vector3(newX, candidate.elevation, candidate.z);
-          break;
+      final shiftX = newX - endNode.x;
+      final wallNodes = layout.nodes.values
+          .where((n) => n.id != endNode.id && (n.x - endNode.x).abs() < 0.5)
+          .toList();
+      if (wallNodes.length > 1) {
+        for (final wn in wallNodes) {
+          additionalOld[wn.id] = v64.Vector3(wn.x, wn.elevation, wn.z);
+          additionalNew[wn.id] = v64.Vector3(wn.x + shiftX, wn.elevation, wn.z);
+        }
+        if (newX > plotWidth) plotWidth = newX;
+      } else {
+        for (final candidate in layout.nodes.values) {
+          if (candidate.id != endNode.id &&
+              candidate.id != startNode.id &&
+              (candidate.x - endNode.x).abs() < 0.5 &&
+              (candidate.z - endNode.z).abs() > 5.0) {
+            parallelNodeId = candidate.id;
+            oldParallelPos = v64.Vector3(candidate.x, candidate.elevation, candidate.z);
+            newParallelPos = v64.Vector3(newX, candidate.elevation, candidate.z);
+            break;
+          }
         }
       }
     } else if (isAlongZ) {
-      // Wall runs along Z at x = startNode.x. Search for parallel wall node at same Z offset:
-      for (final candidate in layout.nodes.values) {
-        if (candidate.id != endNode.id &&
-            candidate.id != startNode.id &&
-            (candidate.z - endNode.z).abs() < 0.5 &&
-            (candidate.x - endNode.x).abs() > 5.0) {
-          parallelNodeId = candidate.id;
-          oldParallelPos = v64.Vector3(candidate.x, candidate.elevation, candidate.z);
-          newParallelPos = v64.Vector3(candidate.x, candidate.elevation, newZ);
-          break;
+      final shiftZ = newZ - endNode.z;
+      final wallNodes = layout.nodes.values
+          .where((n) => n.id != endNode.id && (n.z - endNode.z).abs() < 0.5)
+          .toList();
+      if (wallNodes.length > 1) {
+        for (final wn in wallNodes) {
+          additionalOld[wn.id] = v64.Vector3(wn.x, wn.elevation, wn.z);
+          additionalNew[wn.id] = v64.Vector3(wn.x, wn.elevation, wn.z + shiftZ);
+        }
+        if (newZ > plotDepth) plotDepth = newZ;
+      } else {
+        for (final candidate in layout.nodes.values) {
+          if (candidate.id != endNode.id &&
+              candidate.id != startNode.id &&
+              (candidate.z - endNode.z).abs() < 0.5 &&
+              (candidate.x - endNode.x).abs() > 5.0) {
+            parallelNodeId = candidate.id;
+            oldParallelPos = v64.Vector3(candidate.x, candidate.elevation, candidate.z);
+            newParallelPos = v64.Vector3(candidate.x, candidate.elevation, newZ);
+            break;
+          }
         }
       }
     }
@@ -246,6 +308,8 @@ class MandapEditorController extends ChangeNotifier {
       newPosition: v64.Vector3(newX, endNode.elevation, newZ),
       oldParallelPosition: oldParallelPos,
       newParallelPosition: newParallelPos,
+      additionalOldPositions: additionalOld.isNotEmpty ? additionalOld : null,
+      additionalNewPositions: additionalNew.isNotEmpty ? additionalNew : null,
       oldLength: currentLen,
       newLength: newLengthFt,
     ));

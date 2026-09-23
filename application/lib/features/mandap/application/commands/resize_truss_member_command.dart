@@ -22,6 +22,8 @@ class ResizeTrussMemberCommand implements MandapCommand {
   final v64.Vector3 newPosition;
   final v64.Vector3? oldParallelPosition;
   final v64.Vector3? newParallelPosition;
+  final Map<NodeId, v64.Vector3>? additionalOldPositions;
+  final Map<NodeId, v64.Vector3>? additionalNewPositions;
   final double oldLength;
   final double newLength;
 
@@ -34,6 +36,8 @@ class ResizeTrussMemberCommand implements MandapCommand {
     required this.newPosition,
     this.oldParallelPosition,
     this.newParallelPosition,
+    this.additionalOldPositions,
+    this.additionalNewPositions,
     required this.oldLength,
     required this.newLength,
   });
@@ -42,7 +46,7 @@ class ResizeTrussMemberCommand implements MandapCommand {
   MandapLayout execute(MandapLayout currentLayout) {
     final updatedNodes = Map<NodeId, MandapNode>.from(currentLayout.nodes);
 
-    // 1. Directly move the shared intermediate support node (so adjacent truss automatically expands, leaving 0 gap)
+    // 1. Directly move the shared intermediate support node
     final node = currentLayout.getNode(movingNodeId);
     if (node != null) {
       updatedNodes[movingNodeId] = node.copyWith(
@@ -61,6 +65,20 @@ class ResizeTrussMemberCommand implements MandapCommand {
           z: newParallelPosition!.z,
           elevation: newParallelPosition!.y,
         );
+      }
+    }
+
+    // 3. Move any other collinear wall nodes that must stay aligned
+    if (additionalNewPositions != null) {
+      for (final entry in additionalNewPositions!.entries) {
+        final aNode = currentLayout.getNode(entry.key);
+        if (aNode != null) {
+          updatedNodes[entry.key] = aNode.copyWith(
+            x: entry.value.x,
+            z: entry.value.z,
+            elevation: entry.value.y,
+          );
+        }
       }
     }
 
@@ -92,6 +110,19 @@ class ResizeTrussMemberCommand implements MandapCommand {
           z: oldParallelPosition!.z,
           elevation: oldParallelPosition!.y,
         );
+      }
+    }
+
+    if (additionalOldPositions != null) {
+      for (final entry in additionalOldPositions!.entries) {
+        final aNode = currentLayout.getNode(entry.key);
+        if (aNode != null) {
+          updatedNodes[entry.key] = aNode.copyWith(
+            x: entry.value.x,
+            z: entry.value.z,
+            elevation: entry.value.y,
+          );
+        }
       }
     }
 

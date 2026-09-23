@@ -60,6 +60,7 @@ class BaseTrussArchitectureGenerator {
       initialTrussSize: trussSize,
       width: w,
       depth: d,
+      customSpan: params.preferredPoleSpacing > 0 ? params.preferredPoleSpacing : null,
       customSequence: params.customPieceSequence,
     );
 

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/localization/language_selector_dialog.dart';
+import '../../../l10n/app_localizations.dart';
 import 'stage_calculator_controller.dart';
 import 'widgets/create_stage_dialog.dart';
 import 'widgets/stage_summary_dialog.dart';
@@ -36,8 +37,8 @@ class StageCalculatorScreen extends StatelessWidget {
       create: (_) => StageCalculatorController(
         initialLength: initialLength ?? 32.0,
         initialWidth: initialWidth ?? 20.0,
-        initialTableLength: initialTableLength ?? 4.0,
-        initialTableWidth: initialTableWidth ?? 8.0,
+        initialTableLength: initialTableLength ?? 8.0,
+        initialTableWidth: initialTableWidth ?? 4.0,
       ),
       child: _StageCalculatorScreenContent(projectId: projectId),
     );
@@ -299,6 +300,7 @@ class _StageCalculatorScreenContentState extends State<_StageCalculatorScreenCon
   }
 
   Widget _buildHeaderBar(BuildContext context, StageCalculatorController controller) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       height: 56,
       decoration: const BoxDecoration(
@@ -346,7 +348,7 @@ class _StageCalculatorScreenContentState extends State<_StageCalculatorScreenCon
               color: controller.canUndo ? AppColors.primaryText : AppColors.secondaryText.withValues(alpha: 0.35),
               size: 20,
             ),
-            tooltip: 'Previous (Undo)',
+            tooltip: l10n?.undo ?? 'Previous (Undo)',
             padding: const EdgeInsets.all(6),
             constraints: const BoxConstraints(),
             onPressed: controller.canUndo ? () => controller.undo() : null,
@@ -358,7 +360,7 @@ class _StageCalculatorScreenContentState extends State<_StageCalculatorScreenCon
               color: controller.canRedo ? AppColors.primaryText : AppColors.secondaryText.withValues(alpha: 0.35),
               size: 20,
             ),
-            tooltip: 'Next (Redo)',
+            tooltip: l10n?.redo ?? 'Next (Redo)',
             padding: const EdgeInsets.all(6),
             constraints: const BoxConstraints(),
             onPressed: controller.canRedo ? () => controller.redo() : null,
@@ -401,11 +403,11 @@ class _StageCalculatorScreenContentState extends State<_StageCalculatorScreenCon
                         children: [
                           ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 55),
-                            child: const Text(
-                              'Stage',
+                            child: Text(
+                              l10n?.stage ?? 'Stage',
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: AppColors.primaryText,
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
@@ -438,14 +440,14 @@ class _StageCalculatorScreenContentState extends State<_StageCalculatorScreenCon
                               ),
                             ],
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.save_rounded, size: 14, color: Colors.white),
-                              SizedBox(width: 3),
+                              const Icon(Icons.save_rounded, size: 14, color: Colors.white),
+                              const SizedBox(width: 3),
                               Text(
-                                'Save',
-                                style: TextStyle(
+                                l10n?.save ?? 'Save',
+                                style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
@@ -469,12 +471,12 @@ class _StageCalculatorScreenContentState extends State<_StageCalculatorScreenCon
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           _buildViewToggleItem(
-                            label: '2D',
+                            label: l10n?.view2D ?? '2D',
                             isSelected: controller.viewMode == StageViewMode.mode2D,
                             onTap: () => controller.setViewMode(StageViewMode.mode2D),
                           ),
                           _buildViewToggleItem(
-                            label: '3D',
+                            label: l10n?.view3D ?? '3D',
                             isSelected: controller.viewMode == StageViewMode.mode3D,
                             onTap: () => controller.setViewMode(StageViewMode.mode3D),
                           ),
@@ -588,7 +590,7 @@ class _StageCalculatorScreenContentState extends State<_StageCalculatorScreenCon
                   ),
                   const SizedBox(width: 7),
                   Text(
-                    '$lenStr/$widStr ft · ${result.totalTables} Tables ($tWidStr×$tLenStr ft)',
+                    '$lenStr/$widStr ft',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -596,7 +598,41 @@ class _StageCalculatorScreenContentState extends State<_StageCalculatorScreenCon
                       letterSpacing: 0.4,
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF7C3AED), Color(0xFF6D28D9)],
+                      ),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFDDD6FE), width: 1.6),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF7C3AED).withValues(alpha: 0.75),
+                          blurRadius: 10,
+                          spreadRadius: 1.2,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.table_restaurant_rounded, color: Colors.white, size: 15),
+                        const SizedBox(width: 5),
+                        Text(
+                          '${result.totalTables} Tables ($tWidStr×$tLenStr ft)',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14.5,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 5),
                   Icon(Icons.edit_rounded, color: hasExcess ? const Color(0xFFFBBF24) : const Color(0xFF94A3B8), size: 12),
                 ],
               ),
@@ -606,11 +642,11 @@ class _StageCalculatorScreenContentState extends State<_StageCalculatorScreenCon
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF59E0B),
+                  color: const Color(0xFFDC2626),
                   borderRadius: BorderRadius.circular(10),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFF59E0B).withValues(alpha: 0.40),
+                      color: const Color(0xFFDC2626).withValues(alpha: 0.40),
                       blurRadius: 6,
                     ),
                   ],
@@ -618,12 +654,12 @@ class _StageCalculatorScreenContentState extends State<_StageCalculatorScreenCon
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.warning_amber_rounded, color: Color(0xFF1E1B18), size: 12),
+                    const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 12),
                     const SizedBox(width: 3),
                     Text(
                       '$excessValStr ft Extra',
                       style: const TextStyle(
-                        color: Color(0xFF1E1B18),
+                        color: Colors.white,
                         fontWeight: FontWeight.w900,
                         fontSize: 11,
                         letterSpacing: 0.2,
@@ -756,14 +792,14 @@ class _StageCalculatorScreenContentState extends State<_StageCalculatorScreenCon
       children: [
         // Main Dimension Info Chip
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E293B).withValues(alpha: 0.95),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFF334155)),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.94),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF334155), width: 1.2),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
+                color: Colors.black.withValues(alpha: 0.35),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -780,14 +816,56 @@ class _StageCalculatorScreenContentState extends State<_StageCalculatorScreenCon
                   shape: BoxShape.circle,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 7),
               Text(
-                '$lenStr × $widStr ft · ${result.totalTables} tables ($tWidStr×$tLenStr ft) · Covered: $cLenStr × $cWidStr ft',
+                '$lenStr × $widStr ft',
                 style: const TextStyle(
                   color: Colors.white,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   fontSize: 11.5,
-                  letterSpacing: 0.2,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF7C3AED), Color(0xFF6D28D9)],
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFDDD6FE), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF7C3AED).withValues(alpha: 0.75),
+                      blurRadius: 10,
+                      spreadRadius: 1.2,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.table_restaurant_rounded, color: Colors.white, size: 14),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${result.totalTables} tables ($tWidStr×$tLenStr ft)',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Covered: $cLenStr × $cWidStr ft',
+                style: const TextStyle(
+                  color: Color(0xFF94A3B8),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' as math;
 import '../stage_calculator_controller.dart';
+import '../../../../l10n/app_localizations.dart';
 
 /// Clean, bright, simple Stage summary dialog.
 class StageSummaryDialog extends StatelessWidget {
@@ -20,6 +21,7 @@ class StageSummaryDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final result = controller.result;
     final stageLen = controller.stageLength;
     final stageWid = controller.stageWidth;
@@ -76,22 +78,22 @@ class StageSummaryDialog extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Stage Complete',
-                            style: TextStyle(
+                            l10n?.stageComplete ?? 'Stage Complete',
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
-                          SizedBox(height: 2),
+                          const SizedBox(height: 2),
                           Text(
-                            'Stage Tables Summary',
-                            style: TextStyle(
+                            l10n?.stageTablesSummary ?? 'Stage Tables Summary',
+                            style: const TextStyle(
                               color: Color(0xFFFFEDD5),
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -131,13 +133,13 @@ class StageSummaryDialog extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Row(
+                                  Row(
                                     children: [
-                                      Icon(Icons.table_restaurant_rounded, color: Color(0xFFEA580C), size: 18),
-                                      SizedBox(width: 6),
+                                      const Icon(Icons.table_restaurant_rounded, color: Color(0xFFEA580C), size: 18),
+                                      const SizedBox(width: 6),
                                       Text(
-                                        'Total Tables',
-                                        style: TextStyle(
+                                        l10n?.totalStageTables ?? 'Total Tables',
+                                        style: const TextStyle(
                                           color: Color(0xFF9A3412),
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700,
@@ -147,7 +149,7 @@ class StageSummaryDialog extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    '$totalTables Tables',
+                                    '$totalTables ${l10n?.tables ?? "Tables"}',
                                     style: const TextStyle(
                                       color: Color(0xFF7C2D12),
                                       fontSize: 20,
@@ -156,7 +158,7 @@ class StageSummaryDialog extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '${tableWid.toStringAsFixed(0)} × ${tableLen.toStringAsFixed(0)} ft size',
+                                    '${tableWid.toStringAsFixed(0)} × ${tableLen.toStringAsFixed(0)} ft',
                                     style: const TextStyle(
                                       color: Color(0xFFEA580C),
                                       fontSize: 11,
@@ -179,13 +181,13 @@ class StageSummaryDialog extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Row(
+                                  Row(
                                     children: [
-                                      Icon(Icons.crop_free_rounded, color: Color(0xFF2563EB), size: 18),
-                                      SizedBox(width: 6),
+                                      const Icon(Icons.crop_free_rounded, color: Color(0xFF2563EB), size: 18),
+                                      const SizedBox(width: 6),
                                       Text(
-                                        'Stage Size',
-                                        style: TextStyle(
+                                        l10n?.plotDimensions ?? 'Stage Size',
+                                        style: const TextStyle(
                                           color: Color(0xFF1E40AF),
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700,
@@ -204,7 +206,7 @@ class StageSummaryDialog extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '${stageArea.toStringAsFixed(0)} sq ft Area',
+                                    '${stageArea.toStringAsFixed(0)} sq ft',
                                     style: const TextStyle(
                                       color: Color(0xFF2563EB),
                                       fontSize: 11,
@@ -220,9 +222,9 @@ class StageSummaryDialog extends StatelessWidget {
 
                       const SizedBox(height: 16),
 
-                      const Text(
-                        'DETAILS',
-                        style: TextStyle(
+                      Text(
+                        l10n?.calculationDetails ?? 'DETAILS',
+                        style: const TextStyle(
                           color: Color(0xFF475569),
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
@@ -231,12 +233,12 @@ class StageSummaryDialog extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
 
-                      _buildRow('Table Size', '${tableWid.toStringAsFixed(0)} ft × ${tableLen.toStringAsFixed(0)} ft'),
-                      _buildRow('Total Tables Used', '$totalTables Tables', isHighlighted: true),
-                      _buildRow('Covered Platform', '${coveredL.toStringAsFixed(0)} ft × ${coveredW.toStringAsFixed(0)} ft (${coveredArea.toStringAsFixed(0)} sq ft)'),
-                      _buildRow('Support Legs', '$totalLegs Legs (4 per table)'),
+                      _buildRow(l10n?.tableDimensions ?? 'Table Size', '${tableWid.toStringAsFixed(0)} ft × ${tableLen.toStringAsFixed(0)} ft'),
+                      _buildRow(l10n?.totalStageTables ?? 'Total Tables Used', '$totalTables ${l10n?.tables ?? "Tables"}', isHighlighted: true),
+                      _buildRow(l10n?.coveredArea ?? 'Covered Platform', '${coveredL.toStringAsFixed(0)} ft × ${coveredW.toStringAsFixed(0)} ft (${coveredArea.toStringAsFixed(0)} sq ft)'),
+                      _buildRow(l10n?.totalSupportLegs ?? 'Support Legs', '$totalLegs ${l10n?.legs ?? "Legs"}'),
                       if (excessArea > 0.1)
-                        _buildRow('Extra Overhang', '+${excessArea.toStringAsFixed(0)} sq ft extra coverage', isAlert: true),
+                        _buildRow(l10n?.extraCoverage ?? 'Extra Overhang', '+${excessArea.toStringAsFixed(0)} sq ft', isAlert: true),
                     ],
                   ),
                 ),
@@ -253,9 +255,9 @@ class StageSummaryDialog extends StatelessWidget {
                   children: [
                     OutlinedButton.icon(
                       icon: const Icon(Icons.copy_rounded, size: 16, color: Color(0xFF0F172A)),
-                      label: const Text(
-                        'Copy',
-                        style: TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.bold),
+                      label: Text(
+                        l10n?.copy ?? 'Copy',
+                        style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.bold),
                       ),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.5),
@@ -272,10 +274,10 @@ class StageSummaryDialog extends StatelessWidget {
                         buffer.writeln('Support Legs: $totalLegs Legs');
                         Clipboard.setData(ClipboardData(text: buffer.toString()));
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Stage summary copied!'),
-                            backgroundColor: Color(0xFFEA580C),
-                            duration: Duration(seconds: 2),
+                          SnackBar(
+                            content: Text(l10n?.summaryCopied ?? 'Stage summary copied!'),
+                            backgroundColor: const Color(0xFFEA580C),
+                            duration: const Duration(seconds: 2),
                           ),
                         );
                       },
@@ -291,12 +293,12 @@ class StageSummaryDialog extends StatelessWidget {
                           elevation: 0,
                         ),
                         onPressed: () => Navigator.of(context).pop(),
-                        child: const Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.check_rounded, color: Colors.white, size: 18),
-                            SizedBox(width: 6),
-                            Text('OK / Done', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                            const Icon(Icons.check_rounded, color: Colors.white, size: 18),
+                            const SizedBox(width: 6),
+                            Text(l10n?.okDone ?? 'OK / Done', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),

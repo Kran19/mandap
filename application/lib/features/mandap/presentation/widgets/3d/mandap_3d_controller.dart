@@ -95,6 +95,54 @@ class Mandap3DController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Sets camera to direct overhead top-down view centered on the layout, fitting the whole structure.
+  void setTopDownView({MandapLayout? layout, Size? viewportSize, bool notify = true}) {
+    cameraAzimuth = 0.0;
+    cameraElevation = 88.5 * math.pi / 180.0; // Direct overhead angle
+    if (layout != null && layout.nodes.isNotEmpty) {
+      double minX = double.infinity;
+      double maxX = -double.infinity;
+      double minZ = double.infinity;
+      double maxZ = -double.infinity;
+      double maxElev = mandapHeight;
+
+      for (final node in layout.nodes.values) {
+        if (node.x < minX) minX = node.x;
+        if (node.x > maxX) maxX = node.x;
+        if (node.z < minZ) minZ = node.z;
+        if (node.z > maxZ) maxZ = node.z;
+        if (node.elevation > maxElev) maxElev = node.elevation;
+      }
+      final centerX = (minX + maxX) / 2.0;
+      final centerZ = (minZ + maxZ) / 2.0;
+      cameraCenterTarget = v64.Vector3(centerX, maxElev * 0.20, centerZ);
+      final spanX = (maxX - minX).abs();
+      final spanZ = (maxZ - minZ).abs();
+
+      // Calculate aspect ratio (default to mobile portrait 0.48 if not provided)
+      final aspect = (viewportSize != null && viewportSize.height > 0)
+          ? (viewportSize.width / viewportSize.height).clamp(0.2, 3.0)
+          : 0.48;
+
+      // In perspective matrix with 45 deg fovY:
+      // tan(fovY / 2) = tan(22.5 deg) ~ 0.41421356
+      const tanHalfFovY = 0.41421356;
+      final tanHalfFovX = tanHalfFovY * aspect;
+
+      // Add generous margin (padding 45 ft) so rails and dimension badges do not obscure structure
+      final paddedSpanX = spanX + 45.0;
+      final paddedSpanZ = spanZ + 45.0;
+
+      final distNeededForWidth = paddedSpanX / (2.0 * tanHalfFovX);
+      final distNeededForHeight = paddedSpanZ / (2.0 * tanHalfFovY);
+
+      cameraDistance = math.max(220.0, math.max(distNeededForWidth, distNeededForHeight) * 1.25);
+    } else {
+      cameraDistance = 280.0;
+    }
+    if (notify) notifyListeners();
+  }
+
   /// Synchronizes 3D render entities from generic [layout] and [result].
   void syncScene(MandapLayout layout, MandapCalculationResult result) {
     registry.clear();

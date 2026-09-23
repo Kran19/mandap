@@ -14,13 +14,13 @@ class StageCalculatorController extends ChangeNotifier {
     StageCalculationService? service,
     double initialLength = 32.0,
     double initialWidth = 20.0,
-    double initialTableLength = 4.0,
-    double initialTableWidth = 8.0,
+    double initialTableLength = 8.0,
+    double initialTableWidth = 4.0,
   })  : _service = service ?? const StageCalculationService(),
         _stageLength = initialLength > 0 ? initialLength : 32.0,
         _stageWidth = initialWidth > 0 ? initialWidth : 20.0,
-        _tableLength = initialTableLength > 0 ? initialTableLength : 4.0,
-        _tableWidth = initialTableWidth > 0 ? initialTableWidth : 8.0 {
+        _tableLength = initialTableLength > 0 ? initialTableLength : 8.0,
+        _tableWidth = initialTableWidth > 0 ? initialTableWidth : 4.0 {
     _cameraCenterTarget = v64.Vector3(_stageLength / 2.0, 1.5, _stageWidth / 2.0);
     calculate();
   }
@@ -28,8 +28,8 @@ class StageCalculatorController extends ChangeNotifier {
   double _stageLength = 32.0;
   double _stageWidth = 20.0;
   final double _stageHeight = 3.0; // Standard deck height locked internally
-  double _tableLength = 4.0;
-  double _tableWidth = 8.0;
+  double _tableLength = 8.0;
+  double _tableWidth = 4.0;
   bool _isRotated = false;
 
   final List<({double stageLength, double stageWidth, double tableLength, double tableWidth, bool isRotated})> _undoStack = [];

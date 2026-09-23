@@ -39,31 +39,35 @@ class CreateCenterCrossCommand implements MandapCommand {
         n.type == NodeType.corner ||
         n.type == NodeType.pole;
 
-    // Find all poles on North boundary (z ~ 0)
+    // Find all intermediate (non-corner) poles on North boundary (z ~ 0)
     final northPoles = nodes.values.where((n) =>
         !n.isControlPoint &&
         (n.z - 0.0).abs() <= 1.0 &&
+        n.x > 1.0 && n.x < (plotWidth - 1.0) &&
         isPoleNode(n)).toList();
 
-    // Find all poles on South boundary (z ~ plotDepth)
+    // Find all intermediate (non-corner) poles on South boundary (z ~ plotDepth)
     final southPoles = nodes.values.where((n) =>
         !n.isControlPoint &&
         (n.z - plotDepth).abs() <= 1.0 &&
+        n.x > 1.0 && n.x < (plotWidth - 1.0) &&
         isPoleNode(n)).toList();
 
-    // Find all poles on West boundary (x ~ 0)
+    // Find all intermediate (non-corner) poles on West boundary (x ~ 0)
     final westPoles = nodes.values.where((n) =>
         !n.isControlPoint &&
         (n.x - 0.0).abs() <= 1.0 &&
+        n.z > 1.0 && n.z < (plotDepth - 1.0) &&
         isPoleNode(n)).toList();
 
-    // Find all poles on East boundary (x ~ plotWidth)
+    // Find all intermediate (non-corner) poles on East boundary (x ~ plotWidth)
     final eastPoles = nodes.values.where((n) =>
         !n.isControlPoint &&
         (n.x - plotWidth).abs() <= 1.0 &&
+        n.z > 1.0 && n.z < (plotDepth - 1.0) &&
         isPoleNode(n)).toList();
 
-    // If any side has no pole at all, cannot create cross
+    // If any of the 4 sides has no intermediate support pole, cannot create cross
     if (northPoles.isEmpty || southPoles.isEmpty || westPoles.isEmpty || eastPoles.isEmpty) {
       return currentLayout;
     }
@@ -117,7 +121,7 @@ class CreateCenterCrossCommand implements MandapCommand {
       elevation: elevation,
       height: elevation,
       type: NodeType.junction,
-      support: NodeSupport.pole,
+      support: NodeSupport.none,
       structureId: 'main',
     );
 

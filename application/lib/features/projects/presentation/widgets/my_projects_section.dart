@@ -176,7 +176,7 @@ class _MyProjectsSectionState extends State<MyProjectsSection> {
             children: [
               _buildFilterChip(
                 filter: ProjectModuleFilter.all,
-                label: 'All Projects',
+                label: l10n?.all ?? 'All Projects',
                 count: _countFor(ProjectModuleFilter.all),
                 color: AppColors.primaryText,
                 bgColor: const Color(0xFFE2E8F0),

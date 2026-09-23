@@ -353,4 +353,305 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get widthBays => 'அகல பகுதிகள்';
+
+  @override
+  String get welcome => 'வரவேற்கிறோம்';
+
+  @override
+  String get signInSubtitle =>
+      'MANDAP பயன்பாட்டை அணுக உங்கள் தொலைபேசி எண்ணை உள்ளிடவும்';
+
+  @override
+  String get phoneNumber => 'தொலைபேசி எண்';
+
+  @override
+  String get phoneNumberRequired => 'தொலைபேசி எண் *';
+
+  @override
+  String get password => 'கடவுச்சொல்';
+
+  @override
+  String get passwordRequired => 'கடவுச்சொல் *';
+
+  @override
+  String get fullNameOptional => 'முழு பெயர் (விருப்பமானது)';
+
+  @override
+  String get emailOptional => 'மின்னஞ்சல் (விருப்பமானது)';
+
+  @override
+  String get forgotPassword => 'கடவுச்சொல்லை மறந்துவிட்டீர்களா?';
+
+  @override
+  String get continueButton => 'தொடரவும்';
+
+  @override
+  String get dontHaveAccount => 'கணக்கு இல்லையா?';
+
+  @override
+  String get createOne => 'கணக்கை உருவாக்கவும்';
+
+  @override
+  String get verifyPhone => 'தொலைபேசியை சரிபார்க்கவும்';
+
+  @override
+  String get otpSentTo => 'நாங்கள் 6 இலக்க குறியீட்டை அனுப்பியுள்ளோம்';
+
+  @override
+  String get otpLabel => '6 இலக்க OTP';
+
+  @override
+  String get verifyAndSignIn => 'சரிபார்த்து உள்நுழையவும்';
+
+  @override
+  String get changePhoneNumber => 'தொலைபேசி எண்ணை மாற்றவும்';
+
+  @override
+  String get joinMandap => 'MANDAP-இல் இணையுங்கள்';
+
+  @override
+  String get joinSubtitle => 'புதிய கணக்கை உருவாக்க விவரங்களை உள்ளிடவும்';
+
+  @override
+  String get createAccount => 'கணக்கை உருவாக்கவும்';
+
+  @override
+  String get alreadyHaveAccount => 'ஏற்கனவே கணக்கு உள்ளதா?';
+
+  @override
+  String get signIn => 'உள்நுழைக';
+
+  @override
+  String get accountCreated => 'கணக்கு உருவாக்கப்பட்டது!';
+
+  @override
+  String get accountCreatedSubtitle =>
+      'உங்கள் கணக்கு வெற்றிகரமாக உருவாக்கப்பட்டது.';
+
+  @override
+  String get continueToSignIn => 'உள்நுழைய தொடரவும்';
+
+  @override
+  String get designModules => 'வடிவமைப்பு தொகுதிகள்';
+
+  @override
+  String get myProjects => 'எனது திட்டங்கள்';
+
+  @override
+  String get viewAllProjects => 'சேமிக்கப்பட்ட அனைத்து அமைப்புகளையும் காண்க';
+
+  @override
+  String get poles => 'துண்கள்';
+
+  @override
+  String get upperPipes => 'மேல் குழாய்கள்';
+
+  @override
+  String get totalPipes => 'மொத்த குழாய்கள்';
+
+  @override
+  String get retrieve => 'மீட்டெடுக்கவும்';
+
+  @override
+  String get retrieveLayout => 'அமைப்பை மீட்டெடுக்கவும்';
+
+  @override
+  String get all => 'அனைத்தும்';
+
+  @override
+  String get noProjectsFound => 'திட்டங்கள் எதுவும் காணப்படவில்லை';
+
+  @override
+  String get createNewProject => 'புதிய திட்டத்தை உருவாக்கவும்';
+
+  @override
+  String get view2D => '2D';
+
+  @override
+  String get view3D => '3D';
+
+  @override
+  String get summary => 'சுருக்கம்';
+
+  @override
+  String get tools => 'கருவிகள்';
+
+  @override
+  String get eraser => 'அழிப்பான்';
+
+  @override
+  String get drawTruss => 'டிரஸ் வரையவும்';
+
+  @override
+  String get eraserTool => 'அழிப்பான் கருவி';
+
+  @override
+  String get addPoleTool => 'தூண் கருவியை சேர்க்கவும்';
+
+  @override
+  String get createTruss => 'டிரஸ் உருவாக்கவும்';
+
+  @override
+  String get enterPlotAndTrussSpec =>
+      'பிளாட் மற்றும் தனிப்பயன் டிரஸ் விவரங்களை உள்ளிடவும்';
+
+  @override
+  String get plotSizeLengthWidth => 'பிளாட் அளவு (நீளம் / அகலம்)';
+
+  @override
+  String get selectOrWriteTrussSize =>
+      'டிரஸ் அளவை தேர்ந்தெடுக்கவும் அல்லது எழுதவும்';
+
+  @override
+  String get custom => 'தனிப்பயன்';
+
+  @override
+  String get customTrussSizeWrite =>
+      'தனிப்பயன் டிரஸ் அளவு (மதிப்பை எழுதுங்கள்)';
+
+  @override
+  String get trussSizeLabel => 'டிரஸ் அளவு';
+
+  @override
+  String get generateTrussButton => 'டிரஸ் உருவாக்குங்கள்';
+
+  @override
+  String get designComplete => 'வடிவமைப்பு முடிந்தது';
+
+  @override
+  String get trussAndPolesSummary => 'டிரஸ் & கம்பங்கள் சுருக்கம்';
+
+  @override
+  String get totalTrusses => 'மொத்த டிரஸ்';
+
+  @override
+  String get totalSpan => 'மொத்த இடைவெளி';
+
+  @override
+  String get supportPoles => 'ஆதரவு கம்பங்கள்';
+
+  @override
+  String get corner => 'மூலை';
+
+  @override
+  String get mid => 'நடு';
+
+  @override
+  String get trussSizesUsed => 'பயன்படுத்தப்பட்ட டிரஸ் அளவுகள்';
+
+  @override
+  String get totalLength => 'மொத்த நீளம்';
+
+  @override
+  String get gatesAndEntrances => 'நுழைவு வாயில்கள்';
+
+  @override
+  String get gateOpening => 'வாயில் திறப்பு';
+
+  @override
+  String get copy => 'நகலெடு';
+
+  @override
+  String get okDone => 'சரி / முடிந்தது';
+
+  @override
+  String get summaryCopied => 'சுருக்கம் நகலெடுக்கப்பட்டது!';
+
+  @override
+  String get noTrussMembersDrawn => 'இதுவரை டிரஸ் வரையப்படவில்லை.';
+
+  @override
+  String get trussEditorHint =>
+      'டிரஸ் வரைய பென்சில் பயன்படுத்தவும். அழிக்க அழிப்பான் பயன்படுத்தவும். சென்டர் கிராஸ் உருவாக்க மையப் புள்ளியைத் தட்டவும்.';
+
+  @override
+  String get createStageStructure => 'மேடை கட்டமைப்பு உருவாக்கவும்';
+
+  @override
+  String get enterStageDimensionsAndTable =>
+      'மேடை அளவுகள் மற்றும் அட்டவணை அமைப்பை உள்ளிடவும்';
+
+  @override
+  String get stageSizeLengthWidth => 'மேடை அளவு (நீளம் / அகலம்)';
+
+  @override
+  String get stageTableSizeLengthWidth => 'மேடை அட்டவணை அளவு (நீளம் / அகலம்)';
+
+  @override
+  String get generateStageStructure => 'மேடை கட்டமைப்பை உருவாக்குங்கள்';
+
+  @override
+  String get stageComplete => 'மேடை முடிந்தது';
+
+  @override
+  String get stageTablesSummary => 'மேடை அட்டவணைகள் சுருக்கம்';
+
+  @override
+  String get totalStageTables => 'மொத்த மேடை அட்டவணைகள்';
+
+  @override
+  String get totalSupportLegs => 'மொத்த ஆதரவு கால்கள்';
+
+  @override
+  String get tables => 'அட்டவணைகள்';
+
+  @override
+  String get legs => 'கால்கள்';
+
+  @override
+  String get enterPlotAndPipeSpec =>
+      'பிளாட் மற்றும் பைப் அளவு விவரங்களை உள்ளிடவும்';
+
+  @override
+  String get pipeSizeLabel => 'பைப் அளவு';
+
+  @override
+  String get generatePipeStructure => 'பைப் கட்டமைப்பை உருவாக்குங்கள்';
+
+  @override
+  String get polesSetupComplete => 'கம்பங்கள் அமைப்பு முடிந்தது';
+
+  @override
+  String get polesAndPipesSummary => 'கம்பங்கள் & பைப்புகள் சுருக்கம்';
+
+  @override
+  String get totalVerticalPoles => 'மொத்த செங்குத்து கம்பங்கள்';
+
+  @override
+  String get totalHorizontalPipes => 'மொத்த கிடைமட்ட பைப்புகள்';
+
+  @override
+  String get createFlooringLayout => 'தரைத்தள அமைப்பை உருவாக்கவும்';
+
+  @override
+  String get enterPlotAndCarpetSpec =>
+      'பிளாட் மற்றும் கார்பெட் விவரங்களை உள்ளிடவும்';
+
+  @override
+  String get carpetSizeLengthWidth => 'கார்பெட் அளவு (நீளம் / அகலம்)';
+
+  @override
+  String get generateFlooringLayout => 'தரைத்தள அமைப்பை உருவாக்குங்கள்';
+
+  @override
+  String get flooringComplete => 'தரைத்தளம் முடிந்தது';
+
+  @override
+  String get carpetsAndFlooringSummary => 'கார்பெட் மற்றும் தரைத்தள சுருக்கம்';
+
+  @override
+  String get carpetRollsUnits => 'கார்பெட் சுருள்கள் / அலகுகள்';
+
+  @override
+  String get carpets => 'கார்பெட்டுகள்';
+
+  @override
+  String get totalFloorArea => 'மொத்த தரைப்பகுதி';
+
+  @override
+  String get centerCrossSupportRequired => 'மைய ஆதரவு தேவைப்படுகிறது';
+
+  @override
+  String get centerCrossSupportDesc =>
+      'மைய குறுக்கு கட்டமைப்பை உருவாக்கும் முன் 4 சுற்றளவு ஆதரவு கம்பங்கள் தேவை.';
 }

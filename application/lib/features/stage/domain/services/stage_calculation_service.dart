@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import '../models/stage_calculation_input.dart';
 import '../models/stage_calculation_result.dart';
 import '../models/stage_table.dart';
@@ -19,15 +18,12 @@ class StageCalculationService {
     final double tl = input.tableLength;
     final double tw = input.tableWidth;
 
-    final double tLong = math.max(tl, tw);
-    final double tShort = math.min(tl, tw);
-
     final bool isSwapped = input.isRotated ?? false;
 
-    // Default (Unswapped): Horizontal sections across the stage
-    // Swapped (After clicking Swap): Vertical sections (e.g. 5x4 = 20 tables)
-    final double orientedTableLength = isSwapped ? tLong : tShort;
-    final double orientedTableWidth  = isSwapped ? tShort : tLong;
+    // Default (Unswapped): tl along Length, tw along Width
+    // Swapped (After clicking Swap): tw along Length, tl along Width
+    final double orientedTableLength = isSwapped ? tw : tl;
+    final double orientedTableWidth  = isSwapped ? tl : tw;
 
     final int tablesAlongLength = (sl / orientedTableLength).ceil();
     final int tablesAlongWidth  = (sw / orientedTableWidth).ceil();

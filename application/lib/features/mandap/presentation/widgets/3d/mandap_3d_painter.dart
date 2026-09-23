@@ -1206,6 +1206,35 @@ class Mandap3DPainter extends CustomPainter {
     final nodeNumbers = editorController?.displayNumbering.nodeNumbers ??
         const TrussDisplayNumberingService().buildNodeNumbers(layout);
 
+    // Draw Center Dot (+) if not created yet
+    final hasCrossEdges = layout.edges.values.any((e) => e.id.value.contains('cross') || e.id.value.contains('mid'));
+    if (!hasCrossEdges) {
+      final cX = editorController?.centerControlNode?.x ?? ((plotWidth ?? 100.0) / 2.0);
+      final cZ = editorController?.centerControlNode?.z ?? ((plotDepth ?? 100.0) / 2.0);
+      final cElev = controller.mandapHeight;
+      final pCenter = project(v64.Vector3(cX, cElev, cZ));
+      if (pCenter != null) {
+        // Glowing cyan/white center dot (+) indicator
+        canvas.drawCircle(
+          pCenter,
+          13.0,
+          Paint()
+            ..color = const Color(0xFF00F0FF).withValues(alpha: 0.35)
+            ..style = PaintingStyle.fill,
+        );
+        canvas.drawCircle(
+          pCenter,
+          6.5,
+          Paint()..color = const Color(0xFF00F0FF)..style = PaintingStyle.fill,
+        );
+        canvas.drawCircle(
+          pCenter,
+          6.5,
+          Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 2.0,
+        );
+      }
+    }
+
     for (final node in layout.nodes.values) {
       final p = project(v64.Vector3(node.x, node.elevation, node.z));
       if (p != null) {

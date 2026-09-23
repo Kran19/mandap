@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../l10n/app_localizations.dart';
 
 /// Modal dialog presented when user finishes selecting a straight segment with Pen.
 ///
@@ -78,6 +79,7 @@ class _NewMemberLengthDialogState extends State<NewMemberLengthDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -114,9 +116,9 @@ class _NewMemberLengthDialogState extends State<NewMemberLengthDialog> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
-                    'NEW TRUSS MEMBER',
-                    style: TextStyle(
+                  Text(
+                    l10n?.addMember.toUpperCase() ?? 'NEW TRUSS MEMBER',
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.8,
@@ -147,7 +149,7 @@ class _NewMemberLengthDialogState extends State<NewMemberLengthDialog> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${widget.directionAxis}-Axis (Straight)',
+                          '${widget.directionAxis}-Axis',
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
@@ -160,7 +162,7 @@ class _NewMemberLengthDialogState extends State<NewMemberLengthDialog> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         const Text(
-                          'Tapped Distance',
+                          'Distance',
                           style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
                         ),
                         const SizedBox(height: 2),
@@ -180,9 +182,9 @@ class _NewMemberLengthDialogState extends State<NewMemberLengthDialog> {
               const SizedBox(height: 16),
 
               // Length Input Field
-              const Text(
-                'Length (feet)',
-                style: TextStyle(
+              Text(
+                l10n?.lengthFt ?? 'Length (feet)',
+                style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: Color(0xFFCBD5E1),
@@ -243,7 +245,7 @@ class _NewMemberLengthDialogState extends State<NewMemberLengthDialog> {
                       foregroundColor: const Color(0xFF94A3B8),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     ),
-                    child: const Text('CANCEL'),
+                    child: Text(l10n?.cancel.toUpperCase() ?? 'CANCEL'),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
@@ -254,9 +256,9 @@ class _NewMemberLengthDialogState extends State<NewMemberLengthDialog> {
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: const Text(
-                      'APPLY',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    child: Text(
+                      l10n?.okDone ?? 'APPLY',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],

@@ -140,8 +140,62 @@ class RenderEntityRegistry {
     return closestNodeId;
   }
 
+  /// Returns closest NodeId along with the minimum Euclidean hit distance in feet.
+  (NodeId?, double) pickHandleWithDistance({
+    v64.Ray? cameraRay,
+    v64.Vector3? planeIntersectionPoint,
+    double hitRadiusFeet = 3.5,
+  }) {
+    NodeId? closestNodeId;
+    double minDistance = hitRadiusFeet;
+
+    if (planeIntersectionPoint != null) {
+      for (final handle in _handles.values) {
+        final dist = (handle.position - planeIntersectionPoint).length;
+        if (dist <= minDistance) {
+          minDistance = dist;
+          closestNodeId = handle.nodeId;
+        }
+      }
+      return (closestNodeId, minDistance);
+    }
+
+    if (cameraRay != null) {
+      final rayOrigin = cameraRay.origin;
+      final rayDir = cameraRay.direction.normalized();
+
+      for (final handle in _handles.values) {
+        final pos = handle.position;
+        final v = pos - rayOrigin;
+        final t = v.dot(rayDir);
+        if (t < 0.0) continue; // Behind camera
+
+        final proj = rayOrigin + rayDir * t;
+        final dist = (pos - proj).length;
+
+        if (dist <= minDistance) {
+          minDistance = dist;
+          closestNodeId = handle.nodeId;
+        }
+      }
+    }
+
+    return (closestNodeId, minDistance);
+  }
+
   /// Performs 3D ray-to-segment distance picking directly in 3D for beam entities.
   EdgeId? pickBeamWithRay({
+    required v64.Ray cameraRay,
+    double maxHitDistanceFeet = 7.0,
+  }) {
+    return pickBeamWithRayWithDistance(
+      cameraRay: cameraRay,
+      maxHitDistanceFeet: maxHitDistanceFeet,
+    ).$1;
+  }
+
+  /// Performs 3D ray-to-segment distance picking and returns the closest EdgeId with distance in feet.
+  (EdgeId?, double) pickBeamWithRayWithDistance({
     required v64.Ray cameraRay,
     double maxHitDistanceFeet = 7.0,
   }) {
@@ -204,7 +258,7 @@ class RenderEntityRegistry {
       }
     }
 
-    return closestEdgeId;
+    return (closestEdgeId, minDistance);
   }
 
   /// Performs 3D ray-to-segment distance picking directly in 3D for vertical pole/tower entities.

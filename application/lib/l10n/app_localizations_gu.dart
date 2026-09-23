@@ -353,4 +353,300 @@ class AppLocalizationsGu extends AppLocalizations {
 
   @override
   String get widthBays => 'પહોળાઈ બેઝ';
+
+  @override
+  String get welcome => 'સ્વાગત છે';
+
+  @override
+  String get signInSubtitle =>
+      'MANDAP એક્સેસ કરવા માટે તમારા ફોન નંબરથી સાઇન ઇન કરો';
+
+  @override
+  String get phoneNumber => 'ફોન નંબર';
+
+  @override
+  String get phoneNumberRequired => 'ફોન નંબર *';
+
+  @override
+  String get password => 'પાસવર્ડ';
+
+  @override
+  String get passwordRequired => 'પાસવર્ડ *';
+
+  @override
+  String get fullNameOptional => 'પૂરું નામ (વૈકલ્પિક)';
+
+  @override
+  String get emailOptional => 'ઇમેઇલ (વૈકલ્પિક)';
+
+  @override
+  String get forgotPassword => 'પાસવર્ડ ભૂલી ગયા છો?';
+
+  @override
+  String get continueButton => 'આગળ વધો';
+
+  @override
+  String get dontHaveAccount => 'ખાતું નથી?';
+
+  @override
+  String get createOne => 'ખાતું બનાવો';
+
+  @override
+  String get verifyPhone => 'ફોન ચકાસો';
+
+  @override
+  String get otpSentTo => 'અમે 6-અંકનો કોડ મોકલ્યો છે';
+
+  @override
+  String get otpLabel => '6-અંકનો OTP';
+
+  @override
+  String get verifyAndSignIn => 'ચકાસો અને સાઇન ઇન કરો';
+
+  @override
+  String get changePhoneNumber => 'ફોન નંબર બદલો';
+
+  @override
+  String get joinMandap => 'MANDAP સાથે જોડાઓ';
+
+  @override
+  String get joinSubtitle => 'નવું ખાતું બનાવવા માટે તમારી વિગતો દાખલ કરો';
+
+  @override
+  String get createAccount => 'ખાતું બનાવો';
+
+  @override
+  String get alreadyHaveAccount => 'પહેલેથી ખાતું છે?';
+
+  @override
+  String get signIn => 'સાઇન ઇન કરો';
+
+  @override
+  String get accountCreated => 'ખાતું બની ગયું!';
+
+  @override
+  String get accountCreatedSubtitle =>
+      'તમારું ખાતું સફળતાપૂર્વક સેટ થઈ ગયું છે.';
+
+  @override
+  String get continueToSignIn => 'સાઇન ઇન કરવા આગળ વધો';
+
+  @override
+  String get designModules => 'ડિઝાઇન મોડ્યુલ્સ';
+
+  @override
+  String get myProjects => 'મારા પ્રોજેક્ટ્સ';
+
+  @override
+  String get viewAllProjects => 'મારા પ્રોજેક્ટ્સમાં બધા સાચવેલા લેઆઉટ જુઓ';
+
+  @override
+  String get poles => 'પોલ';
+
+  @override
+  String get upperPipes => 'ઉપરના પાઇપ';
+
+  @override
+  String get totalPipes => 'કુલ પાઇપ';
+
+  @override
+  String get retrieve => 'પુનઃપ્રાપ્ત કરો';
+
+  @override
+  String get retrieveLayout => 'લેઆઉટ પુનઃપ્રાપ્ત કરો';
+
+  @override
+  String get all => 'બધા';
+
+  @override
+  String get noProjectsFound => 'કોઈ પ્રોજેક્ટ મળ્યો નથી';
+
+  @override
+  String get createNewProject => 'નવો પ્રોજેક્ટ બનાવો';
+
+  @override
+  String get view2D => '2D';
+
+  @override
+  String get view3D => '3D';
+
+  @override
+  String get summary => 'સારાંશ';
+
+  @override
+  String get tools => 'સાધનો';
+
+  @override
+  String get eraser => 'ઇરેઝર';
+
+  @override
+  String get drawTruss => 'ટ્રસ દોરો';
+
+  @override
+  String get eraserTool => 'ઇરેઝર ટૂલ';
+
+  @override
+  String get addPoleTool => 'પોલ ટૂલ ઉમેરો';
+
+  @override
+  String get createTruss => 'ટ્રસ બનાવો';
+
+  @override
+  String get enterPlotAndTrussSpec => 'પ્લોટ અને કસ્ટમ ટ્રસ વિગતો દાખલ કરો';
+
+  @override
+  String get plotSizeLengthWidth => 'પ્લોટ સાઇઝ (લંબાઈ / પહોળાઈ)';
+
+  @override
+  String get selectOrWriteTrussSize => 'ટ્રસ સાઇઝ પસંદ કરો અથવા લખો';
+
+  @override
+  String get custom => 'કસ્ટમ';
+
+  @override
+  String get customTrussSizeWrite => 'કસ્ટમ ટ્રસ સાઇઝ (તમારી કિંમત લખો)';
+
+  @override
+  String get trussSizeLabel => 'ટ્રસ સાઇઝ';
+
+  @override
+  String get generateTrussButton => 'ટ્રસ જનરેટ કરો';
+
+  @override
+  String get designComplete => 'ડિઝાઇન પૂર્ણ';
+
+  @override
+  String get trussAndPolesSummary => 'ટ્રસ અને પોલ સારાંશ';
+
+  @override
+  String get totalTrusses => 'કુલ ટ્રસ';
+
+  @override
+  String get totalSpan => 'કુલ સ્પાન';
+
+  @override
+  String get supportPoles => 'સપોર્ટ પોલ';
+
+  @override
+  String get corner => 'ખૂણો';
+
+  @override
+  String get mid => 'મધ્ય';
+
+  @override
+  String get trussSizesUsed => 'વપરાયેલ ટ્રસ સાઇઝ';
+
+  @override
+  String get totalLength => 'કુલ લંબાઈ';
+
+  @override
+  String get gatesAndEntrances => 'ગેટ અને પ્રવેશદ્વાર';
+
+  @override
+  String get gateOpening => 'ગેટ ઓપનિંગ';
+
+  @override
+  String get copy => 'કોપી કરો';
+
+  @override
+  String get okDone => 'બરાબર / પૂર્ણ';
+
+  @override
+  String get summaryCopied => 'સારાંશ ક્લિપબોર્ડ પર કોપી થયો!';
+
+  @override
+  String get noTrussMembersDrawn => 'હજી સુધી કોઈ ટ્રસ દોરવામાં આવ્યો નથી.';
+
+  @override
+  String get trussEditorHint =>
+      'ટ્રસ દોરવા કે વિભાજીત કરવા પેન્સિલ વાપરો. હટાવવા ઇરેઝર વાપરો. સેન્ટર ક્રોસ માટે મધ્ય બિંદુ પર ટેપ કરો.';
+
+  @override
+  String get createStageStructure => 'સ્ટેજ સ્ટ્રક્ચર બનાવો';
+
+  @override
+  String get enterStageDimensionsAndTable =>
+      'સ્ટેજ માપ અને ટેબલ લેઆઉટ દાખલ કરો';
+
+  @override
+  String get stageSizeLengthWidth => 'સ્ટેજ સાઇઝ (લંબાઈ / પહોળાઈ)';
+
+  @override
+  String get stageTableSizeLengthWidth => 'સ્ટેજ ટેબલ સાઇઝ (લંબાઈ / પહોળાઈ)';
+
+  @override
+  String get generateStageStructure => 'સ્ટેજ સ્ટ્રક્ચર જનરેટ કરો';
+
+  @override
+  String get stageComplete => 'સ્ટેજ પૂર્ણ';
+
+  @override
+  String get stageTablesSummary => 'સ્ટેજ ટેબલ્સ સારાંશ';
+
+  @override
+  String get totalStageTables => 'કુલ સ્ટેજ ટેબલ';
+
+  @override
+  String get totalSupportLegs => 'કુલ સપોર્ટ લેગ્સ';
+
+  @override
+  String get tables => 'ટેબલ';
+
+  @override
+  String get legs => 'લેગ્સ';
+
+  @override
+  String get enterPlotAndPipeSpec => 'પ્લોટ અને પાઇપ સાઇઝ વિગતો દાખલ કરો';
+
+  @override
+  String get pipeSizeLabel => 'પાઇપ સાઇઝ';
+
+  @override
+  String get generatePipeStructure => 'પાઇપ સ્ટ્રક્ચર જનરેટ કરો';
+
+  @override
+  String get polesSetupComplete => 'પોલ સેટઅપ પૂર્ણ';
+
+  @override
+  String get polesAndPipesSummary => 'પોલ અને પાઇપ સારાંશ';
+
+  @override
+  String get totalVerticalPoles => 'કુલ વર્ટિકલ પોલ';
+
+  @override
+  String get totalHorizontalPipes => 'કુલ આડા પાઇપ';
+
+  @override
+  String get createFlooringLayout => 'ફ્લોરિંગ લેઆઉટ બનાવો';
+
+  @override
+  String get enterPlotAndCarpetSpec => 'પ્લોટ અને કાર્પેટ વિગતો દાખલ કરો';
+
+  @override
+  String get carpetSizeLengthWidth => 'કાર્પેટ સાઇઝ (લંબાઈ / પહોળાઈ)';
+
+  @override
+  String get generateFlooringLayout => 'ફ્લોરિંગ લેઆઉટ જનરેટ કરો';
+
+  @override
+  String get flooringComplete => 'ફ્લોરિંગ પૂર્ણ';
+
+  @override
+  String get carpetsAndFlooringSummary => 'કાર્પેટ અને ફ્લોરિંગ સારાંશ';
+
+  @override
+  String get carpetRollsUnits => 'કાર્પેટ રોલ / એકમો';
+
+  @override
+  String get carpets => 'કાર્પેટ';
+
+  @override
+  String get totalFloorArea => 'કુલ ફ્લોર વિસ્તાર';
+
+  @override
+  String get centerCrossSupportRequired => 'સેન્ટર ક્રોસ સપોર્ટ જરૂરી';
+
+  @override
+  String get centerCrossSupportDesc =>
+      'સેન્ટર ક્રોસ બનાવતા પહેલા 4 સપોર્ટિંગ પોલ જરૂરી છે.';
 }

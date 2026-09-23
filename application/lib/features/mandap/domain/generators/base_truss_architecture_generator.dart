@@ -212,42 +212,6 @@ class BaseTrussArchitectureGenerator {
         support: NodeSupport.none,
         structureId: 'main',
       );
-
-      if (params.preferredPoleSpacing == 10.0 || params.generateModularBayGrid) {
-        final midNorth = getOrCreateNode(w / 2.0, 0.0, isCorner: false, isSupportPole: false);
-        final midEast = getOrCreateNode(w, d / 2.0, isCorner: false, isSupportPole: false);
-        final midSouth = getOrCreateNode(w / 2.0, d, isCorner: false, isSupportPole: false);
-        final midWest = getOrCreateNode(0.0, d / 2.0, isCorner: false, isSupportPole: false);
-
-        edges[EdgeId('e_cross_north')] = MandapEdge(
-          id: EdgeId('e_cross_north'),
-          startNodeId: midNorth,
-          endNodeId: centerId,
-          profile: EdgeProfile.box,
-          role: TrussMemberRole.upper,
-        );
-        edges[EdgeId('e_cross_east')] = MandapEdge(
-          id: EdgeId('e_cross_east'),
-          startNodeId: centerId,
-          endNodeId: midEast,
-          profile: EdgeProfile.box,
-          role: TrussMemberRole.upper,
-        );
-        edges[EdgeId('e_cross_south')] = MandapEdge(
-          id: EdgeId('e_cross_south'),
-          startNodeId: centerId,
-          endNodeId: midSouth,
-          profile: EdgeProfile.box,
-          role: TrussMemberRole.upper,
-        );
-        edges[EdgeId('e_cross_west')] = MandapEdge(
-          id: EdgeId('e_cross_west'),
-          startNodeId: midWest,
-          endNodeId: centerId,
-          profile: EdgeProfile.box,
-          role: TrussMemberRole.upper,
-        );
-      }
     }
 
     return MandapLayout(

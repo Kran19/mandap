@@ -162,6 +162,7 @@ class _CreatePoleDialogState extends State<CreatePoleDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final screenWidth = MediaQuery.of(context).size.width;
     final dialogWidth = screenWidth < 500 ? screenWidth * 0.9 : 420.0;
 
@@ -204,7 +205,7 @@ class _CreatePoleDialogState extends State<CreatePoleDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        AppLocalizations.of(context)?.createPipeStructure.toUpperCase() ?? 'CREATE PIPE STRUCTURE',
+                        l10n?.createPipeStructure.toUpperCase() ?? 'CREATE PIPE STRUCTURE',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -213,9 +214,9 @@ class _CreatePoleDialogState extends State<CreatePoleDialog> {
                         ),
                       ),
                       const SizedBox(height: 2),
-                      const Text(
-                        'Enter plot & pipe size specifications',
-                        style: TextStyle(
+                      Text(
+                        l10n?.enterPlotAndPipeSpec ?? 'Enter plot & pipe size specifications',
+                        style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.secondaryText,
                         ),
@@ -238,7 +239,7 @@ class _CreatePoleDialogState extends State<CreatePoleDialog> {
 
             // Section 1: Combined PLOT SIZE Box (Length / Width)
             _buildInputField(
-              label: 'PLOT SIZE (Length / Width)',
+              label: l10n?.plotSizeLengthWidth ?? 'PLOT SIZE (Length / Width)',
               hint: '100 / 100 ft',
               controller: _plotSizeController,
               icon: Icons.aspect_ratio_rounded,
@@ -248,7 +249,7 @@ class _CreatePoleDialogState extends State<CreatePoleDialog> {
 
             // Section 2: PIPE SIZE Box
             _buildInputField(
-              label: 'PIPE SIZE',
+              label: l10n?.pipeSizeLabel ?? 'PIPE SIZE',
               hint: '15 ft',
               controller: _pipeSizeController,
               icon: Icons.straighten_rounded,
@@ -293,16 +294,16 @@ class _CreatePoleDialogState extends State<CreatePoleDialog> {
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const FittedBox(
+                child: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.auto_awesome_rounded, size: 18),
-                      SizedBox(width: 8),
+                      const Icon(Icons.auto_awesome_rounded, size: 18),
+                      const SizedBox(width: 8),
                       Text(
-                        'GENERATE 3D MODEL',
-                        style: TextStyle(
+                        l10n?.generatePipeStructure ?? 'GENERATE PIPE STRUCTURE',
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1.0,

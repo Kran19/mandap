@@ -86,26 +86,35 @@ class InModelDimensionBadge extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Small Box Size Chip (00/00 ft)
+                // Prominent Box Size Chip
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF00E5FF).withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.5), width: 0.9),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF7DD3FC), width: 1.1),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0284C7).withValues(alpha: 0.45),
+                        blurRadius: 6,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
                   ),
                   child: Text(
                     'Box: $sPadded/$sPadded ft',
                     style: const TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF00E5FF),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
                       letterSpacing: 0.3,
                     ),
                   ),
                 ),
-                const SizedBox(width: 7),
-                const Icon(Icons.edit_rounded, color: Color(0xFF94A3B8), size: 13),
+                const SizedBox(width: 6),
+                const Icon(Icons.edit_rounded, color: Color(0xFF94A3B8), size: 12),
               ],
             ),
           ),

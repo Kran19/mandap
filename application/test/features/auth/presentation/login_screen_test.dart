@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'package:mandap/features/auth/presentation/login_screen.dart';
 import 'package:mandap/features/auth/infrastructure/auth_repository.dart';
 import 'package:mandap/features/auth/application/bootstrap_coordinator.dart';
+import 'package:mandap/core/localization/locale_notifier.dart';
+import 'package:mandap/l10n/app_localizations.dart';
 
 class MockAuthRepository extends Mock implements AuthRepository {}
 class MockBootstrapCoordinator extends Mock implements BootstrapCoordinator {}
@@ -25,9 +27,12 @@ void main() {
       providers: [
         Provider<AuthRepository>.value(value: mockAuthRepository),
         ChangeNotifierProvider<BootstrapCoordinator>.value(value: mockCoordinator),
+        ChangeNotifierProvider<LocaleNotifier>(create: (_) => LocaleNotifier()),
       ],
-      child: MaterialApp(
-        home: Scaffold(body: const LoginScreen()),
+      child: const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(body: LoginScreen()),
       ),
     );
   }
@@ -35,7 +40,7 @@ void main() {
   testWidgets('renders login form properly', (WidgetTester tester) async {
     await tester.pumpWidget(createTestWidget());
 
-    expect(find.text('Welcome Back'), findsOneWidget);
+    expect(find.text('Welcome'), findsOneWidget);
     expect(find.byType(TextField), findsNWidgets(2)); // Phone and Password
     expect(find.text('Continue'), findsOneWidget);
   });
@@ -47,6 +52,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, '9876543210');
     await tester.enterText(find.byType(TextField).last, 'password');
+    await tester.ensureVisible(find.text('Continue'));
     await tester.tap(find.text('Continue'));
     
     // Initial pump for setState, another for Future completion
@@ -66,6 +72,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, '9876543210');
     await tester.enterText(find.byType(TextField).last, 'password');
+    await tester.ensureVisible(find.text('Continue'));
     await tester.tap(find.text('Continue'));
     
     await tester.pump();

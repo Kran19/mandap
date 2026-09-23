@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../l10n/app_localizations.dart';
 
 /// Configuration data returned by [CreateFlooringDialog].
 class FlooringConfigurationParams {
@@ -192,6 +193,7 @@ class _CreateFlooringDialogState extends State<CreateFlooringDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final screenWidth = MediaQuery.of(context).size.width;
     final dialogWidth = screenWidth < 500 ? screenWidth * 0.9 : 420.0;
 
@@ -229,23 +231,23 @@ class _CreateFlooringDialogState extends State<CreateFlooringDialog> {
                   ),
                 ),
                 const SizedBox(width: 14),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'CREATE FLOORING LAYOUT',
-                        style: TextStyle(
+                        l10n?.createFlooringLayout ?? 'CREATE FLOORING LAYOUT',
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.8,
                           color: AppColors.primaryText,
                         ),
                       ),
-                      SizedBox(height: 2),
+                      const SizedBox(height: 2),
                       Text(
-                        'Enter plot and carpet roll specifications',
-                        style: TextStyle(
+                        l10n?.enterPlotAndCarpetSpec ?? 'Enter plot and carpet roll specifications',
+                        style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.secondaryText,
                         ),
@@ -268,7 +270,7 @@ class _CreateFlooringDialogState extends State<CreateFlooringDialog> {
 
             // Section 1: Combined PLOT SIZE Box (Length / Width)
             _buildInputField(
-              label: 'PLOT SIZE (Length / Width)',
+              label: l10n?.plotSizeLengthWidth ?? 'PLOT SIZE (Length / Width)',
               hint: '100 / 60 ft',
               controller: _plotSizeController,
               icon: Icons.aspect_ratio_rounded,
@@ -279,7 +281,7 @@ class _CreateFlooringDialogState extends State<CreateFlooringDialog> {
 
             // Section 2: CARPET SIZE Box (Length / Width)
             _buildInputField(
-              label: 'CARPET SIZE (Length / Width)',
+              label: l10n?.carpetSizeLengthWidth ?? 'CARPET SIZE (Length / Width)',
               hint: '15 / 30 ft',
               controller: _carpetSizeController,
               icon: Icons.straighten_rounded,
@@ -312,7 +314,7 @@ class _CreateFlooringDialogState extends State<CreateFlooringDialog> {
 
             const SizedBox(height: 24),
 
-            // Action Button: GENERATE 3D MODEL
+            // Action Button: GENERATE FLOORING LAYOUT
             SizedBox(
               width: double.infinity,
               height: 48,
@@ -324,16 +326,16 @@ class _CreateFlooringDialogState extends State<CreateFlooringDialog> {
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const FittedBox(
+                child: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.auto_awesome_rounded, size: 18),
-                      SizedBox(width: 8),
+                      const Icon(Icons.auto_awesome_rounded, size: 18),
+                      const SizedBox(width: 8),
                       Text(
-                        'GENERATE 3D MODEL',
-                        style: TextStyle(
+                        l10n?.generateFlooringLayout ?? 'GENERATE FLOORING LAYOUT',
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1.0,

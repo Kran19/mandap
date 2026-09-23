@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:mandap/core/theme/app_theme.dart';
 import 'package:mandap/core/localization/language_selector_dialog.dart';
+import 'package:mandap/l10n/app_localizations.dart';
 import '../../../../auth/application/bootstrap_coordinator.dart';
 import '../../../../projects/domain/sync_state.dart';
 import '../../../../projects/application/project_sync_service.dart';
@@ -233,7 +234,7 @@ class _CadHeaderBarState extends State<CadHeaderBar> {
                     // Retrieve Button
                     if (widget.onRetrieve != null) ...[
                       Tooltip(
-                        message: 'Retrieve Saved Design',
+                        message: AppLocalizations.of(context)?.retrieveLayout ?? 'Retrieve Saved Design',
                         child: Material(
                           color: Colors.transparent,
                           child: InkWell(
@@ -255,9 +256,9 @@ class _CadHeaderBarState extends State<CadHeaderBar> {
                                   const Icon(Icons.history_rounded, size: 16, color: AppColors.primaryText),
                                   if (screenWidth >= 600) ...[
                                     const SizedBox(width: 4),
-                                    const Text(
-                                      'Retrieve',
-                                      style: TextStyle(
+                                    Text(
+                                      AppLocalizations.of(context)?.retrieve ?? 'Retrieve',
+                                      style: const TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
                                         color: AppColors.primaryText,
@@ -276,7 +277,7 @@ class _CadHeaderBarState extends State<CadHeaderBar> {
                     // Save Button
                     if (widget.onSave != null) ...[
                       Tooltip(
-                        message: 'Save Project',
+                        message: AppLocalizations.of(context)?.save ?? 'Save Project',
                         child: Material(
                           color: Colors.transparent,
                           child: InkWell(
@@ -310,9 +311,9 @@ class _CadHeaderBarState extends State<CadHeaderBar> {
                                   else
                                     const Icon(Icons.save_rounded, size: 15, color: Colors.white),
                                   const SizedBox(width: 3),
-                                  const Text(
-                                    'Save',
-                                    style: TextStyle(
+                                  Text(
+                                    AppLocalizations.of(context)?.save ?? 'Save',
+                                    style: const TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
                                       color: Colors.white,
@@ -326,33 +327,6 @@ class _CadHeaderBarState extends State<CadHeaderBar> {
                       ),
                       SizedBox(width: isVeryCompact ? 2 : 4),
                     ],
-
-                    // 2D / 3D Mode Switcher
-                    if (widget.viewMode != null && widget.onViewModeChanged != null)
-                      Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: AppColors.inputBackground,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.inputBorder),
-                        ),
-                        child: Row(
-                          children: [
-                            _buildViewModeButton(
-                              label: '2D',
-                              isSelected: widget.viewMode == ViewMode.topView2D,
-                              onTap: () => widget.onViewModeChanged!(ViewMode.topView2D),
-                              isVeryCompact: isVeryCompact,
-                            ),
-                            _buildViewModeButton(
-                              label: '3D',
-                              isSelected: widget.viewMode == ViewMode.view3D,
-                              onTap: () => widget.onViewModeChanged!(ViewMode.view3D),
-                              isVeryCompact: isVeryCompact,
-                            ),
-                          ],
-                        ),
-                      ),
 
                     // Language Selector Button
                     if (!isCompact) ...[

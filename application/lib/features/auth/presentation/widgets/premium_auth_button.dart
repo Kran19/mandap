@@ -4,12 +4,19 @@ class PremiumAuthButton extends StatefulWidget {
   final String text;
   final VoidCallback? onPressed;
   final bool isLoading;
+  final List<Color>? gradientColors;
+  final double borderRadius;
+
+  final double verticalPadding;
 
   const PremiumAuthButton({
     super.key,
     required this.text,
     this.onPressed,
     this.isLoading = false,
+    this.gradientColors,
+    this.borderRadius = 14,
+    this.verticalPadding = 12,
   });
 
   @override
@@ -22,6 +29,10 @@ class _PremiumAuthButtonState extends State<PremiumAuthButton> {
   @override
   Widget build(BuildContext context) {
     final isDisabled = widget.onPressed == null || widget.isLoading;
+    final colors = widget.gradientColors ?? [
+      const Color(0xFF3B82F6), // Blue 500
+      const Color(0xFF2563EB), // Blue 600
+    ];
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -33,33 +44,36 @@ class _PremiumAuthButtonState extends State<PremiumAuthButton> {
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOut,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(widget.borderRadius),
             gradient: LinearGradient(
               colors: isDisabled
                   ? [const Color(0xFFCBD5E1), const Color(0xFFCBD5E1)]
-                  : [
-                      const Color(0xFF2563EB), // Blue 600
-                      const Color(0xFF1D4ED8), // Blue 700
-                    ],
+                  : colors,
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
             ),
             boxShadow: _isHovered && !isDisabled
                 ? [
                     BoxShadow(
-                      color: const Color(0xFF2563EB).withValues(alpha: 0.35),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
+                      color: colors.first.withValues(alpha: 0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
                     )
                   ]
-                : [],
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    )
+                  ],
           ),
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          padding: EdgeInsets.symmetric(vertical: widget.verticalPadding),
           alignment: Alignment.center,
           child: widget.isLoading
               ? const SizedBox(
-                  height: 24,
-                  width: 24,
+                  height: 20,
+                  width: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -69,8 +83,8 @@ class _PremiumAuthButtonState extends State<PremiumAuthButton> {
                   widget.text,
                   style: TextStyle(
                     color: isDisabled ? Colors.white.withOpacity(0.5) : Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
                   ),
                 ),

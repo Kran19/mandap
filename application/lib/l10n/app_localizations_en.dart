@@ -353,4 +353,301 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get widthBays => 'Width Bays';
+
+  @override
+  String get welcome => 'Welcome';
+
+  @override
+  String get signInSubtitle =>
+      'Sign in with your phone number to access MANDAP';
+
+  @override
+  String get phoneNumber => 'Phone Number';
+
+  @override
+  String get phoneNumberRequired => 'Phone Number *';
+
+  @override
+  String get password => 'Password';
+
+  @override
+  String get passwordRequired => 'Password *';
+
+  @override
+  String get fullNameOptional => 'Full Name (optional)';
+
+  @override
+  String get emailOptional => 'Email (optional)';
+
+  @override
+  String get forgotPassword => 'Forgot password?';
+
+  @override
+  String get continueButton => 'Continue';
+
+  @override
+  String get dontHaveAccount => 'Don\'t have an account?';
+
+  @override
+  String get createOne => 'Create one';
+
+  @override
+  String get verifyPhone => 'Verify Phone';
+
+  @override
+  String get otpSentTo => 'We sent a 6-digit code to';
+
+  @override
+  String get otpLabel => '6-Digit OTP';
+
+  @override
+  String get verifyAndSignIn => 'Verify & Sign In';
+
+  @override
+  String get changePhoneNumber => 'Change phone number';
+
+  @override
+  String get joinMandap => 'Join MANDAP';
+
+  @override
+  String get joinSubtitle => 'Enter your details to create a new account';
+
+  @override
+  String get createAccount => 'Create Account';
+
+  @override
+  String get alreadyHaveAccount => 'Already have an account?';
+
+  @override
+  String get signIn => 'Sign In';
+
+  @override
+  String get accountCreated => 'Account Created!';
+
+  @override
+  String get accountCreatedSubtitle =>
+      'Your account has been set up successfully.';
+
+  @override
+  String get continueToSignIn => 'Continue to Sign In';
+
+  @override
+  String get designModules => 'Design Modules';
+
+  @override
+  String get myProjects => 'My Projects';
+
+  @override
+  String get viewAllProjects => 'View all saved layouts in My Projects';
+
+  @override
+  String get poles => 'Poles';
+
+  @override
+  String get upperPipes => 'Upper Pipes';
+
+  @override
+  String get totalPipes => 'Total Pipes';
+
+  @override
+  String get retrieve => 'Retrieve';
+
+  @override
+  String get retrieveLayout => 'Retrieve Layout';
+
+  @override
+  String get all => 'All';
+
+  @override
+  String get noProjectsFound => 'No projects found';
+
+  @override
+  String get createNewProject => 'Create New Project';
+
+  @override
+  String get view2D => '2D';
+
+  @override
+  String get view3D => '3D';
+
+  @override
+  String get summary => 'Summary';
+
+  @override
+  String get tools => 'Tools';
+
+  @override
+  String get eraser => 'Eraser';
+
+  @override
+  String get drawTruss => 'Draw Truss';
+
+  @override
+  String get eraserTool => 'Eraser Tool';
+
+  @override
+  String get addPoleTool => 'Add Pole Tool';
+
+  @override
+  String get createTruss => 'CREATE TRUSS';
+
+  @override
+  String get enterPlotAndTrussSpec =>
+      'Enter plot & custom truss specifications';
+
+  @override
+  String get plotSizeLengthWidth => 'PLOT SIZE (Length / Width)';
+
+  @override
+  String get selectOrWriteTrussSize => 'SELECT OR WRITE TRUSS SIZE';
+
+  @override
+  String get custom => 'Custom';
+
+  @override
+  String get customTrussSizeWrite => 'CUSTOM TRUSS SIZE (Write your value)';
+
+  @override
+  String get trussSizeLabel => 'TRUSS SIZE';
+
+  @override
+  String get generateTrussButton => 'GENERATE TRUSS';
+
+  @override
+  String get designComplete => 'Design Complete';
+
+  @override
+  String get trussAndPolesSummary => 'Truss & Poles Summary';
+
+  @override
+  String get totalTrusses => 'Total Trusses';
+
+  @override
+  String get totalSpan => 'Total Span';
+
+  @override
+  String get supportPoles => 'Support Poles';
+
+  @override
+  String get corner => 'Corner';
+
+  @override
+  String get mid => 'Mid';
+
+  @override
+  String get trussSizesUsed => 'TRUSS SIZES USED';
+
+  @override
+  String get totalLength => 'total length';
+
+  @override
+  String get gatesAndEntrances => 'GATES & ENTRANCES';
+
+  @override
+  String get gateOpening => 'Gate Opening';
+
+  @override
+  String get copy => 'Copy';
+
+  @override
+  String get okDone => 'OK / Done';
+
+  @override
+  String get summaryCopied => 'Summary copied to clipboard!';
+
+  @override
+  String get noTrussMembersDrawn => 'No truss members drawn yet.';
+
+  @override
+  String get trussEditorHint =>
+      'Use Pencil to draw or split truss. Use Eraser to remove truss. Tap center dot to create center cross.';
+
+  @override
+  String get createStageStructure => 'CREATE STAGE STRUCTURE';
+
+  @override
+  String get enterStageDimensionsAndTable =>
+      'Enter stage dimensions & table layout';
+
+  @override
+  String get stageSizeLengthWidth => 'STAGE SIZE (Length / Width)';
+
+  @override
+  String get stageTableSizeLengthWidth => 'STAGE TABLE SIZE (Length / Width)';
+
+  @override
+  String get generateStageStructure => 'GENERATE STAGE STRUCTURE';
+
+  @override
+  String get stageComplete => 'Stage Complete';
+
+  @override
+  String get stageTablesSummary => 'Stage Tables Summary';
+
+  @override
+  String get totalStageTables => 'Total Stage Tables';
+
+  @override
+  String get totalSupportLegs => 'Total Support Legs';
+
+  @override
+  String get tables => 'Tables';
+
+  @override
+  String get legs => 'Legs';
+
+  @override
+  String get enterPlotAndPipeSpec => 'Enter plot & pipe size specifications';
+
+  @override
+  String get pipeSizeLabel => 'PIPE SIZE';
+
+  @override
+  String get generatePipeStructure => 'GENERATE PIPE STRUCTURE';
+
+  @override
+  String get polesSetupComplete => 'Poles Setup Complete';
+
+  @override
+  String get polesAndPipesSummary => 'Poles & Pipes Summary';
+
+  @override
+  String get totalVerticalPoles => 'Total Vertical Poles';
+
+  @override
+  String get totalHorizontalPipes => 'Total Horizontal Pipes';
+
+  @override
+  String get createFlooringLayout => 'CREATE FLOORING LAYOUT';
+
+  @override
+  String get enterPlotAndCarpetSpec => 'Enter plot & carpet specifications';
+
+  @override
+  String get carpetSizeLengthWidth => 'CARPET SIZE (Length / Width)';
+
+  @override
+  String get generateFlooringLayout => 'GENERATE FLOORING LAYOUT';
+
+  @override
+  String get flooringComplete => 'Flooring Complete';
+
+  @override
+  String get carpetsAndFlooringSummary => 'Carpets & Flooring Summary';
+
+  @override
+  String get carpetRollsUnits => 'Carpet Rolls / Units';
+
+  @override
+  String get carpets => 'Carpets';
+
+  @override
+  String get totalFloorArea => 'Total Floor Area';
+
+  @override
+  String get centerCrossSupportRequired => 'Center Cross Support Required';
+
+  @override
+  String get centerCrossSupportDesc =>
+      '4 supporting perimeter poles are required before creating a center cross structure.';
 }

@@ -189,7 +189,7 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            _buildInModelDimensionBadge(context, controller),
+                            _buildInModelDimensionBadge(context, controller, result),
                             if (result != null) ...[
                               const SizedBox(height: 8),
                               _buildPipesBreakdownBadge(controller, result),
@@ -298,6 +298,7 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
   }
 
   Widget _buildHeaderBar(BuildContext context, PoleCalculatorController controller) {
+    final l10n = AppLocalizations.of(context);
     final isCompact = MediaQuery.of(context).size.width < 600;
     return Container(
       height: 56,
@@ -346,7 +347,7 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
               color: controller.canUndo ? AppColors.primaryText : AppColors.secondaryText.withValues(alpha: 0.35),
               size: 20,
             ),
-            tooltip: 'Previous (Undo)',
+            tooltip: l10n?.undo ?? 'Previous (Undo)',
             padding: const EdgeInsets.all(6),
             constraints: const BoxConstraints(),
             onPressed: controller.canUndo ? () => controller.undo() : null,
@@ -358,7 +359,7 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
               color: controller.canRedo ? AppColors.primaryText : AppColors.secondaryText.withValues(alpha: 0.35),
               size: 20,
             ),
-            tooltip: 'Next (Redo)',
+            tooltip: l10n?.redo ?? 'Next (Redo)',
             padding: const EdgeInsets.all(6),
             constraints: const BoxConstraints(),
             onPressed: controller.canRedo ? () => controller.redo() : null,
@@ -387,7 +388,7 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
                           ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 55),
                             child: Text(
-                              AppLocalizations.of(context)?.pipe ?? 'Pipe',
+                              l10n?.pipe ?? 'Pipe',
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
                               style: const TextStyle(
@@ -423,14 +424,14 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
                               ),
                             ],
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.save_rounded, size: 14, color: Colors.white),
-                              SizedBox(width: 3),
+                              const Icon(Icons.save_rounded, size: 14, color: Colors.white),
+                              const SizedBox(width: 3),
                               Text(
-                                'Save',
-                                style: TextStyle(
+                                l10n?.save ?? 'Save',
+                                style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
@@ -463,7 +464,7 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
                                 borderRadius: const BorderRadius.horizontal(left: Radius.circular(7)),
                               ),
                               child: Text(
-                                '2D',
+                                l10n?.view2D ?? '2D',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -482,7 +483,7 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
                                 borderRadius: const BorderRadius.horizontal(right: Radius.circular(7)),
                               ),
                               child: Text(
-                                '3D',
+                                l10n?.view3D ?? '3D',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -499,7 +500,7 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
                     // Retrieve (History) Button
                     IconButton(
                       icon: const Icon(Icons.history_rounded, size: 17, color: AppColors.primaryText),
-                      tooltip: 'Retrieve Layout',
+                      tooltip: l10n?.retrieveLayout ?? 'Retrieve Layout',
                       padding: const EdgeInsets.all(4),
                       constraints: const BoxConstraints(),
                       onPressed: () {
@@ -527,7 +528,11 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
     );
   }
 
-  Widget _buildInModelDimensionBadge(BuildContext context, PoleCalculatorController controller) {
+  Widget _buildInModelDimensionBadge(
+    BuildContext context,
+    PoleCalculatorController controller, [
+    PoleCalculationResult? result,
+  ]) {
     final len = controller.length.toInt();
     final wid = controller.width.toInt();
     final pipe = controller.poleSize.toInt();
@@ -538,35 +543,71 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
         onTap: () => _handleEditDimensions(context, controller),
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.95),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.94),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
+                color: Colors.black.withValues(alpha: 0.35),
                 blurRadius: 10,
                 offset: const Offset(0, 3),
               ),
             ],
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.6), width: 1.2),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.aspect_ratio_rounded, size: 15, color: Color(0xFF2563EB)),
+              const Icon(Icons.aspect_ratio_rounded, size: 15, color: Color(0xFF34D399)),
               const SizedBox(width: 6),
               Text(
-                '$len/$wid ft · $pipe ft',
+                '$len/$wid ft · ${pipe}ft Poles',
                 style: const TextStyle(
-                  fontSize: 13,
+                  fontSize: 12.5,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
+                  color: Colors.white,
                   letterSpacing: 0.3,
                 ),
               ),
-              const SizedBox(width: 6),
-              const Icon(Icons.edit_rounded, size: 13, color: Color(0xFF64748B)),
+              if (result != null) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF059669), Color(0xFF047857)],
+                    ),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFFA7F3D0), width: 1.6),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF059669).withValues(alpha: 0.75),
+                        blurRadius: 10,
+                        spreadRadius: 1.2,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.all_inbox_rounded, color: Colors.white, size: 15),
+                      const SizedBox(width: 5),
+                      Text(
+                        '${result.totalPipesUsed} ${AppLocalizations.of(context)?.totalPipes ?? 'Total Pipes'}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 14.5,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(width: 5),
+              const Icon(Icons.edit_rounded, size: 12, color: Color(0xFF94A3B8)),
             ],
           ),
         ),
@@ -575,6 +616,7 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
   }
 
   Widget _buildPipesBreakdownBadge(PoleCalculatorController controller, PoleCalculationResult result) {
+    final l10n = AppLocalizations.of(context);
     final polesCount = result.totalVerticalPoles;
     final upperCount = result.totalHorizontalPipes;
     final totalCount = result.totalPipesUsed;
@@ -607,7 +649,7 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
               icon: Icons.view_column_rounded,
               iconColor: const Color(0xFF38BDF8), // Cyan
               count: polesCount,
-              label: 'Poles',
+              label: l10n?.poles ?? 'Poles',
             ),
             _buildVerticalSeparator(),
 
@@ -617,7 +659,7 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
               icon: Icons.roofing_rounded,
               iconColor: const Color(0xFFF59E0B), // Amber
               count: upperCount,
-              label: 'Upper Pipes',
+              label: l10n?.upperPipes ?? 'Upper Pipes',
             ),
             _buildVerticalSeparator(),
 
@@ -626,7 +668,7 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
               icon: Icons.all_inbox_rounded,
               iconColor: const Color(0xFF10B981), // Emerald
               count: totalCount,
-              label: 'Total Pipes',
+              label: l10n?.totalPipes ?? 'Total Pipes',
               isHighlighted: true,
             ),
           ],
@@ -714,6 +756,7 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
   }
 
   Widget _buildSimplifiedToolRail(BuildContext context, PoleCalculatorController controller) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
       decoration: BoxDecoration(
@@ -738,7 +781,7 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
               color: _activeTool == 'pencil' ? const Color(0xFF34D399) : const Color(0xFF94A3B8),
               size: 17,
             ),
-            tooltip: 'Pen / Draw',
+            tooltip: l10n?.pen ?? 'Pen / Draw',
             padding: const EdgeInsets.all(6),
             constraints: const BoxConstraints(),
             onPressed: () => setState(() => _activeTool = 'pencil'),
@@ -754,7 +797,7 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
               color: _activeTool == 'eraser' ? const Color(0xFF34D399) : const Color(0xFF94A3B8),
               size: 17,
             ),
-            tooltip: 'Eraser',
+            tooltip: l10n?.eraser ?? 'Eraser',
             padding: const EdgeInsets.all(6),
             constraints: const BoxConstraints(),
             onPressed: () => setState(() => _activeTool = 'eraser'),
@@ -765,24 +808,26 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
   }
 
   Widget _buildBottomStatusChip(PoleCalculatorController controller, dynamic result) {
+    final l10n = AppLocalizations.of(context);
     final len = controller.length.toInt();
     final wid = controller.width.toInt();
     final poles = result.totalVerticalPoles;
     final pipes = result.totalHorizontalPipes;
+    final total = result.totalPipesUsed;
     final pipeSize = result.poleSize.toInt();
 
     return Container(
       constraints: BoxConstraints(
         maxWidth: MediaQuery.of(context).size.width - 28,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F172A).withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF334155)),
+        color: const Color(0xFF0F172A).withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF334155), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: Colors.black.withValues(alpha: 0.35),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -793,16 +838,58 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
         children: [
           const Icon(Icons.view_column_rounded, size: 14, color: Color(0xFF38BDF8)),
           const SizedBox(width: 6),
+          Text(
+            '$len × $wid ft',
+            style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF059669), Color(0xFF047857)],
+              ),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: const Color(0xFFA7F3D0), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF059669).withValues(alpha: 0.75),
+                  blurRadius: 10,
+                  spreadRadius: 1.2,
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.all_inbox_rounded, color: Colors.white, size: 14),
+                const SizedBox(width: 4),
+                Text(
+                  '$total ${l10n?.totalPipes ?? 'Total Pipes'}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
           Flexible(
             child: Text(
-              '$len × $wid ft · $poles poles · $pipes pipes (${pipeSize}ft)',
+              '($poles ${l10n?.poles?.toLowerCase() ?? 'poles'} · $pipes ${l10n?.upperPipes?.toLowerCase() ?? 'roof'} · ${pipeSize}ft)',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: Colors.white,
-                letterSpacing: 0.2,
+                color: Color(0xFF94A3B8),
               ),
             ),
           ),

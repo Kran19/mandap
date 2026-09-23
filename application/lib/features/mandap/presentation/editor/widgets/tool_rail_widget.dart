@@ -91,18 +91,6 @@ class ToolRailWidget extends StatelessWidget {
               },
             ),
 
-            // Add Pole Tool
-            _buildToolItem(
-              icon: Icons.view_column_rounded,
-              label: 'Pole',
-              tooltip: 'Add Support Pole (│)',
-              isActive: controller.mode == EditorMode.addNode && !isMeasuring,
-              onTap: () {
-                if (isMeasuring) onToggleMeasure();
-                controller.setMode(EditorMode.addNode);
-              },
-            ),
-
             // Eraser Tool
             _buildToolItem(
               icon: Icons.cleaning_services_rounded,
@@ -112,6 +100,18 @@ class ToolRailWidget extends StatelessWidget {
               onTap: () {
                 if (isMeasuring) onToggleMeasure();
                 controller.setMode(EditorMode.delete);
+              },
+            ),
+
+            // Add Pole Tool
+            _buildToolItem(
+              icon: Icons.view_column_rounded,
+              label: 'Pole',
+              tooltip: 'Add Support Pole (│)',
+              isActive: controller.mode == EditorMode.addNode && !isMeasuring,
+              onTap: () {
+                if (isMeasuring) onToggleMeasure();
+                controller.setMode(EditorMode.addNode);
               },
             ),
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' as math;
 import '../flooring_calculator_controller.dart';
+import '../../../../l10n/app_localizations.dart';
 
 /// Clean, bright, simple Flooring / Carpet summary dialog.
 class FlooringSummaryDialog extends StatelessWidget {
@@ -20,6 +21,7 @@ class FlooringSummaryDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final result = controller.result;
     final plotLen = controller.plotLength;
     final plotWid = controller.plotWidth;
@@ -76,22 +78,22 @@ class FlooringSummaryDialog extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Flooring Complete',
-                            style: TextStyle(
+                            l10n?.flooringComplete ?? 'Flooring Complete',
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
-                          SizedBox(height: 2),
+                          const SizedBox(height: 2),
                           Text(
-                            'Carpets & Flooring Summary',
-                            style: TextStyle(
+                            l10n?.carpetsAndFlooringSummary ?? 'Carpets & Flooring Summary',
+                            style: const TextStyle(
                               color: Color(0xFFEDE9FE),
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -131,13 +133,13 @@ class FlooringSummaryDialog extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Row(
+                                  Row(
                                     children: [
-                                      Icon(Icons.layers_rounded, color: Color(0xFF7C3AED), size: 18),
-                                      SizedBox(width: 6),
+                                      const Icon(Icons.layers_rounded, color: Color(0xFF7C3AED), size: 18),
+                                      const SizedBox(width: 6),
                                       Text(
-                                        'Total Carpets',
-                                        style: TextStyle(
+                                        l10n?.carpetRollsUnits ?? 'Total Carpets',
+                                        style: const TextStyle(
                                           color: Color(0xFF5B21B6),
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700,
@@ -147,7 +149,7 @@ class FlooringSummaryDialog extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    '$totalCarpets Carpets',
+                                    '$totalCarpets ${l10n?.carpets ?? "Carpets"}',
                                     style: const TextStyle(
                                       color: Color(0xFF4C1D95),
                                       fontSize: 20,
@@ -156,7 +158,7 @@ class FlooringSummaryDialog extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '${carpetWid.toStringAsFixed(0)} × ${carpetLen.toStringAsFixed(0)} ft each',
+                                    '${carpetWid.toStringAsFixed(0)} × ${carpetLen.toStringAsFixed(0)} ft',
                                     style: const TextStyle(
                                       color: Color(0xFF7C3AED),
                                       fontSize: 11,
@@ -179,13 +181,13 @@ class FlooringSummaryDialog extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Row(
+                                  Row(
                                     children: [
-                                      Icon(Icons.crop_free_rounded, color: Color(0xFF2563EB), size: 18),
-                                      SizedBox(width: 6),
+                                      const Icon(Icons.crop_free_rounded, color: Color(0xFF2563EB), size: 18),
+                                      const SizedBox(width: 6),
                                       Text(
-                                        'Floor Size',
-                                        style: TextStyle(
+                                        l10n?.totalFloorArea ?? 'Floor Size',
+                                        style: const TextStyle(
                                           color: Color(0xFF1E40AF),
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700,
@@ -204,7 +206,7 @@ class FlooringSummaryDialog extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '${plotArea.toStringAsFixed(0)} sq ft Area',
+                                    '${plotArea.toStringAsFixed(0)} sq ft',
                                     style: const TextStyle(
                                       color: Color(0xFF2563EB),
                                       fontSize: 11,
@@ -220,9 +222,9 @@ class FlooringSummaryDialog extends StatelessWidget {
 
                       const SizedBox(height: 16),
 
-                      const Text(
-                        'DETAILS',
-                        style: TextStyle(
+                      Text(
+                        l10n?.calculationDetails ?? 'DETAILS',
+                        style: const TextStyle(
                           color: Color(0xFF475569),
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
@@ -231,11 +233,11 @@ class FlooringSummaryDialog extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
 
-                      _buildRow('Carpet Size', '${carpetWid.toStringAsFixed(0)} ft × ${carpetLen.toStringAsFixed(0)} ft (${carpetUnitArea.toStringAsFixed(0)} sq ft)'),
-                      _buildRow('Total Carpets Required', '$totalCarpets Carpets', isHighlighted: true),
-                      _buildRow('Covered Area', '${coveredL.toStringAsFixed(0)} ft × ${coveredW.toStringAsFixed(0)} ft (${coveredArea.toStringAsFixed(0)} sq ft)'),
+                      _buildRow(l10n?.carpetDimensions ?? 'Carpet Size', '${carpetWid.toStringAsFixed(0)} ft × ${carpetLen.toStringAsFixed(0)} ft (${carpetUnitArea.toStringAsFixed(0)} sq ft)'),
+                      _buildRow(l10n?.totalCarpetsRequired ?? 'Total Carpets Required', '$totalCarpets ${l10n?.carpets ?? "Carpets"}', isHighlighted: true),
+                      _buildRow(l10n?.totalCoverage ?? 'Covered Area', '${coveredL.toStringAsFixed(0)} ft × ${coveredW.toStringAsFixed(0)} ft (${coveredArea.toStringAsFixed(0)} sq ft)'),
                       if (excessArea > 0.1)
-                        _buildRow('Extra Overlap', '+${excessArea.toStringAsFixed(0)} sq ft extra coverage'),
+                        _buildRow(l10n?.extraCoverage ?? 'Extra Overlap', '+${excessArea.toStringAsFixed(0)} sq ft'),
                     ],
                   ),
                 ),
@@ -252,9 +254,9 @@ class FlooringSummaryDialog extends StatelessWidget {
                   children: [
                     OutlinedButton.icon(
                       icon: const Icon(Icons.copy_rounded, size: 16, color: Color(0xFF0F172A)),
-                      label: const Text(
-                        'Copy',
-                        style: TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.bold),
+                      label: Text(
+                        l10n?.copy ?? 'Copy',
+                        style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.bold),
                       ),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.5),
@@ -270,10 +272,10 @@ class FlooringSummaryDialog extends StatelessWidget {
                         buffer.writeln('Covered Size: ${coveredL.toStringAsFixed(0)} × ${coveredW.toStringAsFixed(0)} ft');
                         Clipboard.setData(ClipboardData(text: buffer.toString()));
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Flooring summary copied!'),
-                            backgroundColor: Color(0xFF7C3AED),
-                            duration: Duration(seconds: 2),
+                          SnackBar(
+                            content: Text(l10n?.summaryCopied ?? 'Flooring summary copied!'),
+                            backgroundColor: const Color(0xFF7C3AED),
+                            duration: const Duration(seconds: 2),
                           ),
                         );
                       },
@@ -289,12 +291,12 @@ class FlooringSummaryDialog extends StatelessWidget {
                           elevation: 0,
                         ),
                         onPressed: () => Navigator.of(context).pop(),
-                        child: const Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.check_rounded, color: Colors.white, size: 18),
-                            SizedBox(width: 6),
-                            Text('OK / Done', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                            const Icon(Icons.check_rounded, color: Colors.white, size: 18),
+                            const SizedBox(width: 6),
+                            Text(l10n?.okDone ?? 'OK / Done', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),

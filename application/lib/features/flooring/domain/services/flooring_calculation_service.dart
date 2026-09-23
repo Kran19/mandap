@@ -18,15 +18,12 @@ class FlooringCalculationService {
     final double cl = input.carpetLength;
     final double cw = input.carpetWidth;
 
-    final double cLong = math.max(cl, cw);
-    final double cShort = math.min(cl, cw);
-
     final bool isSwapped = input.isRotated ?? false;
 
-    // Default (Unswapped): Horizontal rolls (cLong along X, cShort along Z)
-    // Swapped (After Swap): Vertical rolls (cShort along X, cLong along Z)
-    final double orientedCarpetLength = isSwapped ? cShort : cLong;
-    final double orientedCarpetWidth  = isSwapped ? cLong  : cShort;
+    // Default (Unswapped): cl along Length, cw along Width
+    // Swapped (After Swap): cw along Length, cl along Width
+    final double orientedCarpetLength = isSwapped ? cw : cl;
+    final double orientedCarpetWidth  = isSwapped ? cl : cw;
 
     final int carpetsAlongLength = (pl / orientedCarpetLength).ceil();
     final int carpetsAlongWidth  = (pw / orientedCarpetWidth).ceil();

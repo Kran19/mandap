@@ -54,9 +54,9 @@ void main() {
 
       final updatedLayout = command.execute(initialLayout);
 
-      // Center node must exist
+      // Center node must exist as an overhead junction (no ground pole)
       final centerNode = updatedLayout.nodes.values.firstWhere((n) => (n.x - 50).abs() < 0.1 && (n.z - 50).abs() < 0.1);
-      expect(centerNode.support, equals(NodeSupport.pole));
+      expect(centerNode.support, equals(NodeSupport.none));
 
       // Cross connects straight to the exact midpoint at 50ft on all 4 sides
       final northMid = updatedLayout.nodes.values.firstWhere((n) => (n.x - 50).abs() < 0.1 && (n.z - 0).abs() < 0.1);

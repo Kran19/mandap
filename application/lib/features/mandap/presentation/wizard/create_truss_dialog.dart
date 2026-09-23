@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../l10n/app_localizations.dart';
 
 /// Configuration data returned by [CreateTrussDialog].
 class TrussConfigurationParams {
@@ -205,6 +206,7 @@ class _CreateTrussDialogState extends State<CreateTrussDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final screenWidth = MediaQuery.of(context).size.width;
     final dialogWidth = screenWidth < 500 ? screenWidth * 0.92 : 440.0;
     final currentTrussVal = double.tryParse(_trussSizeController.text.trim());
@@ -242,25 +244,25 @@ class _CreateTrussDialogState extends State<CreateTrussDialog> {
                       ),
                     ),
                     const SizedBox(width: 14),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'CREATE TRUSS',
-                            style: TextStyle(
+                            l10n?.createTruss.toUpperCase() ?? 'CREATE TRUSS',
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 0.8,
                               color: AppColors.primaryText,
                             ),
                           ),
-                          SizedBox(height: 2),
+                          const SizedBox(height: 2),
                           Text(
-                            'Enter plot & custom truss specifications',
+                            l10n?.enterPlotAndTrussSpec ?? 'Enter plot & custom truss specifications',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.secondaryText,
                             ),
@@ -283,7 +285,7 @@ class _CreateTrussDialogState extends State<CreateTrussDialog> {
 
                 // Section 1: Combined PLOT SIZE Box (Length / Width)
                 _buildInputField(
-                  label: 'PLOT SIZE (Length / Width)',
+                  label: l10n?.plotSizeLengthWidth ?? 'PLOT SIZE (Length / Width)',
                   hint: '100 / 100 ft',
                   controller: _plotSizeController,
                   icon: Icons.aspect_ratio_rounded,
@@ -292,9 +294,9 @@ class _CreateTrussDialogState extends State<CreateTrussDialog> {
                 const SizedBox(height: 18),
 
                 // Section 2: TRUSS SIZE Selection Header
-                const Text(
-                  'SELECT OR WRITE TRUSS SIZE',
-                  style: TextStyle(
+                Text(
+                  l10n?.selectOrWriteTrussSize ?? 'SELECT OR WRITE TRUSS SIZE',
+                  style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.8,
@@ -330,12 +332,12 @@ class _CreateTrussDialogState extends State<CreateTrussDialog> {
                       );
                     }),
                     ChoiceChip(
-                      label: const Row(
+                      label: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.edit_note_rounded, size: 14),
-                          SizedBox(width: 4),
-                          Text('Custom'),
+                          const Icon(Icons.edit_note_rounded, size: 14),
+                          const SizedBox(width: 4),
+                          Text(l10n?.custom ?? 'Custom'),
                         ],
                       ),
                       selected: _isCustomSelected,
@@ -359,7 +361,9 @@ class _CreateTrussDialogState extends State<CreateTrussDialog> {
 
                 // Editable Truss Size Box (allows writing ANY custom size)
                 _buildInputField(
-                  label: _isCustomSelected ? 'CUSTOM TRUSS SIZE (Write your value)' : 'TRUSS SIZE',
+                  label: _isCustomSelected 
+                      ? (l10n?.customTrussSizeWrite ?? 'CUSTOM TRUSS SIZE (Write your value)') 
+                      : (l10n?.trussSizeLabel ?? 'TRUSS SIZE'),
                   hint: 'e.g. 10, 15, 25, 30, 35 ft',
                   controller: _trussSizeController,
                   focusNode: _trussFocusNode,
@@ -405,16 +409,16 @@ class _CreateTrussDialogState extends State<CreateTrussDialog> {
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const FittedBox(
+                    child: FittedBox(
                       fit: BoxFit.scaleDown,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.auto_awesome_rounded, size: 18),
-                          SizedBox(width: 8),
+                          const Icon(Icons.auto_awesome_rounded, size: 18),
+                          const SizedBox(width: 8),
                           Text(
-                            'GENERATE TRUSS',
-                            style: TextStyle(
+                            l10n?.generateTrussButton.toUpperCase() ?? 'GENERATE TRUSS',
+                            style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.0,

@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import '../../application/mandap_editor_controller.dart';
 import '../../domain/entities/mandap_layout.dart';
 import '../../domain/value_objects/mandap_calculation_result.dart';
+import '../../../../l10n/app_localizations.dart';
 
 /// Clean, bright, high-contrast, simple design summary popup for Mandap Truss Structure.
 /// Replaces "pieces" with "Truss" and is easy for anyone to understand at a glance.
@@ -23,6 +24,7 @@ class MandapSummaryDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final layout = controller.layout;
     final result = controller.result;
 
@@ -140,23 +142,23 @@ class MandapSummaryDialog extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Design Complete',
-                            style: TextStyle(
+                            l10n?.designComplete ?? 'Design Complete',
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 0.3,
                             ),
                           ),
-                          SizedBox(height: 2),
+                          const SizedBox(height: 2),
                           Text(
-                            'Truss & Poles Summary',
-                            style: TextStyle(
+                            l10n?.trussAndPolesSummary ?? 'Truss & Poles Summary',
+                            style: const TextStyle(
                               color: Color(0xFFD1FAE5),
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -183,112 +185,149 @@ class MandapSummaryDialog extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Top 2 Big Hero Cards (Total Trusses & Total Poles)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF0FDF4), // Light Green
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: const Color(0xFF86EFAC), width: 1.5),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Row(
-                                    children: [
-                                      Icon(Icons.view_in_ar_rounded, color: Color(0xFF059669), size: 18),
-                                      SizedBox(width: 6),
-                                      Text(
-                                        'Total Trusses',
-                                        style: TextStyle(
-                                          color: Color(0xFF065F46),
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
+                      IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Total Trusses Card
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF0FDF4), // Light Green
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: const Color(0xFF86EFAC), width: 1.5),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.view_in_ar_rounded, color: Color(0xFF059669), size: 18),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              l10n?.totalTrusses ?? 'Total Trusses',
+                                              style: const TextStyle(
+                                                color: Color(0xFF065F46),
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ],
                                         ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          '$totalTrusses ${l10n?.truss ?? "Truss"}',
+                                          style: const TextStyle(
+                                            color: Color(0xFF064E3B),
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '${totalFeet.toStringAsFixed(0)} ft ${l10n?.totalSpan ?? "Total Span"}',
+                                          style: const TextStyle(
+                                            color: Color(0xFF059669),
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Center(
+                                      child: Image.asset(
+                                        'assets/images/trusssingle.png',
+                                        height: 36,
+                                        width: double.infinity,
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (ctx, err, stack) => const SizedBox.shrink(),
                                       ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    '$totalTrusses Truss',
-                                    style: const TextStyle(
-                                      color: Color(0xFF064E3B),
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w900,
                                     ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '${totalFeet.toStringAsFixed(0)} ft Total Span',
-                                    style: const TextStyle(
-                                      color: Color(0xFF059669),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFEFF6FF), // Light Blue
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: const Color(0xFF93C5FD), width: 1.5),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Row(
-                                    children: [
-                                      Icon(Icons.vertical_align_top_rounded, color: Color(0xFF2563EB), size: 18),
-                                      SizedBox(width: 6),
-                                      Text(
-                                        'Support Poles',
-                                        style: TextStyle(
-                                          color: Color(0xFF1E40AF),
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                            const SizedBox(width: 10),
+                            // Support Poles Card
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEFF6FF), // Light Blue
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: const Color(0xFF93C5FD), width: 1.5),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.vertical_align_top_rounded, color: Color(0xFF2563EB), size: 18),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                l10n?.supportPoles ?? 'Support Poles',
+                                                style: const TextStyle(
+                                                  color: Color(0xFF1E40AF),
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            '$totalPoles ${l10n?.poles ?? "Poles"}',
+                                            style: const TextStyle(
+                                              color: Color(0xFF1E3A8A),
+                                              fontSize: 22,
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '$cornerPoles ${l10n?.corner ?? "Corner"} + $intermediatePoles ${l10n?.mid ?? "Mid"}',
+                                            style: const TextStyle(
+                                              color: Color(0xFF2563EB),
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    '$totalPoles Poles',
-                                    style: const TextStyle(
-                                      color: Color(0xFF1E3A8A),
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w900,
                                     ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '$cornerPoles Corner + $intermediatePoles Mid',
-                                    style: const TextStyle(
-                                      color: Color(0xFF2563EB),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
+                                    const SizedBox(width: 6),
+                                    Image.asset(
+                                      'assets/images/straight.png',
+                                      height: 78,
+                                      width: 52,
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (ctx, err, stack) => const SizedBox.shrink(),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
 
                       const SizedBox(height: 16),
 
                       // Section Title
-                      const Text(
-                        'TRUSS SIZES USED',
-                        style: TextStyle(
+                      Text(
+                        l10n?.trussSizesUsed ?? 'TRUSS SIZES USED',
+                        style: const TextStyle(
                           color: Color(0xFF475569),
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
@@ -306,10 +345,10 @@ class MandapSummaryDialog extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: const Color(0xFFE2E8F0)),
                           ),
-                          child: const Center(
+                          child: Center(
                             child: Text(
-                              'No truss members drawn yet.',
-                              style: TextStyle(color: Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w600),
+                              l10n?.noTrussMembersDrawn ?? 'No truss members drawn yet.',
+                              style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w600),
                             ),
                           ),
                         )
@@ -335,7 +374,7 @@ class MandapSummaryDialog extends StatelessWidget {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
-                                    '${size.toStringAsFixed(0)} ft Truss',
+                                    '${size.toStringAsFixed(0)} ft ${l10n?.truss ?? "Truss"}',
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 13,
@@ -349,7 +388,7 @@ class MandapSummaryDialog extends StatelessWidget {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        '$count Truss',
+                                        '$count ${l10n?.truss ?? "Truss"}',
                                         style: const TextStyle(
                                           color: Color(0xFF0F172A),
                                           fontSize: 15,
@@ -357,7 +396,7 @@ class MandapSummaryDialog extends StatelessWidget {
                                         ),
                                       ),
                                       Text(
-                                        '${subtotalFt.toStringAsFixed(0)} ft total length',
+                                        '${subtotalFt.toStringAsFixed(0)} ft ${l10n?.totalLength ?? "total length"}',
                                         style: const TextStyle(
                                           color: Color(0xFF64748B),
                                           fontSize: 11,
@@ -390,9 +429,9 @@ class MandapSummaryDialog extends StatelessWidget {
                       // Gates section (if any)
                       if (externalStructureIds.isNotEmpty) ...[
                         const SizedBox(height: 12),
-                        const Text(
-                          'GATES & ENTRANCES',
-                          style: TextStyle(
+                        Text(
+                          l10n?.gatesAndEntrances ?? 'GATES & ENTRANCES',
+                          style: const TextStyle(
                             color: Color(0xFF475569),
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
@@ -414,7 +453,7 @@ class MandapSummaryDialog extends StatelessWidget {
                                 const Icon(Icons.door_sliding_outlined, color: Color(0xFFD97706), size: 18),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'Gate Opening ($structId)',
+                                  '${l10n?.gateOpening ?? "Gate Opening"} ($structId)',
                                   style: const TextStyle(
                                     color: Color(0xFF92400E),
                                     fontSize: 12.5,
@@ -442,9 +481,9 @@ class MandapSummaryDialog extends StatelessWidget {
                   children: [
                     OutlinedButton.icon(
                       icon: const Icon(Icons.copy_rounded, size: 16, color: Color(0xFF0F172A)),
-                      label: const Text(
-                        'Copy',
-                        style: TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.bold),
+                      label: Text(
+                        l10n?.copy ?? 'Copy',
+                        style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.bold),
                       ),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.5),
@@ -463,10 +502,10 @@ class MandapSummaryDialog extends StatelessWidget {
                         }
                         Clipboard.setData(ClipboardData(text: buffer.toString()));
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Summary copied to clipboard!'),
-                            backgroundColor: Color(0xFF059669),
-                            duration: Duration(seconds: 2),
+                          SnackBar(
+                            content: Text(l10n?.summaryCopied ?? 'Summary copied to clipboard!'),
+                            backgroundColor: const Color(0xFF059669),
+                            duration: const Duration(seconds: 2),
                           ),
                         );
                       },
@@ -482,14 +521,14 @@ class MandapSummaryDialog extends StatelessWidget {
                           elevation: 0,
                         ),
                         onPressed: () => Navigator.of(context).pop(),
-                        child: const Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.check_rounded, color: Colors.white, size: 18),
-                            SizedBox(width: 6),
+                            const Icon(Icons.check_rounded, color: Colors.white, size: 18),
+                            const SizedBox(width: 6),
                             Text(
-                              'OK / Done',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                              l10n?.okDone ?? 'OK / Done',
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),

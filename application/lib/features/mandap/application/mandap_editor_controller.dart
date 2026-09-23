@@ -38,6 +38,8 @@ import '../domain/services/truss_support_spacing_calculator.dart';
 import 'commands/resize_edge_command.dart';
 import 'commands/set_node_support_command.dart';
 import 'commands/update_node_dimensions_command.dart';
+import 'commands/auto_connect_poles_command.dart';
+import 'commands/split_edge_with_pole_command.dart';
 import 'editor_mode.dart';
 import '../domain/generators/base_truss_architecture_generator.dart';
 import '../domain/services/structural_graph_analyzer.dart';
@@ -183,12 +185,15 @@ class MandapEditorController extends ChangeNotifier {
     final dz = endNode.z - startNode.z;
     final currentLen = math.sqrt(dx * dx + dz * dz);
     if (currentLen < 0.001) return false;
+    final isAlongX = dz.abs() < 0.001;
+    final isAlongZ = dx.abs() < 0.001;
+
     double newX;
     double newZ;
-    if (dz.abs() < 0.001) {
+    if (isAlongX) {
       newX = startNode.x + (dx >= 0 ? newLengthFt : -newLengthFt);
       newZ = startNode.z;
-    } else if (dx.abs() < 0.001) {
+    } else if (isAlongZ) {
       newX = startNode.x;
       newZ = startNode.z + (dz >= 0 ? newLengthFt : -newLengthFt);
     } else {
@@ -199,39 +204,62 @@ class MandapEditorController extends ChangeNotifier {
     newX = double.parse(newX.toStringAsFixed(4));
     newZ = double.parse(newZ.toStringAsFixed(4));
 
-    final isMovingNodeShared = layout.edges.values.where((e) => e.id != selectedEdgeId && (e.startNodeId == edge.endNodeId || e.endNodeId == edge.endNodeId)).isNotEmpty;
-    MandapNode? createdNode;
-    if (isMovingNodeShared) {
-      createdNode = MandapNode(
-        id: NodeId('n_${DateTime.now().millisecondsSinceEpoch}_${math.Random().nextInt(9999)}'),
-        x: newX,
-        z: newZ,
-        elevation: endNode.elevation,
-        height: endNode.height,
-        type: endNode.type,
-        support: endNode.support,
-      );
+    // Find corresponding parallel support node on opposing parallel wall
+    NodeId? parallelNodeId;
+    v64.Vector3? oldParallelPos;
+    v64.Vector3? newParallelPos;
+
+    if (isAlongX) {
+      // Wall runs along X at z = startNode.z. Search for parallel wall node at same X offset:
+      for (final candidate in layout.nodes.values) {
+        if (candidate.id != endNode.id &&
+            candidate.id != startNode.id &&
+            (candidate.x - endNode.x).abs() < 0.5 &&
+            (candidate.z - endNode.z).abs() > 5.0) {
+          parallelNodeId = candidate.id;
+          oldParallelPos = v64.Vector3(candidate.x, candidate.elevation, candidate.z);
+          newParallelPos = v64.Vector3(newX, candidate.elevation, candidate.z);
+          break;
+        }
+      }
+    } else if (isAlongZ) {
+      // Wall runs along Z at x = startNode.x. Search for parallel wall node at same Z offset:
+      for (final candidate in layout.nodes.values) {
+        if (candidate.id != endNode.id &&
+            candidate.id != startNode.id &&
+            (candidate.z - endNode.z).abs() < 0.5 &&
+            (candidate.x - endNode.x).abs() > 5.0) {
+          parallelNodeId = candidate.id;
+          oldParallelPos = v64.Vector3(candidate.x, candidate.elevation, candidate.z);
+          newParallelPos = v64.Vector3(candidate.x, candidate.elevation, newZ);
+          break;
+        }
+      }
     }
 
     executeCommand(ResizeTrussMemberCommand(
       edgeId: selectedEdgeId!,
       anchorNodeId: edge.startNodeId,
-      originalMovingNodeId: edge.endNodeId,
-      createdNode: createdNode,
+      movingNodeId: edge.endNodeId,
+      parallelMovingNodeId: parallelNodeId,
       oldPosition: v64.Vector3(endNode.x, endNode.elevation, endNode.z),
       newPosition: v64.Vector3(newX, endNode.elevation, newZ),
+      oldParallelPosition: oldParallelPos,
+      newParallelPosition: newParallelPos,
       oldLength: currentLen,
       newLength: newLengthFt,
     ));
     return true;
   }
 
+  int _nodeSequence = 0;
+
   /// Adds a node to layout (supports object or named arguments).
   void addNode([dynamic nodeOrX, double? z, NodeType? type, double? elevation, NodeSupport? support]) {
     if (nodeOrX is MandapNode) {
       executeCommand(AddNodeCommand(node: nodeOrX));
     } else if (nodeOrX is num && z != null) {
-      final id = NodeId('n_${DateTime.now().millisecondsSinceEpoch}');
+      final id = NodeId('n_${DateTime.now().microsecondsSinceEpoch}_${_nodeSequence++}');
       executeCommand(AddNodeCommand(node: MandapNode(
         id: id,
         x: nodeOrX.toDouble(),
@@ -249,7 +277,7 @@ class MandapEditorController extends ChangeNotifier {
       executeCommand(AddNodeCommand(node: node));
       return node.id;
     } else if (x != null && z != null) {
-      final id = NodeId('n_${DateTime.now().millisecondsSinceEpoch}');
+      final id = NodeId('n_${DateTime.now().microsecondsSinceEpoch}_${_nodeSequence++}');
       executeCommand(AddNodeCommand(node: MandapNode(
         id: id,
         x: x,
@@ -262,6 +290,136 @@ class MandapEditorController extends ChangeNotifier {
       return id;
     }
     return null;
+  }
+
+  /// Automatically connects 4 unconnected poles in perimeter order with truss edges.
+  /// Returns true if an auto-connection was performed, false otherwise.
+  bool autoConnectUnconnectedPoles() {
+    final unconnectedPoles = layout.nodes.values.where((n) {
+      final isPole = n.support == NodeSupport.pole ||
+          n.type == NodeType.pole ||
+          n.type == NodeType.corner;
+      if (!isPole) return false;
+      final isConnected = layout.edges.values.any(
+        (e) => e.startNodeId == n.id || e.endNodeId == n.id,
+      );
+      return !isConnected;
+    }).toList();
+
+    if (unconnectedPoles.length == 4) {
+      final edges = AutoConnectPolesCommand.buildPerimeterEdges(unconnectedPoles);
+      if (edges != null && edges.isNotEmpty) {
+        executeCommand(AutoConnectPolesCommand(newEdges: edges));
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Checks if a 2D coordinate (x, z) lies along an existing truss edge segment.
+  /// Returns the matching EdgeId if found, null otherwise.
+  EdgeId? findEdgePassingThrough(double x, double z, {double tolerance = 1.0}) {
+    for (final edge in layout.edges.values) {
+      final start = layout.getNode(edge.startNodeId);
+      final end = layout.getNode(edge.endNodeId);
+      if (start == null || end == null) continue;
+
+      final dx = end.x - start.x;
+      final dz = end.z - start.z;
+      final l2 = dx * dx + dz * dz;
+      if (l2 < 0.01) continue;
+
+      final t = ((x - start.x) * dx + (z - start.z) * dz) / l2;
+      // Must be strictly between endpoints with safe margin
+      if (t > 0.04 && t < 0.96) {
+        final projX = start.x + t * dx;
+        final projZ = start.z + t * dz;
+        final dist = math.sqrt((x - projX) * (x - projX) + (z - projZ) * (z - projZ));
+        if (dist <= tolerance) {
+          return edge.id;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Splits an existing truss edge into two edges with an inserted pole node.
+  NodeId? splitEdgeWithPole(
+    EdgeId edgeId, {
+    double? x,
+    double? z,
+    double? elevation,
+    bool snapToCenterIfClose = true,
+  }) {
+    final edge = layout.getEdge(edgeId);
+    if (edge == null) return null;
+    final start = layout.getNode(edge.startNodeId);
+    final end = layout.getNode(edge.endNodeId);
+    if (start == null || end == null) return null;
+
+    double poleX;
+    double poleZ;
+
+    if (x != null && z != null) {
+      final dx = end.x - start.x;
+      final dz = end.z - start.z;
+      final l2 = dx * dx + dz * dz;
+      if (l2 > 0.01) {
+        var t = ((x - start.x) * dx + (z - start.z) * dz) / l2;
+        t = t.clamp(0.05, 0.95);
+        if (snapToCenterIfClose && (t - 0.5).abs() < 0.15) {
+          t = 0.5;
+        }
+        poleX = start.x + t * dx;
+        poleZ = start.z + t * dz;
+      } else {
+        poleX = (start.x + end.x) / 2.0;
+        poleZ = (start.z + end.z) / 2.0;
+      }
+    } else {
+      poleX = (start.x + end.x) / 2.0;
+      poleZ = (start.z + end.z) / 2.0;
+    }
+
+    final poleElev = elevation ?? (start.elevation > 0 ? start.elevation : mandapHeight);
+    final poleNodeId = NodeId('pole_${DateTime.now().microsecondsSinceEpoch}_${_nodeSequence++}');
+
+    final newPoleNode = MandapNode(
+      id: poleNodeId,
+      x: poleX,
+      z: poleZ,
+      type: NodeType.pole,
+      elevation: poleElev,
+      height: poleElev,
+      support: NodeSupport.pole,
+    );
+
+    final ts = DateTime.now().microsecondsSinceEpoch;
+    final edge1 = MandapEdge(
+      id: EdgeId('truss_${ts}_1'),
+      startNodeId: edge.startNodeId,
+      endNodeId: poleNodeId,
+      role: edge.role,
+      profile: edge.profile,
+    );
+    final edge2 = MandapEdge(
+      id: EdgeId('truss_${ts}_2'),
+      startNodeId: poleNodeId,
+      endNodeId: edge.endNodeId,
+      role: edge.role,
+      profile: edge.profile,
+    );
+
+    executeCommand(
+      SplitEdgeWithPoleCommand(
+        edgeToRemove: edge,
+        newPoleNode: newPoleNode,
+        edge1: edge1,
+        edge2: edge2,
+      ),
+    );
+
+    return poleNodeId;
   }
 
   double _findClosestPerpendicularSnap({
@@ -690,7 +848,7 @@ class MandapEditorController extends ChangeNotifier {
   }
 
   /// Checks whether supporting poles exist on all 4 orthogonal directions
-  /// (Forward / North, Backward / South, Left / West, Right / East) around the center.
+  /// (Forward / North, Backward / South, Left / West, Right / East) aligned with the center cross.
   ({bool canActivate, List<String> missingDirections}) checkCenterCrossSupport() {
     final center = centerControlNode;
     final cX = center?.x ?? (plotWidth / 2.0);
@@ -701,26 +859,48 @@ class MandapEditorController extends ChangeNotifier {
         n.type == NodeType.corner ||
         n.type == NodeType.pole;
 
-    bool hasForward = false; // North (z < cZ - 0.5)
-    bool hasBackward = false; // South (z > cZ + 0.5)
-    bool hasLeft = false; // West (x < cX - 0.5)
-    bool hasRight = false; // East (x > cX + 0.5)
+    // A supporting pole must be aligned with the cross arm on each boundary
+    // (within tolerance of the cross line) or at the center.
+    final alignTol = _standardTrussPieceSize > 0 ? (_standardTrussPieceSize / 2.0 + 1.0) : 16.0;
+
+    bool hasForward = false;  // North side (z ~ 0) aligned with cX
+    bool hasBackward = false; // South side (z ~ plotDepth) aligned with cX
+    bool hasLeft = false;     // West side (x ~ 0) aligned with cZ
+    bool hasRight = false;    // East side (x ~ plotWidth) aligned with cZ
+    bool hasCenterPole = false;
 
     for (final node in layout.nodes.values) {
       if (node.isControlPoint) continue;
       if (!isPoleNode(node)) continue;
 
-      if (node.z < cZ - 0.5) hasForward = true;
-      if (node.z > cZ + 0.5) hasBackward = true;
-      if (node.x < cX - 0.5) hasLeft = true;
-      if (node.x > cX + 0.5) hasRight = true;
+      // Check center pole
+      if ((node.x - cX).abs() <= 1.0 && (node.z - cZ).abs() <= 1.0) {
+        hasCenterPole = true;
+      }
+
+      // North side (z ~ 0, must be an intermediate pole, NOT a corner)
+      if ((node.z - 0.0).abs() <= 1.0 && node.x > 1.0 && node.x < (plotWidth - 1.0)) {
+        hasForward = true;
+      }
+
+      // South side (z ~ plotDepth, must be an intermediate pole, NOT a corner)
+      if ((node.z - plotDepth).abs() <= 1.0 && node.x > 1.0 && node.x < (plotWidth - 1.0)) {
+        hasBackward = true;
+      }
+
+      // West side (x ~ 0, must be an intermediate pole, NOT a corner)
+      if ((node.x - 0.0).abs() <= 1.0 && node.z > 1.0 && node.z < (plotDepth - 1.0)) {
+        hasLeft = true;
+      }
+
+      // East side (x ~ plotWidth, must be an intermediate pole, NOT a corner)
+      if ((node.x - plotWidth).abs() <= 1.0 && node.z > 1.0 && node.z < (plotDepth - 1.0)) {
+        hasRight = true;
+      }
     }
 
-    for (final pole in result.poles) {
-      if (pole.z < cZ - 0.5) hasForward = true;
-      if (pole.z > cZ + 0.5) hasBackward = true;
-      if (pole.x < cX - 0.5) hasLeft = true;
-      if (pole.x > cX + 0.5) hasRight = true;
+    if (hasCenterPole) {
+      return (canActivate: true, missingDirections: const <String>[]);
     }
 
     final missing = <String>[];
@@ -1059,7 +1239,6 @@ class MandapEditorController extends ChangeNotifier {
           );
           executeCommand(CreateTrussMemberCommand(newEdge: newEdge));
         }
-        _mode = EditorMode.view;
         _penState = PenState.idle;
       }
       pendingEdgeStartNodeId = null;
@@ -1173,8 +1352,10 @@ class MandapEditorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void cancelPenDrawing() {
-    _mode = EditorMode.view;
+  void cancelPenDrawing({bool resetMode = false}) {
+    if (resetMode) {
+      _mode = EditorMode.view;
+    }
     _penState = PenState.idle;
     penStartPoint = null;
     penPreviewEndPoint = null;
@@ -1308,10 +1489,89 @@ class MandapEditorController extends ChangeNotifier {
 
     final connected = layout.edges.values.where((e) => e.startNodeId == nodeId || e.endNodeId == nodeId).toList();
 
+    MandapEdge? mergedEdge;
+    if (connected.length == 2) {
+      final e1 = connected[0];
+      final e2 = connected[1];
+      final o1Id = e1.startNodeId == nodeId ? e1.endNodeId : e1.startNodeId;
+      final o2Id = e2.startNodeId == nodeId ? e2.endNodeId : e2.startNodeId;
+      final o1 = layout.getNode(o1Id);
+      final o2 = layout.getNode(o2Id);
+      if (o1 != null && o2 != null && o1Id != o2Id) {
+        final v1x = node.x - o1.x;
+        final v1z = node.z - o1.z;
+        final v2x = o2.x - node.x;
+        final v2z = o2.z - node.z;
+        final cross = (v1x * v2z - v1z * v2x).abs();
+        final dot = v1x * v2x + v1z * v2z;
+        if (cross < 0.1 && dot > 0) {
+          mergedEdge = MandapEdge(
+            id: EdgeId('e_mrg_${o1Id.value}_${o2Id.value}_${DateTime.now().millisecondsSinceEpoch}'),
+            startNodeId: o1Id,
+            endNodeId: o2Id,
+            profile: e1.profile,
+            role: e1.role,
+          );
+        }
+      }
+    }
+
+    // Parallel sync: check if there is a matching parallel node on opposing wall
+    NodeId? parallelNodeId;
+    MandapNode? parallelNodeSnapshot;
+    List<MandapEdge>? parallelConnectedEdgeSnapshots;
+    MandapEdge? parallelMergedEdge;
+
+    for (final candidate in layout.nodes.values) {
+      if (candidate.id != node.id &&
+          !candidate.isControlPoint &&
+          candidate.type != NodeType.controlPoint) {
+        final isParallelX = (candidate.x - node.x).abs() < 0.5 && (candidate.z - node.z).abs() > 5.0;
+        final isParallelZ = (candidate.z - node.z).abs() < 0.5 && (candidate.x - node.x).abs() > 5.0;
+        if (isParallelX || isParallelZ) {
+          final pConnected = layout.edges.values.where((e) => e.startNodeId == candidate.id || e.endNodeId == candidate.id).toList();
+          if (pConnected.length == 2) {
+            final pe1 = pConnected[0];
+            final pe2 = pConnected[1];
+            final po1Id = pe1.startNodeId == candidate.id ? pe1.endNodeId : pe1.startNodeId;
+            final po2Id = pe2.startNodeId == candidate.id ? pe2.endNodeId : pe2.startNodeId;
+            final po1 = layout.getNode(po1Id);
+            final po2 = layout.getNode(po2Id);
+            if (po1 != null && po2 != null && po1Id != po2Id) {
+              final pv1x = candidate.x - po1.x;
+              final pv1z = candidate.z - po1.z;
+              final pv2x = po2.x - candidate.x;
+              final pv2z = po2.z - candidate.z;
+              final pcross = (pv1x * pv2z - pv1z * pv2x).abs();
+              final pdot = pv1x * pv2x + pv1z * pv2z;
+              if (pcross < 0.1 && pdot > 0) {
+                parallelNodeId = candidate.id;
+                parallelNodeSnapshot = candidate;
+                parallelConnectedEdgeSnapshots = pConnected;
+                parallelMergedEdge = MandapEdge(
+                  id: EdgeId('e_pmrg_${po1Id.value}_${po2Id.value}_${DateTime.now().millisecondsSinceEpoch}'),
+                  startNodeId: po1Id,
+                  endNodeId: po2Id,
+                  profile: pe1.profile,
+                  role: pe1.role,
+                );
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+
     executeCommand(DeleteNodeCommand(
       nodeId: nodeId,
       nodeSnapshot: node,
       connectedEdgeSnapshots: connected,
+      mergedEdge: mergedEdge,
+      parallelNodeId: parallelNodeId,
+      parallelNodeSnapshot: parallelNodeSnapshot,
+      parallelConnectedEdgeSnapshots: parallelConnectedEdgeSnapshots,
+      parallelMergedEdge: parallelMergedEdge,
     ));
 
     if (selectedNodeId == nodeId) selectedNodeId = null;

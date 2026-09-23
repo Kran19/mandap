@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../pole_calculator_controller.dart';
 import '../../domain/models/pole_calculation_result.dart';
+import '../../../../l10n/app_localizations.dart';
 
 /// Clean, bright, simple Pole / Pipe summary dialog.
 class PoleSummaryDialog extends StatelessWidget {
@@ -20,6 +21,7 @@ class PoleSummaryDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final result = controller.result;
     final plotLen = controller.length;
     final plotWid = controller.width;
@@ -73,22 +75,22 @@ class PoleSummaryDialog extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Poles Setup Complete',
-                            style: TextStyle(
+                            l10n?.polesSetupComplete ?? 'Poles Setup Complete',
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
-                          SizedBox(height: 2),
+                          const SizedBox(height: 2),
                           Text(
-                            'Poles & Pipes Summary',
-                            style: TextStyle(
+                            l10n?.polesAndPipesSummary ?? 'Poles & Pipes Summary',
+                            style: const TextStyle(
                               color: Color(0xFFD1FAE5),
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -128,13 +130,13 @@ class PoleSummaryDialog extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Row(
+                                  Row(
                                     children: [
-                                      Icon(Icons.all_inbox_rounded, color: Color(0xFF059669), size: 18),
-                                      SizedBox(width: 6),
+                                      const Icon(Icons.all_inbox_rounded, color: Color(0xFF059669), size: 18),
+                                      const SizedBox(width: 6),
                                       Text(
-                                        'Total Pipes',
-                                        style: TextStyle(
+                                        l10n?.totalPipes ?? 'Total Pipes',
+                                        style: const TextStyle(
                                           color: Color(0xFF065F46),
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700,
@@ -144,7 +146,7 @@ class PoleSummaryDialog extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    '$totalPipes Pipes',
+                                    '$totalPipes ${l10n?.pipe ?? "Pipes"}',
                                     style: const TextStyle(
                                       color: Color(0xFF064E3B),
                                       fontSize: 20,
@@ -153,7 +155,7 @@ class PoleSummaryDialog extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '${totalPipeFeet.toStringAsFixed(0)} ft total length',
+                                    '${totalPipeFeet.toStringAsFixed(0)} ft ${l10n?.totalLength ?? "total length"}',
                                     style: const TextStyle(
                                       color: Color(0xFF059669),
                                       fontSize: 11,
@@ -176,13 +178,13 @@ class PoleSummaryDialog extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Row(
+                                  Row(
                                     children: [
-                                      Icon(Icons.grid_4x4_rounded, color: Color(0xFF2563EB), size: 18),
-                                      SizedBox(width: 6),
+                                      const Icon(Icons.grid_4x4_rounded, color: Color(0xFF2563EB), size: 18),
+                                      const SizedBox(width: 6),
                                       Text(
-                                        'Plot Grid',
-                                        style: TextStyle(
+                                        l10n?.gridBreakdown ?? 'Plot Grid',
+                                        style: const TextStyle(
                                           color: Color(0xFF1E40AF),
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700,
@@ -201,7 +203,7 @@ class PoleSummaryDialog extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '${poleSize.toStringAsFixed(0)} ft Pipe Units',
+                                    '${poleSize.toStringAsFixed(0)} ft ${l10n?.pipe ?? "Pipe"}',
                                     style: const TextStyle(
                                       color: Color(0xFF2563EB),
                                       fontSize: 11,
@@ -217,9 +219,9 @@ class PoleSummaryDialog extends StatelessWidget {
 
                       const SizedBox(height: 16),
 
-                      const Text(
-                        'DETAILS',
-                        style: TextStyle(
+                      Text(
+                        l10n?.calculationDetails ?? 'DETAILS',
+                        style: const TextStyle(
                           color: Color(0xFF475569),
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
@@ -228,13 +230,13 @@ class PoleSummaryDialog extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
 
-                      _buildRow('Unit Pipe Size', '${poleSize.toStringAsFixed(0)} ft Pipe'),
-                      _buildRow('Vertical Standing Poles', '$verticalPoles Poles'),
+                      _buildRow(l10n?.gridPoleUnit ?? 'Unit Pipe Size', '${poleSize.toStringAsFixed(0)} ft ${l10n?.pipe ?? "Pipe"}'),
+                      _buildRow(l10n?.totalVerticalPoles ?? 'Vertical Standing Poles', '$verticalPoles ${l10n?.poles ?? "Poles"}'),
                       if (horizontalPipes > 0)
-                        _buildRow('Horizontal Runners', '$horizontalPipes Pipes'),
+                        _buildRow(l10n?.totalHorizontalPipes ?? 'Horizontal Runners', '$horizontalPipes ${l10n?.pipe ?? "Pipes"}'),
                       if (ceilingSections > 0)
-                        _buildRow('Ceiling Sections', '$ceilingSections Sections'),
-                      _buildRow('Grand Total Pipes', '$totalPipes Pipes', isHighlighted: true),
+                        _buildRow(l10n?.ceilingSections ?? 'Ceiling Sections', '$ceilingSections'),
+                      _buildRow(l10n?.totalPipes ?? 'Grand Total Pipes', '$totalPipes ${l10n?.pipe ?? "Pipes"}', isHighlighted: true),
                     ],
                   ),
                 ),
@@ -251,9 +253,9 @@ class PoleSummaryDialog extends StatelessWidget {
                   children: [
                     OutlinedButton.icon(
                       icon: const Icon(Icons.copy_rounded, size: 16, color: Color(0xFF0F172A)),
-                      label: const Text(
-                        'Copy',
-                        style: TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.bold),
+                      label: Text(
+                        l10n?.copy ?? 'Copy',
+                        style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.bold),
                       ),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.5),
@@ -270,10 +272,10 @@ class PoleSummaryDialog extends StatelessWidget {
                         buffer.writeln('Total Pipes: $totalPipes Pipes (${totalPipeFeet.toStringAsFixed(0)} ft)');
                         Clipboard.setData(ClipboardData(text: buffer.toString()));
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Pipes summary copied!'),
-                            backgroundColor: Color(0xFF059669),
-                            duration: Duration(seconds: 2),
+                          SnackBar(
+                            content: Text(l10n?.summaryCopied ?? 'Pipes summary copied!'),
+                            backgroundColor: const Color(0xFF059669),
+                            duration: const Duration(seconds: 2),
                           ),
                         );
                       },
@@ -289,12 +291,12 @@ class PoleSummaryDialog extends StatelessWidget {
                           elevation: 0,
                         ),
                         onPressed: () => Navigator.of(context).pop(),
-                        child: const Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.check_rounded, color: Colors.white, size: 18),
-                            SizedBox(width: 6),
-                            Text('OK / Done', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                            const Icon(Icons.check_rounded, color: Colors.white, size: 18),
+                            const SizedBox(width: 6),
+                            Text(l10n?.okDone ?? 'OK / Done', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),

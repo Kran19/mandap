@@ -5,6 +5,7 @@ import '../../../domain/entities/mandap_layout.dart';
 import '../../../domain/entities/mandap_node.dart';
 import '../../../domain/value_objects/mandap_calculation_result.dart';
 import '../../../domain/entities/node_id.dart';
+import '../../../domain/entities/edge_id.dart';
 import 'package:mandap/features/mandap/application/commands/move_node_command.dart';
 import 'package:mandap/features/mandap/application/commands/resize_edge_command.dart';
 import 'package:mandap/features/mandap/application/editor_mode.dart';
@@ -14,6 +15,7 @@ import 'mandap_3d_painter.dart';
 import 'math/drag_constraint_calculator.dart';
 import '../../../application/coordinate_transform.dart';
 import '../../../domain/entities/truss_bay.dart';
+import '../center_cross_support_required_dialog.dart';
 
 /// Interactive 3D Mandap layout editor view supporting View Mode and Edit Mode.
 class Mandap3DView extends StatefulWidget {
@@ -108,13 +110,22 @@ class _Mandap3DViewState extends State<Mandap3DView> with SingleTickerProviderSt
     }
   }
 
+  Offset? _downPointerPos;
+  bool _wasMultiTouch = false;
+  int _pointerCount = 0;
+
   void _onPointerDown(PointerDownEvent details, Size canvasSize) {
     if (_animController.isAnimating) {
       _animController.value = 1.0;
       _animController.stop();
     }
+    _pointerCount++;
     _activePointers[details.pointer] = details.localPosition;
-    if (_activePointers.length == 2) {
+    _downPointerPos = details.localPosition;
+
+    if (_activePointers.length >= 2 || _pointerCount >= 2) {
+      _wasMultiTouch = true;
+      _penHasDragged = false;
       final pts = _activePointers.values.toList();
       _lastPinchDistance = (pts[0] - pts[1]).distance;
       _lastPanMidpoint = (pts[0] + pts[1]) / 2.0;
@@ -126,8 +137,68 @@ class _Mandap3DViewState extends State<Mandap3DView> with SingleTickerProviderSt
     _lastPointerPos = details.localPosition;
     _lastPanMidpoint = null;
     _lastPinchDistance = null;
+
     final ray = widget.controller3D.createCameraRay(
       details.localPosition,
+      canvasSize,
+    );
+
+    // In view/select/move modes, setup drag targets if user begins dragging
+    if (widget.controller.mode == EditorMode.view ||
+        widget.controller.mode == EditorMode.select ||
+        widget.controller.mode == EditorMode.move) {
+      final centerCandidate = widget.controller.centerControlNode;
+      final handleResult = widget.controller3D.registry.pickHandleWithDistance(
+        cameraRay: ray,
+        hitRadiusFeet: 3.5,
+      );
+      NodeId? pickedNodeId = handleResult.$1;
+
+      if (pickedNodeId == null && centerCandidate != null) {
+        final centerHitResult = widget.controller3D.registry.pickHandleWithDistance(
+          cameraRay: ray,
+          hitRadiusFeet: 10.0,
+        );
+        if (centerHitResult.$1 == centerCandidate.id) {
+          pickedNodeId = centerHitResult.$1;
+        }
+      }
+
+      if (pickedNodeId != null) {
+        final node = widget.controller.layout.getNode(pickedNodeId);
+        if (node != null && (node.isControlPoint || node.id.value.contains('center'))) {
+          final nodeElev = node.elevation > 0 ? node.elevation : widget.controller3D.mandapHeight;
+          final nodePlaneIntersection = CoordinateTransform.rayHorizontalPlaneIntersection(
+            ray,
+            nodeElev,
+          ) ?? CoordinateTransform.rayHorizontalPlaneIntersection(
+            ray,
+            0.0,
+          );
+          setState(() {
+            widget.controller3D.isDraggingNode = true;
+            widget.controller3D.activeHandleNodeId = pickedNodeId;
+            widget.controller3D.dragStartNodeX = node.x;
+            widget.controller3D.dragStartNodeZ = node.z;
+            if (nodePlaneIntersection != null) {
+              widget.controller3D.dragStartOffsetX = node.x - nodePlaneIntersection.x;
+              widget.controller3D.dragStartOffsetZ = node.z - nodePlaneIntersection.z;
+            } else {
+              widget.controller3D.dragStartOffsetX = 0.0;
+              widget.controller3D.dragStartOffsetZ = 0.0;
+            }
+          });
+        }
+      }
+    } else if (widget.controller.mode == EditorMode.addEdge) {
+      _penPointerDownPos = details.localPosition;
+      _penHasDragged = false;
+    }
+  }
+
+  void _handleTap(Offset tapPos, Size canvasSize) {
+    final ray = widget.controller3D.createCameraRay(
+      tapPos,
       canvasSize,
     );
 
@@ -140,30 +211,101 @@ class _Mandap3DViewState extends State<Mandap3DView> with SingleTickerProviderSt
       0.0,
     );
 
-    final centerCandidate = widget.controller.centerControlNode;
-    NodeId? pickedNodeId = widget.controller3D.registry.pickHandle(
-      cameraRay: ray,
-      hitRadiusFeet: 7.0,
-    );
-    if (pickedNodeId == null && centerCandidate != null) {
-      final centerHit = widget.controller3D.registry.pickHandle(
-        cameraRay: ray,
-        hitRadiusFeet: 14.0,
-      );
-      if (centerHit == centerCandidate.id) {
-        pickedNodeId = centerHit;
+    // 0. Check if user tapped the Center Dot to create Center Cross (+) in 3D
+    final hasCrossEdges = widget.controller.layout.edges.values.any((e) => e.id.value.contains('cross') || e.id.value.contains('mid'));
+    if (!hasCrossEdges) {
+      final cX = widget.controller.centerControlNode?.x ?? (widget.controller.plotWidth / 2.0);
+      final cZ = widget.controller.centerControlNode?.z ?? (widget.controller.plotDepth / 2.0);
+      final centerWorld = v64.Vector3(cX, widget.controller3D.mandapHeight, cZ);
+      final centerScreenPos = widget.controller3D.worldToScreen(centerWorld, canvasSize);
+
+      bool isCenterTapped = false;
+      if (centerScreenPos != null && (tapPos - centerScreenPos).distance < 36.0) {
+        isCenterTapped = true;
+      } else {
+        final diff = centerWorld - ray.origin;
+        final t = diff.dot(ray.direction);
+        if (t > 0) {
+          final proj = ray.origin + (ray.direction * t);
+          if ((centerWorld - proj).length < 8.0) {
+            isCenterTapped = true;
+          }
+        }
+      }
+
+      if (isCenterTapped) {
+        final supportCheck = widget.controller.checkCenterCrossSupport();
+        if (!supportCheck.canActivate) {
+          CenterCrossSupportRequiredDialog.show(
+            context,
+            missingDirections: supportCheck.missingDirections,
+          );
+          return;
+        }
+
+        widget.controller.toggleCenterCross();
+        widget.controller3D.fitCamera(widget.controller.layout);
+        widget.controller3D.syncScene(widget.controller.layout, widget.controller.result);
+        if (widget.controller.mode == EditorMode.addEdge) {
+          widget.controller.cancelPenDrawing();
+          widget.controller.setMode(EditorMode.view);
+        }
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✓ Center Cross (+) created successfully!'),
+            duration: Duration(seconds: 2),
+            backgroundColor: Color(0xFF2563EB),
+          ),
+        );
+        setState(() {});
+        return;
       }
     }
 
-    final hitEdgeId = widget.controller3D.registry.pickBeamWithRay(
+    final centerCandidate = widget.controller.centerControlNode;
+    final handleResult = widget.controller3D.registry.pickHandleWithDistance(
       cameraRay: ray,
-      maxHitDistanceFeet: 7.0,
-    ) ?? (planeIntersection != null
-        ? widget.controller3D.registry.pickBeam(
-            planeIntersectionPoint: planeIntersection,
-            maxHitDistanceFeet: 6.0,
-          )
-        : null);
+      hitRadiusFeet: 3.5,
+    );
+    NodeId? pickedNodeId = handleResult.$1;
+    double nodeDist = handleResult.$2;
+
+    if (pickedNodeId == null && centerCandidate != null) {
+      final centerHitResult = widget.controller3D.registry.pickHandleWithDistance(
+        cameraRay: ray,
+        hitRadiusFeet: 10.0,
+      );
+      if (centerHitResult.$1 == centerCandidate.id) {
+        pickedNodeId = centerHitResult.$1;
+        nodeDist = centerHitResult.$2;
+      }
+    }
+
+    final beamResult = widget.controller3D.registry.pickBeamWithRayWithDistance(
+      cameraRay: ray,
+      maxHitDistanceFeet: 6.5,
+    );
+    EdgeId? hitEdgeId = beamResult.$1;
+    double beamDist = beamResult.$2;
+
+    if (hitEdgeId == null && planeIntersection != null) {
+      hitEdgeId = widget.controller3D.registry.pickBeam(
+        planeIntersectionPoint: planeIntersection,
+        maxHitDistanceFeet: 6.0,
+      );
+      if (hitEdgeId != null) beamDist = 3.5;
+    }
+
+    final isCenterNode = pickedNodeId != null &&
+        ((widget.controller.layout.getNode(pickedNodeId)?.isControlPoint ?? false) ||
+            pickedNodeId.value.contains('center'));
+
+    if (pickedNodeId != null && hitEdgeId != null && !isCenterNode && widget.controller.mode != EditorMode.addEdge) {
+      if (beamDist <= nodeDist + 0.5) {
+        pickedNodeId = null; // Prioritize selecting the truss beam in select mode
+      }
+    }
 
     switch (widget.controller.mode) {
       case EditorMode.view:
@@ -173,105 +315,15 @@ class _Mandap3DViewState extends State<Mandap3DView> with SingleTickerProviderSt
           final node = widget.controller.layout.getNode(pickedNodeId);
           if (node != null) {
             widget.controller.selectNode(pickedNodeId);
-            final isMiddleNode = node.isControlPoint || node.id.value.contains('center');
-            // ALLOW DRAGGING THE MIDDLE TRUSS NODE IN ALL VIEW/SELECT/MOVE MODES!
-            if (isMiddleNode) {
-              final nodeElev = node.elevation > 0 ? node.elevation : widget.controller3D.mandapHeight;
-              final nodePlaneIntersection = CoordinateTransform.rayHorizontalPlaneIntersection(
-                ray,
-                nodeElev,
-              ) ?? CoordinateTransform.rayHorizontalPlaneIntersection(
-                ray,
-                0.0,
-              );
-              setState(() {
-                widget.controller3D.isDraggingNode = true;
-                widget.controller3D.activeHandleNodeId = pickedNodeId;
-                widget.controller3D.dragStartNodeX = node.x;
-                widget.controller3D.dragStartNodeZ = node.z;
-                if (nodePlaneIntersection != null) {
-                  widget.controller3D.dragStartOffsetX = node.x - nodePlaneIntersection.x;
-                  widget.controller3D.dragStartOffsetZ = node.z - nodePlaneIntersection.z;
-                } else {
-                  widget.controller3D.dragStartOffsetX = 0.0;
-                  widget.controller3D.dragStartOffsetZ = 0.0;
-                }
-              });
-              return;
-            } else if (widget.controller.mode == EditorMode.move) {
-              final nodeElev = node.elevation > 0 ? node.elevation : widget.controller3D.mandapHeight;
-              final nodePlaneIntersection = CoordinateTransform.rayHorizontalPlaneIntersection(
-                ray,
-                nodeElev,
-              );
-              setState(() {
-                widget.controller3D.isDraggingNode = true;
-                widget.controller3D.activeHandleNodeId = pickedNodeId;
-                widget.controller3D.dragStartNodeX = node.x;
-                widget.controller3D.dragStartNodeZ = node.z;
-                if (nodePlaneIntersection != null) {
-                  widget.controller3D.dragStartOffsetX = node.x - nodePlaneIntersection.x;
-                  widget.controller3D.dragStartOffsetZ = node.z - nodePlaneIntersection.z;
-                } else {
-                  widget.controller3D.dragStartOffsetX = 0.0;
-                  widget.controller3D.dragStartOffsetZ = 0.0;
-                }
-              });
-              return;
-            } else {
-              // In view/select mode, do not drag non-center nodes — preserve camera orbit/pan!
-              setState(() {
-                widget.controller3D.isDraggingNode = false;
-                widget.controller3D.isDraggingHandle = false;
-                widget.controller3D.activeHandleNodeId = null;
-              });
-            }
+            widget.controller.deselectBay();
           }
         } else if (hitEdgeId != null) {
           final edge = widget.controller.layout.getEdge(hitEdgeId);
           if (edge != null) {
             widget.controller.selectEdge(hitEdgeId);
-            final n1 = widget.controller.layout.getNode(edge.startNodeId);
-            final n2 = widget.controller.layout.getNode(edge.endNodeId);
-            final isCrossEdge = edge.id.value.contains('cross') || edge.id.value.contains('center');
-            final centerNode = widget.controller.centerControlNode ??
-                ((n1 != null && (n1.isControlPoint || n1.id.value.contains('center') || n1.id.value.contains('mid')))
-                    ? n1
-                    : ((n2 != null && (n2.isControlPoint || n2.id.value.contains('center') || n2.id.value.contains('mid'))) ? n2 : null));
-
-            if (centerNode != null && (isCrossEdge || centerNode.id == n1?.id || centerNode.id == n2?.id)) {
-              final nodeElev = centerNode.elevation > 0 ? centerNode.elevation : widget.controller3D.mandapHeight;
-              final nodePlaneIntersection = CoordinateTransform.rayHorizontalPlaneIntersection(
-                ray,
-                nodeElev,
-              ) ?? CoordinateTransform.rayHorizontalPlaneIntersection(
-                ray,
-                0.0,
-              );
-              setState(() {
-                widget.controller3D.isDraggingNode = true;
-                widget.controller3D.activeHandleNodeId = centerNode.id;
-                widget.controller3D.dragStartNodeX = centerNode.x;
-                widget.controller3D.dragStartNodeZ = centerNode.z;
-                if (nodePlaneIntersection != null) {
-                  widget.controller3D.dragStartOffsetX = centerNode.x - nodePlaneIntersection.x;
-                  widget.controller3D.dragStartOffsetZ = centerNode.z - nodePlaneIntersection.z;
-                } else {
-                  widget.controller3D.dragStartOffsetX = 0.0;
-                  widget.controller3D.dragStartOffsetZ = 0.0;
-                }
-              });
-              return;
-            } else {
-              setState(() {
-                widget.controller3D.isDraggingEdge = false;
-                widget.controller3D.isDraggingHandle = false;
-                widget.controller3D.activeHandleEdgeId = null;
-              });
-            }
+            widget.controller.deselectBay();
           }
         } else {
-          // Reviewer correction 5: Test ray horizontal interaction plane against TrussBay world coordinates
           final testPoint = groundIntersection ?? planeIntersection;
           TrussBay? hitBay;
           if (testPoint != null) {
@@ -309,28 +361,67 @@ class _Mandap3DViewState extends State<Mandap3DView> with SingleTickerProviderSt
         setState(() {});
         break;
 
-      case EditorMode.addNode:
       case EditorMode.addPole:
+        if (pickedNodeId != null) {
+          widget.controller.setNodeSupport(pickedNodeId, NodeSupport.pole);
+          widget.controller.autoConnectUnconnectedPoles();
+        } else if (hitEdgeId != null) {
+          final intersection = planeIntersection ?? groundIntersection;
+          widget.controller.splitEdgeWithPole(
+            hitEdgeId,
+            x: intersection?.x,
+            z: intersection?.z,
+            elevation: widget.controller3D.mandapHeight,
+          );
+          widget.controller.autoConnectUnconnectedPoles();
+        } else {
+          final intersection = groundIntersection ?? planeIntersection;
+          if (intersection != null) {
+            final snappedX = DragConstraintCalculator.snapToGrid(
+                intersection.x, widget.controller.subGridSize).clamp(-250.0, 250.0);
+            final snappedZ = DragConstraintCalculator.snapToGrid(
+                intersection.z, widget.controller.subGridSize).clamp(-250.0, 250.0);
+
+            final passingEdgeId = widget.controller.findEdgePassingThrough(snappedX, snappedZ);
+            if (passingEdgeId != null) {
+              widget.controller.splitEdgeWithPole(
+                passingEdgeId,
+                x: snappedX,
+                z: snappedZ,
+                elevation: widget.controller3D.mandapHeight,
+              );
+            } else {
+              widget.controller.addNodeNamed(
+                x: snappedX,
+                z: snappedZ,
+                type: NodeType.pole,
+                elevation: 0.0,
+                support: NodeSupport.pole,
+              );
+            }
+            widget.controller.autoConnectUnconnectedPoles();
+          }
+        }
+        break;
+
+      case EditorMode.addNode:
         final intersection = groundIntersection ?? planeIntersection;
         if (intersection != null) {
           final snappedX = DragConstraintCalculator.snapToGrid(
               intersection.x, widget.controller.subGridSize).clamp(-250.0, 250.0);
           final snappedZ = DragConstraintCalculator.snapToGrid(
               intersection.z, widget.controller.subGridSize).clamp(-250.0, 250.0);
-          final type = widget.controller.mode == EditorMode.addPole
-              ? NodeType.pole
-              : NodeType.corner;
-          final elev = widget.controller.mode == EditorMode.addPole
-              ? 0.0
-              : widget.controller3D.mandapHeight;
-          widget.controller.addNodeNamed(x: snappedX, z: snappedZ, type: type, elevation: elev);
+          widget.controller.addNodeNamed(
+            x: snappedX,
+            z: snappedZ,
+            type: NodeType.corner,
+            elevation: widget.controller3D.mandapHeight,
+            support: NodeSupport.none,
+          );
         }
         break;
 
       case EditorMode.addEdge:
-        _penPointerDownPos = details.localPosition;
-        _penHasDragged = false;
-
         v64.Vector3 tappedPt;
         NodeId? hitNodeId = pickedNodeId;
 
@@ -360,7 +451,7 @@ class _Mandap3DViewState extends State<Mandap3DView> with SingleTickerProviderSt
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('First truss selected. Tap another node to connect.'),
+              content: Text('First node selected. Tap another node to connect.'),
               duration: Duration(seconds: 2),
               backgroundColor: Color(0xFF0284C7),
             ),
@@ -379,7 +470,7 @@ class _Mandap3DViewState extends State<Mandap3DView> with SingleTickerProviderSt
             ScaffoldMessenger.of(context).hideCurrentSnackBar();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('✓ Truss connected successfully!'),
+                content: Text('✓ Truss connected successfully! Tap another pole to continue.'),
                 duration: Duration(seconds: 1),
                 backgroundColor: Color(0xFF16A34A),
               ),
@@ -394,7 +485,7 @@ class _Mandap3DViewState extends State<Mandap3DView> with SingleTickerProviderSt
             ScaffoldMessenger.of(context).hideCurrentSnackBar();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('✓ Truss member created!'),
+                content: Text('✓ Truss member created! Tap another point to continue.'),
                 duration: Duration(seconds: 1),
                 backgroundColor: Color(0xFF16A34A),
               ),
@@ -413,7 +504,10 @@ class _Mandap3DViewState extends State<Mandap3DView> with SingleTickerProviderSt
     if (_animController.isAnimating) return;
     _activePointers[details.pointer] = details.localPosition;
 
+    // 1. Two-finger pinch-to-zoom and two-finger pan (works in all modes including pencil)
     if (_activePointers.length >= 2) {
+      _wasMultiTouch = true;
+      _penHasDragged = false;
       final pts = _activePointers.values.toList();
       final currentDistance = (pts[0] - pts[1]).distance;
       final currentMidpoint = (pts[0] + pts[1]) / 2.0;
@@ -432,16 +526,22 @@ class _Mandap3DViewState extends State<Mandap3DView> with SingleTickerProviderSt
       }
       _lastPanMidpoint = currentMidpoint;
       _lastPointerPos = null;
+      setState(() {});
+      return;
+    } else {
+      _lastPinchDistance = null;
+      _lastPanMidpoint = null;
+    }
+
+    if (_wasMultiTouch) {
+      // During release phase of multi-touch gesture, ignore single-finger move events
       return;
     }
 
-    if (_lastPointerPos == null) return;
-    final delta = details.localPosition - _lastPointerPos!;
-    _lastPointerPos = details.localPosition;
-
+    // 2. Single finger handling
     if (widget.controller.mode == EditorMode.addEdge) {
       if (_penPointerDownPos != null &&
-          (details.localPosition - _penPointerDownPos!).distance > 24.0) {
+          (details.localPosition - _penPointerDownPos!).distance > 22.0) {
         _penHasDragged = true;
       }
       if (widget.controller.penState == PenState.waitingForEnd &&
@@ -485,8 +585,12 @@ class _Mandap3DViewState extends State<Mandap3DView> with SingleTickerProviderSt
         widget.controller.updatePenPreview(currentPt, hoverNodeId: hoverNodeId);
         setState(() {});
       }
-      return; // Do NOT orbit camera while drawing pencil!
+      return; // Absolute lock: 1-finger touches strictly draw truss with camera orbit/pan locked!
     }
+
+    if (_lastPointerPos == null) return;
+    final delta = details.localPosition - _lastPointerPos!;
+    _lastPointerPos = details.localPosition;
 
     if (widget.controller3D.isDraggingHandle ||
         widget.controller3D.isDraggingNode ||
@@ -505,9 +609,6 @@ class _Mandap3DViewState extends State<Mandap3DView> with SingleTickerProviderSt
         );
 
         if (planeIntersection != null) {
-          final rawWorldX = planeIntersection.x + widget.controller3D.dragStartOffsetX;
-          final rawWorldZ = planeIntersection.z + widget.controller3D.dragStartOffsetZ;
-
           final edge = widget.controller.layout.getEdge(
             widget.controller3D.activeHandleEdgeId!,
           );
@@ -632,98 +733,88 @@ class _Mandap3DViewState extends State<Mandap3DView> with SingleTickerProviderSt
     }
   }
 
-  void _onPointerUp(PointerUpEvent details) {
+  void _onPointerUp(PointerUpEvent details, Size canvasSize) {
+    final distFromDown = _downPointerPos != null
+        ? (details.localPosition - _downPointerPos!).distance
+        : 0.0;
+    final hadMultiTouch = _wasMultiTouch;
+    final hadPenDragged = _penHasDragged;
+    final isSingleTap = !hadMultiTouch && _pointerCount <= 1 && distFromDown <= 22.0;
+
     _activePointers.remove(details.pointer);
     if (_activePointers.length < 2) {
       _lastPinchDistance = null;
       _lastPanMidpoint = null;
     }
 
-    if (widget.controller.mode == EditorMode.addEdge) {
-      if (widget.controller.penState == PenState.waitingForEnd &&
-          widget.controller.penStartPoint != null) {
-        final renderBox = context.findRenderObject() as RenderBox?;
-        final size = renderBox?.size ?? const Size(800, 600);
-        final ray = widget.controller3D.createCameraRay(
-          details.localPosition,
-          size,
-        );
-        final hitNodeId = widget.controller3D.registry.pickHandle(
-          cameraRay: ray,
-          hitRadiusFeet: 7.0,
-        );
-        final planeIntersection = CoordinateTransform.rayHorizontalPlaneIntersection(
-          ray,
-          widget.controller3D.mandapHeight,
-        );
-        final groundIntersection = CoordinateTransform.rayHorizontalPlaneIntersection(
-          ray,
-          0.0,
-        );
-        final intersection = planeIntersection ?? groundIntersection;
+    if (isSingleTap) {
+      _handleTap(details.localPosition, canvasSize);
+    } else if (!hadMultiTouch &&
+        widget.controller.mode == EditorMode.addEdge &&
+        hadPenDragged &&
+        widget.controller.penState == PenState.waitingForEnd &&
+        widget.controller.penStartPoint != null) {
+      final ray = widget.controller3D.createCameraRay(
+        details.localPosition,
+        canvasSize,
+      );
+      final hitNodeId = widget.controller3D.registry.pickHandle(
+        cameraRay: ray,
+        hitRadiusFeet: 7.0,
+      );
+      final planeIntersection = CoordinateTransform.rayHorizontalPlaneIntersection(
+        ray,
+        widget.controller3D.mandapHeight,
+      );
+      final groundIntersection = CoordinateTransform.rayHorizontalPlaneIntersection(
+        ray,
+        0.0,
+      );
+      final intersection = planeIntersection ?? groundIntersection;
 
-        v64.Vector3 currentPt;
-        if (hitNodeId != null) {
-          final n = widget.controller.layout.getNode(hitNodeId);
-          currentPt = n != null
-              ? v64.Vector3(n.x, n.elevation, n.z)
-              : widget.controller.penStartPoint!;
-        } else if (intersection != null) {
-          final snappedX = DragConstraintCalculator.snapToGrid(
-              intersection.x, widget.controller.subGridSize).clamp(-250.0, 250.0);
-          final snappedZ = DragConstraintCalculator.snapToGrid(
-              intersection.z, widget.controller.subGridSize).clamp(-250.0, 250.0);
-          currentPt = v64.Vector3(snappedX, widget.controller3D.mandapHeight, snappedZ);
-        } else {
-          currentPt = widget.controller.penPreviewEndPoint ?? widget.controller.penStartPoint!;
-        }
-
-        final dist = (currentPt - widget.controller.penStartPoint!).length;
-
-        if (_penHasDragged) {
-          // Drag-to-draw release
-          if (dist > 1.0 || (hitNodeId != null && hitNodeId != widget.controller.penStartNodeId)) {
-            widget.controller.createTrussMember(
-              targetEndPoint: currentPt,
-              targetEndNodeId: hitNodeId,
-            );
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Truss created successfully!'),
-                duration: Duration(seconds: 1),
-                backgroundColor: Color(0xFF10B981),
-              ),
-            );
-          } else {
-            widget.controller.cancelPenDrawing();
-          }
-          setState(() {});
-          return;
-        } else {
-          // Stationary tap: check if it's the second tap
-          if ((hitNodeId != null && hitNodeId != widget.controller.penStartNodeId) || dist > 2.0) {
-            widget.controller.createTrussMember(
-              targetEndPoint: currentPt,
-              targetEndNodeId: hitNodeId,
-            );
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Truss created successfully!'),
-                duration: Duration(seconds: 1),
-                backgroundColor: Color(0xFF10B981),
-              ),
-            );
-            setState(() {});
-            return;
-          }
-          // Otherwise, it was the first tap setting start point. Stay in waitingForEnd!
-        }
+      v64.Vector3 currentPt;
+      if (hitNodeId != null) {
+        final n = widget.controller.layout.getNode(hitNodeId);
+        currentPt = n != null
+            ? v64.Vector3(n.x, n.elevation, n.z)
+            : widget.controller.penStartPoint!;
+      } else if (intersection != null) {
+        final snappedX = DragConstraintCalculator.snapToGrid(
+            intersection.x, widget.controller.subGridSize).clamp(-250.0, 250.0);
+        final snappedZ = DragConstraintCalculator.snapToGrid(
+            intersection.z, widget.controller.subGridSize).clamp(-250.0, 250.0);
+        currentPt = v64.Vector3(snappedX, widget.controller3D.mandapHeight, snappedZ);
+      } else {
+        currentPt = widget.controller.penPreviewEndPoint ?? widget.controller.penStartPoint!;
       }
+
+      final dist = (currentPt - widget.controller.penStartPoint!).length;
+
+      if (dist > 1.0 || (hitNodeId != null && hitNodeId != widget.controller.penStartNodeId)) {
+        widget.controller.createTrussMember(
+          targetEndPoint: currentPt,
+          targetEndNodeId: hitNodeId,
+          startNodeId: widget.controller.penStartNodeId,
+          endNodeId: hitNodeId,
+        );
+        widget.controller.cancelPenDrawing();
+        widget.controller3D.syncScene(widget.controller.layout, widget.controller.result);
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✓ Truss created successfully! Continue drawing or close pencil when done.'),
+            duration: Duration(seconds: 1),
+            backgroundColor: Color(0xFF10B981),
+          ),
+        );
+      } else {
+        widget.controller.cancelPenDrawing();
+      }
+      setState(() {});
       return;
     }
-    if (widget.controller3D.isDraggingHandle &&
+    if (!hadMultiTouch &&
+        widget.controller3D.isDraggingHandle &&
         widget.controller3D.activeHandleEdgeId != null &&
         widget.controller3D.activeHandleNodeId != null) {
       final endNode = widget.controller.layout.getNode(
@@ -741,7 +832,8 @@ class _Mandap3DViewState extends State<Mandap3DView> with SingleTickerProviderSt
         widget.controller.executeCommand(cmd);
       }
 
-    } else if (widget.controller3D.isDraggingEdge &&
+    } else if (!hadMultiTouch &&
+        widget.controller3D.isDraggingEdge &&
         widget.controller3D.activeHandleEdgeId != null) {
       final edge = widget.controller.layout.getEdge(widget.controller3D.activeHandleEdgeId!);
       if (edge != null) {
@@ -772,6 +864,14 @@ class _Mandap3DViewState extends State<Mandap3DView> with SingleTickerProviderSt
       }
     }
 
+    if (_activePointers.isEmpty) {
+      _pointerCount = 0;
+      _wasMultiTouch = false;
+      _penHasDragged = false;
+      _downPointerPos = null;
+      _penPointerDownPos = null;
+    }
+
     setState(() {
       widget.controller3D.isDraggingHandle = false;
       widget.controller3D.isDraggingNode = false;
@@ -793,17 +893,25 @@ class _Mandap3DViewState extends State<Mandap3DView> with SingleTickerProviderSt
           behavior: HitTestBehavior.opaque,
           onPointerDown: (d) => _onPointerDown(d, canvasSize),
           onPointerMove: (d) => _onPointerMove(d, canvasSize),
-          onPointerUp: _onPointerUp,
+          onPointerUp: (d) => _onPointerUp(d, canvasSize),
           onPointerCancel: (d) {
             _activePointers.remove(d.pointer);
             if (_activePointers.length < 2) {
               _lastPinchDistance = null;
               _lastPanMidpoint = null;
             }
+            if (_activePointers.isEmpty) {
+              _pointerCount = 0;
+              _wasMultiTouch = false;
+              _penHasDragged = false;
+              _downPointerPos = null;
+              _penPointerDownPos = null;
+            }
             _lastPointerPos = _activePointers.isEmpty ? null : _activePointers.values.first;
           },
           onPointerSignal: (signal) {
             if (signal is PointerScrollEvent) {
+              if (widget.controller.mode == EditorMode.addEdge) return;
               final zoomDelta = signal.scrollDelta.dy > 0 ? 1.05 : 0.95;
               widget.controller3D.zoomCamera(zoomDelta);
             }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../l10n/app_localizations.dart';
 
 /// Configuration data returned by [CreateStageDialog].
 class StageConfigurationParams {
@@ -12,8 +13,8 @@ class StageConfigurationParams {
   const StageConfigurationParams({
     required this.stageLength,
     required this.stageWidth,
-    this.tableLength = 4.0,
-    this.tableWidth = 8.0,
+    this.tableLength = 8.0,
+    this.tableWidth = 4.0,
   });
 }
 
@@ -32,8 +33,8 @@ class CreateStageDialog extends StatefulWidget {
     super.key,
     this.initialStageLength = 32.0,
     this.initialStageWidth = 20.0,
-    this.initialTableLength = 4.0,
-    this.initialTableWidth = 8.0,
+    this.initialTableLength = 8.0,
+    this.initialTableWidth = 4.0,
   });
 
   /// Static helper to display the dialog and return the user-entered configuration.
@@ -41,8 +42,8 @@ class CreateStageDialog extends StatefulWidget {
     BuildContext context, {
     double initialStageLength = 32.0,
     double initialStageWidth = 20.0,
-    double initialTableLength = 4.0,
-    double initialTableWidth = 8.0,
+    double initialTableLength = 8.0,
+    double initialTableWidth = 4.0,
   }) {
     return showDialog<CreateStageConfig>(
       context: context,
@@ -195,6 +196,7 @@ class _CreateStageDialogState extends State<CreateStageDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final screenWidth = MediaQuery.of(context).size.width;
     final dialogWidth = screenWidth < 500 ? screenWidth * 0.9 : 420.0;
 
@@ -232,23 +234,23 @@ class _CreateStageDialogState extends State<CreateStageDialog> {
                   ),
                 ),
                 const SizedBox(width: 14),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'CREATE STAGE STRUCTURE',
-                        style: TextStyle(
+                        l10n?.createStageStructure ?? 'CREATE STAGE STRUCTURE',
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.8,
                           color: AppColors.primaryText,
                         ),
                       ),
-                      SizedBox(height: 2),
+                      const SizedBox(height: 2),
                       Text(
-                        'Enter stage dimensions & table layout',
-                        style: TextStyle(
+                        l10n?.enterStageDimensionsAndTable ?? 'Enter stage dimensions & table layout',
+                        style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.secondaryText,
                         ),
@@ -271,7 +273,7 @@ class _CreateStageDialogState extends State<CreateStageDialog> {
 
             // Section 1: Combined STAGE SIZE Box (Length / Width)
             _buildInputField(
-              label: 'STAGE SIZE (Length / Width)',
+              label: l10n?.stageSizeLengthWidth ?? 'STAGE SIZE (Length / Width)',
               hint: '32 / 20 ft',
               controller: _stageSizeController,
               icon: Icons.aspect_ratio_rounded,
@@ -282,7 +284,7 @@ class _CreateStageDialogState extends State<CreateStageDialog> {
 
             // Section 2: TABLE SIZE Box (Length / Width)
             _buildInputField(
-              label: 'STAGE TABLE SIZE (Length / Width)',
+              label: l10n?.stageTableSizeLengthWidth ?? 'STAGE TABLE SIZE (Length / Width)',
               hint: '4 / 8 ft',
               controller: _tableSizeController,
               icon: Icons.table_restaurant_rounded,
@@ -327,16 +329,16 @@ class _CreateStageDialogState extends State<CreateStageDialog> {
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const FittedBox(
+                child: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.auto_awesome_rounded, size: 18),
-                      SizedBox(width: 8),
+                      const Icon(Icons.auto_awesome_rounded, size: 18),
+                      const SizedBox(width: 8),
                       Text(
-                        'GENERATE 3D MODEL',
-                        style: TextStyle(
+                        l10n?.generateStageStructure ?? 'GENERATE STAGE STRUCTURE',
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1.0,

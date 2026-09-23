@@ -16,93 +16,93 @@ import 'mandap_command.dart';
 class ResizeTrussMemberCommand implements MandapCommand {
   final EdgeId edgeId;
   final NodeId anchorNodeId;
-  final NodeId originalMovingNodeId;
-  final MandapNode? createdNode;
+  final NodeId movingNodeId;
+  final NodeId? parallelMovingNodeId;
   final v64.Vector3 oldPosition;
   final v64.Vector3 newPosition;
+  final v64.Vector3? oldParallelPosition;
+  final v64.Vector3? newParallelPosition;
   final double oldLength;
   final double newLength;
 
   const ResizeTrussMemberCommand({
     required this.edgeId,
     required this.anchorNodeId,
-    required this.originalMovingNodeId,
-    this.createdNode,
+    required this.movingNodeId,
+    this.parallelMovingNodeId,
     required this.oldPosition,
     required this.newPosition,
+    this.oldParallelPosition,
+    this.newParallelPosition,
     required this.oldLength,
     required this.newLength,
   });
 
   @override
   MandapLayout execute(MandapLayout currentLayout) {
-    final edge = currentLayout.getEdge(edgeId);
-    if (edge == null) return currentLayout;
-
     final updatedNodes = Map<NodeId, MandapNode>.from(currentLayout.nodes);
-    final updatedEdges = Map<EdgeId, MandapEdge>.from(currentLayout.edges);
 
-    if (createdNode != null) {
-      // Shared endpoint safety: insert new endpoint for this edge only
-      updatedNodes[createdNode!.id] = createdNode!;
-      final newEdge = edge.startNodeId == anchorNodeId
-          ? edge.copyWith(endNodeId: createdNode!.id)
-          : edge.copyWith(startNodeId: createdNode!.id);
-      updatedEdges[edgeId] = newEdge;
-    } else {
-      // Isolated endpoint: directly move the single unshared node
-      final node = currentLayout.getNode(originalMovingNodeId);
-      if (node != null) {
-        updatedNodes[originalMovingNodeId] = node.copyWith(
-          x: newPosition.x,
-          z: newPosition.z,
-          elevation: newPosition.y,
+    // 1. Directly move the shared intermediate support node (so adjacent truss automatically expands, leaving 0 gap)
+    final node = currentLayout.getNode(movingNodeId);
+    if (node != null) {
+      updatedNodes[movingNodeId] = node.copyWith(
+        x: newPosition.x,
+        z: newPosition.z,
+        elevation: newPosition.y,
+      );
+    }
+
+    // 2. Synchronously move corresponding node on parallel wall
+    if (parallelMovingNodeId != null && newParallelPosition != null) {
+      final pNode = currentLayout.getNode(parallelMovingNodeId!);
+      if (pNode != null) {
+        updatedNodes[parallelMovingNodeId!] = pNode.copyWith(
+          x: newParallelPosition!.x,
+          z: newParallelPosition!.z,
+          elevation: newParallelPosition!.y,
         );
       }
     }
 
     return MandapLayout(
       nodes: Map.unmodifiable(updatedNodes),
-      edges: Map.unmodifiable(updatedEdges),
+      edges: currentLayout.edges,
       zones: currentLayout.zones,
     );
   }
 
   @override
   MandapLayout undo(MandapLayout currentLayout) {
-    final edge = currentLayout.getEdge(edgeId);
-    if (edge == null) return currentLayout;
-
     final updatedNodes = Map<NodeId, MandapNode>.from(currentLayout.nodes);
-    final updatedEdges = Map<EdgeId, MandapEdge>.from(currentLayout.edges);
 
-    if (createdNode != null) {
-      // Restore original shared node connection on this edge and remove the created node
-      final restoredEdge = edge.startNodeId == anchorNodeId
-          ? edge.copyWith(endNodeId: originalMovingNodeId)
-          : edge.copyWith(startNodeId: originalMovingNodeId);
-      updatedEdges[edgeId] = restoredEdge;
-      updatedNodes.remove(createdNode!.id);
-    } else {
-      // Restore original position of the isolated node
-      final node = currentLayout.getNode(originalMovingNodeId);
-      if (node != null) {
-        updatedNodes[originalMovingNodeId] = node.copyWith(
-          x: oldPosition.x,
-          z: oldPosition.z,
-          elevation: oldPosition.y,
+    final node = currentLayout.getNode(movingNodeId);
+    if (node != null) {
+      updatedNodes[movingNodeId] = node.copyWith(
+        x: oldPosition.x,
+        z: oldPosition.z,
+        elevation: oldPosition.y,
+      );
+    }
+
+    if (parallelMovingNodeId != null && oldParallelPosition != null) {
+      final pNode = currentLayout.getNode(parallelMovingNodeId!);
+      if (pNode != null) {
+        updatedNodes[parallelMovingNodeId!] = pNode.copyWith(
+          x: oldParallelPosition!.x,
+          z: oldParallelPosition!.z,
+          elevation: oldParallelPosition!.y,
         );
       }
     }
 
     return MandapLayout(
       nodes: Map.unmodifiable(updatedNodes),
-      edges: Map.unmodifiable(updatedEdges),
+      edges: currentLayout.edges,
       zones: currentLayout.zones,
     );
   }
 
   @override
   String get description =>
-      'Resize truss member $edgeId from ${oldLength.toStringAsFixed(1)}ft to ${newLength.toStringAsFixed(1)}ft';
+      'Resize truss member $edgeId from ${oldLength.toStringAsFixed(1)}ft to ${newLength.toStringAsFixed(1)}ft (synchronized with parallel wall)';
 }

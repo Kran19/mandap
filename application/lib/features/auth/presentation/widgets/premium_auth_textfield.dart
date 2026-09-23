@@ -9,6 +9,11 @@ class PremiumAuthTextField extends StatefulWidget {
   final IconData? prefixIcon;
   final int? maxLength;
   final List<TextInputFormatter>? inputFormatters;
+  final Color? fillColor;
+  final Color? borderColor;
+  final EdgeInsetsGeometry? contentPadding;
+  final double borderRadius;
+  final List<BoxShadow>? boxShadow;
 
   const PremiumAuthTextField({
     super.key,
@@ -19,6 +24,11 @@ class PremiumAuthTextField extends StatefulWidget {
     this.prefixIcon,
     this.maxLength,
     this.inputFormatters,
+    this.fillColor,
+    this.borderColor,
+    this.contentPadding,
+    this.borderRadius = 16,
+    this.boxShadow,
   });
 
   @override
@@ -38,9 +48,16 @@ class _PremiumAuthTextFieldState extends State<PremiumAuthTextField> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFCBD5E1)),
+        color: widget.fillColor ?? Colors.white,
+        borderRadius: BorderRadius.circular(widget.borderRadius),
+        border: widget.borderColor != null ? Border.all(color: widget.borderColor!) : null,
+        boxShadow: widget.boxShadow ?? [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.07),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: TextFormField(
         controller: widget.controller,
@@ -49,10 +66,10 @@ class _PremiumAuthTextFieldState extends State<PremiumAuthTextField> {
         maxLength: widget.maxLength,
         inputFormatters: widget.inputFormatters,
         style: const TextStyle(
-          color: Color(0xFF0F172A),
+          color: Color(0xFF1E293B),
           fontSize: 15,
           fontWeight: FontWeight.w600,
-          letterSpacing: 0.3,
+          letterSpacing: 0.2,
         ),
         decoration: InputDecoration(
           labelText: widget.labelText,
@@ -73,11 +90,13 @@ class _PremiumAuthTextFieldState extends State<PremiumAuthTextField> {
                   ),
                   onPressed: () => setState(() => _isObscured = !_isObscured),
                   tooltip: _isObscured ? 'Show password' : 'Hide password',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                 )
               : null,
           border: InputBorder.none,
           counterText: '',
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          contentPadding: widget.contentPadding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           isDense: true,
         ),
       ),

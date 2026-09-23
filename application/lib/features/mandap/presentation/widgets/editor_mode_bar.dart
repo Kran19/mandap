@@ -92,24 +92,7 @@ class EditorModeBar extends StatelessWidget {
 
             const SizedBox(width: 6),
 
-            // 4. Pole Tool
-            _buildToolItem(
-              icon: Icons.view_column_rounded,
-              label: 'Pole',
-              isActive: currentMode == EditorMode.addPole,
-              activeColor: const Color(0xFF10B981),
-              onTap: () {
-                onModeChanged(
-                  currentMode == EditorMode.addPole
-                      ? EditorMode.select
-                      : EditorMode.addPole,
-                );
-              },
-            ),
-
-            const SizedBox(width: 6),
-
-            // 5. Erase / Delete Tool
+            // 4. Erase / Delete Tool
             _buildToolItem(
               icon: Icons.delete_outline_rounded,
               label: 'Erase',
@@ -125,6 +108,23 @@ class EditorModeBar extends StatelessWidget {
                         : EditorMode.delete,
                   );
                 }
+              },
+            ),
+
+            const SizedBox(width: 6),
+
+            // 5. Pole Tool
+            _buildToolItem(
+              icon: Icons.view_column_rounded,
+              label: 'Pole',
+              isActive: currentMode == EditorMode.addPole,
+              activeColor: const Color(0xFF10B981),
+              onTap: () {
+                onModeChanged(
+                  currentMode == EditorMode.addPole
+                      ? EditorMode.select
+                      : EditorMode.addPole,
+                );
               },
             ),
           ],

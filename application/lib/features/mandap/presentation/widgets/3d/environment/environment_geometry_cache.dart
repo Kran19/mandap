@@ -336,10 +336,10 @@ class EnvironmentGeometryCache {
     final centerX = (minX + maxX) / 2.0;
     final centerZ = (minZ + maxZ) / 2.0;
 
-    // 1. Terrain & Festival Lawn Turf
-    final fenceMarginX = math.max(44.0, plotW * 0.45);
-    final fenceMarginZSouth = math.max(38.0, plotD * 0.40);
-    final fenceMarginZNorth = math.max(48.0, plotD * 0.48);
+    // 1. Terrain & Festival Lawn Turf - Generous clearance around the mandap structure
+    final fenceMarginX = math.max(85.0, plotW * 0.80);
+    final fenceMarginZSouth = math.max(65.0, plotD * 0.60);
+    final fenceMarginZNorth = math.max(75.0, plotD * 0.70);
 
     final fMinX = minX - fenceMarginX;
     final fMaxX = maxX + fenceMarginX;
@@ -685,13 +685,13 @@ class EnvironmentGeometryCache {
         stroke: EnvironmentPaints.woodTableBorder,
       ));
     }
-    addTable(westVillageX + 12.0, centerZ - 12.0);
-    addTable(westVillageX + 12.0, centerZ - 2.0);
-    addTable(westVillageX + 12.0, centerZ + 8.0);
+    addTable(westVillageX + 9.0, centerZ - 12.0);
+    addTable(westVillageX + 9.0, centerZ - 2.0);
+    addTable(westVillageX + 9.0, centerZ + 8.0);
 
     // Festoon Lights
-    final fA = v64.Vector3(westVillageX + 6.0, 9.0, centerZ - 22.0);
-    final fB = v64.Vector3(westVillageX + 18.0, 9.0, centerZ + 14.0);
+    final fA = v64.Vector3(westVillageX + 4.0, 9.0, centerZ - 22.0);
+    final fB = v64.Vector3(westVillageX + 12.0, 9.0, centerZ + 14.0);
 
     lines.add(CachedLine(start: v64.Vector3(fA.x, 0.0, fA.z), end: fA, paint: EnvironmentPaints.lightPole));
     lines.add(CachedLine(start: v64.Vector3(fB.x, 0.0, fB.z), end: fB, paint: EnvironmentPaints.lightPole));
@@ -714,7 +714,7 @@ class EnvironmentGeometryCache {
     }
 
     // 6. East Vendor Village
-    final eastVillageX = fMaxX - 12.0;
+    final eastVillageX = fMaxX - 16.0;
     void addVendorStall(double vz) {
       const vW = 16.0;
       const vD = 14.0;
@@ -751,7 +751,7 @@ class EnvironmentGeometryCache {
     addVendorStall(centerZ + 20.0);
 
     // 7. Center FOH Sound Booth
-    final fohZ = fMinZ + (minZ - fMinZ) * 0.50;
+    final fohZ = fMinZ + (minZ - fMinZ) * 0.35;
     const fohW = 12.0;
     const fohD = 12.0;
     const fohH = 8.5;

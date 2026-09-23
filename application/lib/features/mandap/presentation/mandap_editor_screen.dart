@@ -40,10 +40,12 @@ import 'widgets/center_control_sheet.dart';
 import 'widgets/edit_bay_size_sheet.dart';
 import 'widgets/modular_truss_control_bar.dart';
 import 'widgets/mandap_summary_dialog.dart';
+import 'widgets/center_cross_support_required_dialog.dart';
 import '../../truss_boundary/application/truss_boundary_controller.dart';
 import '../../truss_boundary/domain/entities/truss_size.dart';
 import '../../truss_boundary/presentation/truss_boundary_planner_screen.dart';
 import 'package:vector_math/vector_math_64.dart' as v64;
+import '../../../l10n/app_localizations.dart';
 
 enum ViewMode { topView2D, view3D }
 
@@ -70,7 +72,7 @@ class MandapEditorScreen extends StatefulWidget {
 class MandapEditorScreenState extends State<MandapEditorScreen> {
   late MandapEditorController controller;
   late Mandap3DController controller3D;
-  ViewMode _viewMode = ViewMode.topView2D;
+  ViewMode _viewMode = ViewMode.view3D;
 
   String? _projectName;
   bool _isLoading = true;
@@ -227,9 +229,10 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
     final w = controller.plotWidth > 0 ? controller.plotWidth : 100.0;
     final d = controller.plotDepth > 0 ? controller.plotDepth : 100.0;
 
-    final scaleX = (size.width - 120) / w;
-    final scaleZ = (size.height - 120) / d;
-    final scale = math.min(scaleX, scaleZ).clamp(2.0, 30.0);
+    // Generous padding so all rails, header badges, and bottom banners leave structure fully visible
+    final scaleX = (size.width - 200) / w;
+    final scaleZ = (size.height - 240) / d;
+    final scale = math.min(scaleX, scaleZ).clamp(1.0, 30.0);
 
     final panX = (size.width - w * scale) / 2.0;
     final panZ = (size.height - d * scale) / 2.0;
@@ -299,6 +302,110 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
               controller.selectBay(hitBay.id);
             } else {
               controller.clearSelection();
+            }
+          }
+        }
+        break;
+
+      case EditorMode.addPole:
+        final hitNode = _hitTestNode(screenPos);
+        if (hitNode != null) {
+          controller.setNodeSupport(hitNode, NodeSupport.pole);
+          final didConnect = controller.autoConnectUnconnectedPoles();
+          controller3D.syncScene(controller.layout, controller.result);
+          _saveNow();
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                didConnect
+                    ? '✓ 4 poles connected with perimeter trusses!'
+                    : '✓ Support pole added to node!',
+              ),
+              duration: const Duration(seconds: 2),
+              backgroundColor: const Color(0xFF16A34A),
+            ),
+          );
+        } else {
+          final hitEdge = _hitTestEdge(screenPos);
+          if (hitEdge != null) {
+            final worldPos = _transform.screenToWorld(screenPos);
+            final poleNodeId = controller.splitEdgeWithPole(
+              hitEdge,
+              x: worldPos.x,
+              z: worldPos.z,
+              elevation: controller.mandapHeight,
+            );
+            if (poleNodeId != null) {
+              final didConnect = controller.autoConnectUnconnectedPoles();
+              controller3D.syncScene(controller.layout, controller.result);
+              _saveNow();
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    didConnect
+                        ? '✓ 4 poles connected with perimeter trusses!'
+                        : '✓ Support pole added — Truss split into 2 segments!',
+                  ),
+                  duration: const Duration(seconds: 2),
+                  backgroundColor: const Color(0xFF16A34A),
+                ),
+              );
+            }
+          } else {
+            final step = controller.standardTrussPieceSize > 0 ? controller.standardTrussPieceSize : 10.0;
+            final snappedX = (world.x / step).round() * step;
+            final snappedZ = (world.z / step).round() * step;
+
+            final passingEdgeId = controller.findEdgePassingThrough(snappedX, snappedZ);
+            if (passingEdgeId != null) {
+              final poleNodeId = controller.splitEdgeWithPole(
+                passingEdgeId,
+                x: snappedX,
+                z: snappedZ,
+                elevation: controller.mandapHeight,
+              );
+              if (poleNodeId != null) {
+                final didConnect = controller.autoConnectUnconnectedPoles();
+                controller3D.syncScene(controller.layout, controller.result);
+                _saveNow();
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      didConnect
+                          ? '✓ 4 poles connected with perimeter trusses!'
+                          : '✓ Support pole added — Truss split into 2 segments!',
+                    ),
+                    duration: const Duration(seconds: 2),
+                    backgroundColor: const Color(0xFF16A34A),
+                  ),
+                );
+              }
+            } else {
+              final newNodeId = controller.getOrCreateNodeAt(
+                snappedX,
+                snappedZ,
+                elevation: controller.mandapHeight,
+                support: NodeSupport.pole,
+              );
+              controller.setNodeSupport(newNodeId, NodeSupport.pole);
+              final didConnect = controller.autoConnectUnconnectedPoles();
+              controller3D.syncScene(controller.layout, controller.result);
+              _saveNow();
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    didConnect
+                        ? '✓ 4 poles connected with perimeter trusses!'
+                        : '✓ Support pole created on grid!',
+                  ),
+                  duration: const Duration(seconds: 2),
+                  backgroundColor: const Color(0xFF16A34A),
+                ),
+              );
             }
           }
         }
@@ -455,6 +562,14 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
     if (hitNode != null) {
       final node = controller.layout.getNode(hitNode);
       if (node != null && (node.isControlPoint || node.id.value.contains('center') || node.id.value.contains('mid'))) {
+        final hasCrossEdges = controller.layout.edges.values.any((e) => e.id.value.contains('cross') || e.id.value.contains('mid'));
+        if (!hasCrossEdges) {
+          final supportCheck = controller.checkCenterCrossSupport();
+          if (!supportCheck.canActivate) {
+            _showCenterCrossSupportRequiredDialog(context, supportCheck.missingDirections);
+            return;
+          }
+        }
         _draggedCenterNodeId = controller.centerControlNode?.id ?? hitNode;
         return;
       }
@@ -565,169 +680,9 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
   }
 
   void _showCenterCrossSupportRequiredDialog(BuildContext context, List<String> missingDirections) {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-          child: Container(
-            width: 400,
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: const Color(0xFFF59E0B).withValues(alpha: 0.8),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.6),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-                BoxShadow(
-                  color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
-                  blurRadius: 16,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Warning Icon Badge
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF78350F).withValues(alpha: 0.35),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFFF59E0B).withValues(alpha: 0.6),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.shield_outlined,
-                    color: Color(0xFFFBBF24),
-                    size: 32,
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                const Text(
-                  'SUPPORT POLES REQUIRED',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.6,
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                const Text(
-                  'Cannot activate Center Cross (+) structure because there is no supporting pole in the following direction(s):',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFF94A3B8),
-                    fontSize: 12.5,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                // Missing directions chips
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.center,
-                  children: missingDirections.map((dir) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF451A03),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: const Color(0xFFF97316).withValues(alpha: 0.6),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.cancel_rounded, size: 14, color: Color(0xFFF97316)),
-                          const SizedBox(width: 5),
-                          Text(
-                            dir,
-                            style: const TextStyle(
-                              color: Color(0xFFFED7AA),
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 16),
-
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF334155)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF00E5FF)),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Ensure supporting poles are placed on Forward, Backward, Left, and Right sides.',
-                          style: TextStyle(
-                            color: Color(0xFFCBD5E1),
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                SizedBox(
-                  width: double.infinity,
-                  height: 44,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0284C7),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: const Text(
-                      'UNDERSTOOD',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+    CenterCrossSupportRequiredDialog.show(
+      context,
+      missingDirections: missingDirections,
     );
   }
 
@@ -735,6 +690,7 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
@@ -785,8 +741,16 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
                             top: 12,
                             child: SimplifiedTrussRail(
                               controller: controller,
-                              isAnimating: _isAnimating3D,
-                              onPencilTap: () => setState(() => _viewMode = ViewMode.topView2D),
+                              onPencilTap: () {
+                                if (_viewMode == ViewMode.view3D) {
+                                  controller3D.setTopDownView(
+                                    layout: controller.layout,
+                                    viewportSize: _canvasSize,
+                                  );
+                                } else {
+                                  _fitView(_canvasSize);
+                                }
+                              },
                               onConfigTap: () {
                                 ModularTrussControlBar.showPlotSizeDialog(
                                   context,
@@ -796,7 +760,9 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
                                     controller3D.syncScene(controller.layout, controller.result);
                                     _saveNow();
                                     _fitView(_canvasSize);
-                                    setState(() {});
+                                    setState(() {
+                                      _viewMode = ViewMode.view3D;
+                                    });
                                   },
                                 );
                               },
@@ -816,7 +782,11 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
                                   controller3D.syncScene(controller.layout, controller.result);
                                   _fitView(_canvasSize);
                                   _updateProjectAfterDimensionChange();
-                                  if (mounted) setState(() {});
+                                  if (mounted) {
+                                    setState(() {
+                                      _viewMode = ViewMode.view3D;
+                                    });
+                                  }
                                 },
                               ),
                             ),
@@ -862,6 +832,54 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
                                     ],
                                   ),
                                 ),
+                              ),
+                            ),
+                          ),
+
+                          // Floating 2D / 3D Mode Toggle on Top-Right (Under OK button)
+                          Positioned(
+                            top: 52,
+                            right: 12,
+                            child: Container(
+                              padding: const EdgeInsets.all(2.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0F172A).withValues(alpha: 0.94),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFF334155), width: 1.2),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.4),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _buildModeSegmentButton(
+                                    label: '2D',
+                                    isSelected: _viewMode == ViewMode.topView2D,
+                                    onTap: () {
+                                      if (_viewMode != ViewMode.topView2D) {
+                                        setState(() => _viewMode = ViewMode.topView2D);
+                                        _fitView(_canvasSize);
+                                      }
+                                    },
+                                  ),
+                                  const SizedBox(width: 2),
+                                  _buildModeSegmentButton(
+                                    label: '3D',
+                                    isSelected: _viewMode == ViewMode.view3D,
+                                    onTap: () {
+                                      if (_viewMode != ViewMode.view3D) {
+                                        setState(() => _viewMode = ViewMode.view3D);
+                                        controller3D.fitCamera(controller.layout);
+                                        controller3D.syncScene(controller.layout, controller.result);
+                                      }
+                                    },
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -939,15 +957,15 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
                                     ),
                                   ],
                                 ),
-                                child: const Row(
+                                child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.info_rounded, size: 16, color: Color(0xFF00E5FF)),
-                                    SizedBox(width: 8),
+                                    const Icon(Icons.info_rounded, size: 16, color: Color(0xFF00E5FF)),
+                                    const SizedBox(width: 8),
                                     Flexible(
                                       child: Text(
-                                        'Use Pencil to draw or split truss. Use Eraser to remove truss. Tap center dot to create center cross.',
-                                        style: TextStyle(
+                                        l10n?.trussEditorHint ?? 'Use Pencil to draw or split truss. Use Eraser to remove truss. Tap center dot to create center cross.',
+                                        style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 11.5,
                                           fontWeight: FontWeight.w600,
@@ -1090,6 +1108,46 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildModeSegmentButton({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(7),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF2563EB) : Colors.transparent,
+            borderRadius: BorderRadius.circular(7),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFF2563EB).withValues(alpha: 0.4),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ),
+      ),
     );
   }
 

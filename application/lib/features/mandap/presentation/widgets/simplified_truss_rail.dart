@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mandap/l10n/app_localizations.dart';
 import '../../application/editor_mode.dart';
 import '../../application/mandap_editor_controller.dart';
 
@@ -19,10 +20,12 @@ class SimplifiedTrussRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
         final isPencilActive = controller.mode == EditorMode.addEdge;
+        final isPoleActive = controller.mode == EditorMode.addPole;
         final isEraserActive = controller.mode == EditorMode.delete;
         final canUndo = controller.history.canUndo;
         final canRedo = controller.history.canRedo;
@@ -58,7 +61,7 @@ class SimplifiedTrussRail extends StatelessWidget {
                 icon: Icons.edit_rounded,
                 tooltip: isPencilActive
                     ? 'Pencil Active (Tap 1st node then 2nd to draw)'
-                    : 'Draw Truss (Pencil)',
+                    : (l10n?.drawTruss ?? 'Draw Truss (Pencil)'),
                 isActive: isPencilActive && !isAnimating,
                 activeBg: const Color(0xFF0284C7),
                 activeBorder: const Color(0xFF00E5FF),
@@ -80,7 +83,7 @@ class SimplifiedTrussRail extends StatelessWidget {
                 icon: Icons.cleaning_services_rounded,
                 tooltip: isEraserActive
                     ? 'Eraser Active (Tap truss to remove)'
-                    : 'Eraser Tool',
+                    : (l10n?.eraserTool ?? 'Eraser Tool'),
                 isActive: isEraserActive && !isAnimating,
                 activeBg: const Color(0xFFDC2626),
                 activeBorder: const Color(0xFFF87171),
@@ -96,7 +99,28 @@ class SimplifiedTrussRail extends StatelessWidget {
 
               const SizedBox(height: 5),
 
-              // 3. TRUSS PIECE & GATE CONFIG Tool
+              // 3. POLE Tool (Place Pole)
+              _buildToolButton(
+                icon: Icons.view_column_rounded,
+                tooltip: isPoleActive
+                    ? 'Pole Active (Tap anywhere to place pole)'
+                    : (l10n?.addPoleTool ?? 'Add Pole Tool'),
+                isActive: isPoleActive && !isAnimating,
+                activeBg: const Color(0xFFEA580C),
+                activeBorder: const Color(0xFFFB923C),
+                iconColor: isPoleActive ? Colors.white : const Color(0xFFFB923C),
+                onTap: () {
+                  if (isPoleActive) {
+                    controller.setMode(EditorMode.view);
+                  } else {
+                    controller.setMode(EditorMode.addPole);
+                  }
+                },
+              ),
+
+              const SizedBox(height: 5),
+
+              // 4. TRUSS PIECE & GATE CONFIG Tool
               _buildToolButton(
                 icon: Icons.tune_rounded,
                 tooltip: 'Truss Piece & Gate Configuration',

@@ -334,7 +334,7 @@ class _ModuleSelectionScreenState extends State<ModuleSelectionScreen> {
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
-                                        'Design Modules',
+                                        l10n?.designModules ?? 'Design Modules',
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 13,
@@ -373,7 +373,7 @@ class _ModuleSelectionScreenState extends State<ModuleSelectionScreen> {
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
-                                        'My Projects',
+                                        l10n?.myProjects ?? 'My Projects',
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 13,
@@ -530,19 +530,19 @@ class _ModuleSelectionScreenState extends State<ModuleSelectionScreen> {
                                       borderRadius: BorderRadius.circular(14),
                                       border: Border.all(color: AppColors.headerBorder),
                                     ),
-                                    child: const FittedBox(
+                                    child: FittedBox(
                                       fit: BoxFit.scaleDown,
                                       child: Row(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
-                                          Icon(Icons.folder_special_rounded, color: AppColors.trussPrimary, size: 20),
-                                          SizedBox(width: 10),
+                                          const Icon(Icons.folder_special_rounded, color: AppColors.trussPrimary, size: 20),
+                                          const SizedBox(width: 10),
                                           Text(
-                                            'View all saved layouts in My Projects',
-                                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primaryText),
+                                            l10n?.viewAllProjects ?? 'View all saved layouts in My Projects',
+                                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primaryText),
                                           ),
-                                          SizedBox(width: 8),
-                                          Icon(Icons.arrow_forward_rounded, color: AppColors.trussPrimary, size: 16),
+                                          const SizedBox(width: 8),
+                                          const Icon(Icons.arrow_forward_rounded, color: AppColors.trussPrimary, size: 16),
                                         ],
                                       ),
                                     ),
@@ -647,8 +647,8 @@ class _ModuleSelectionScreenState extends State<ModuleSelectionScreen> {
     final prefs = await SharedPreferences.getInstance();
     final savedLen = prefs.getDouble('stage_last_length') ?? 32.0;
     final savedWid = prefs.getDouble('stage_last_width') ?? 20.0;
-    final savedTL = prefs.getDouble('stage_last_table_length') ?? 4.0;
-    final savedTW = prefs.getDouble('stage_last_table_width') ?? 8.0;
+    final savedTL = prefs.getDouble('stage_last_table_length') ?? 8.0;
+    final savedTW = prefs.getDouble('stage_last_table_width') ?? 4.0;
 
     if (!context.mounted) return;
     final params = await CreateStageDialog.show(

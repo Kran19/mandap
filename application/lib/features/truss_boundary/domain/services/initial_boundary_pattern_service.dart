@@ -89,19 +89,19 @@ class InitialBoundaryPatternService {
 
     switch (size) {
       case TrussSize.ten:
-        return const [30.0, 30.0, 40.0];
+        return const [30.0];
       case TrussSize.twenty:
-        return const [40.0, 40.0, 20.0];
+        return const [20.0];
       case TrussSize.twentyFive:
-        return const [50.0, 50.0];
+        return const [25.0];
       case TrussSize.thirty:
-        return const [30.0, 30.0, 40.0];
+        return const [30.0];
       case TrussSize.forty:
-        return const [40.0, 40.0, 20.0];
+        return const [40.0];
       case TrussSize.fifty:
-        return const [50.0, 50.0];
+        return const [50.0];
       case TrussSize.custom:
-        return const [50.0, 30.0, 20.0];
+        return const [30.0];
     }
   }
 }

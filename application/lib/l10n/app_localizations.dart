@@ -797,6 +797,588 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Width Bays'**
   String get widthBays;
+
+  /// No description provided for @welcome.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome'**
+  String get welcome;
+
+  /// No description provided for @signInSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with your phone number to access MANDAP'**
+  String get signInSubtitle;
+
+  /// No description provided for @phoneNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone Number'**
+  String get phoneNumber;
+
+  /// No description provided for @phoneNumberRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone Number *'**
+  String get phoneNumberRequired;
+
+  /// No description provided for @password.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get password;
+
+  /// No description provided for @passwordRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Password *'**
+  String get passwordRequired;
+
+  /// No description provided for @fullNameOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Full Name (optional)'**
+  String get fullNameOptional;
+
+  /// No description provided for @emailOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Email (optional)'**
+  String get emailOptional;
+
+  /// No description provided for @forgotPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password?'**
+  String get forgotPassword;
+
+  /// No description provided for @continueButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get continueButton;
+
+  /// No description provided for @dontHaveAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t have an account?'**
+  String get dontHaveAccount;
+
+  /// No description provided for @createOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Create one'**
+  String get createOne;
+
+  /// No description provided for @verifyPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify Phone'**
+  String get verifyPhone;
+
+  /// No description provided for @otpSentTo.
+  ///
+  /// In en, this message translates to:
+  /// **'We sent a 6-digit code to'**
+  String get otpSentTo;
+
+  /// No description provided for @otpLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'6-Digit OTP'**
+  String get otpLabel;
+
+  /// No description provided for @verifyAndSignIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify & Sign In'**
+  String get verifyAndSignIn;
+
+  /// No description provided for @changePhoneNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Change phone number'**
+  String get changePhoneNumber;
+
+  /// No description provided for @joinMandap.
+  ///
+  /// In en, this message translates to:
+  /// **'Join MANDAP'**
+  String get joinMandap;
+
+  /// No description provided for @joinSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your details to create a new account'**
+  String get joinSubtitle;
+
+  /// No description provided for @createAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Account'**
+  String get createAccount;
+
+  /// No description provided for @alreadyHaveAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Already have an account?'**
+  String get alreadyHaveAccount;
+
+  /// No description provided for @signIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign In'**
+  String get signIn;
+
+  /// No description provided for @accountCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Account Created!'**
+  String get accountCreated;
+
+  /// No description provided for @accountCreatedSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account has been set up successfully.'**
+  String get accountCreatedSubtitle;
+
+  /// No description provided for @continueToSignIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue to Sign In'**
+  String get continueToSignIn;
+
+  /// No description provided for @designModules.
+  ///
+  /// In en, this message translates to:
+  /// **'Design Modules'**
+  String get designModules;
+
+  /// No description provided for @myProjects.
+  ///
+  /// In en, this message translates to:
+  /// **'My Projects'**
+  String get myProjects;
+
+  /// No description provided for @viewAllProjects.
+  ///
+  /// In en, this message translates to:
+  /// **'View all saved layouts in My Projects'**
+  String get viewAllProjects;
+
+  /// No description provided for @poles.
+  ///
+  /// In en, this message translates to:
+  /// **'Poles'**
+  String get poles;
+
+  /// No description provided for @upperPipes.
+  ///
+  /// In en, this message translates to:
+  /// **'Upper Pipes'**
+  String get upperPipes;
+
+  /// No description provided for @totalPipes.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Pipes'**
+  String get totalPipes;
+
+  /// No description provided for @retrieve.
+  ///
+  /// In en, this message translates to:
+  /// **'Retrieve'**
+  String get retrieve;
+
+  /// No description provided for @retrieveLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'Retrieve Layout'**
+  String get retrieveLayout;
+
+  /// No description provided for @all.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get all;
+
+  /// No description provided for @noProjectsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No projects found'**
+  String get noProjectsFound;
+
+  /// No description provided for @createNewProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Create New Project'**
+  String get createNewProject;
+
+  /// No description provided for @view2D.
+  ///
+  /// In en, this message translates to:
+  /// **'2D'**
+  String get view2D;
+
+  /// No description provided for @view3D.
+  ///
+  /// In en, this message translates to:
+  /// **'3D'**
+  String get view3D;
+
+  /// No description provided for @summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary'**
+  String get summary;
+
+  /// No description provided for @tools.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools'**
+  String get tools;
+
+  /// No description provided for @eraser.
+  ///
+  /// In en, this message translates to:
+  /// **'Eraser'**
+  String get eraser;
+
+  /// No description provided for @drawTruss.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw Truss'**
+  String get drawTruss;
+
+  /// No description provided for @eraserTool.
+  ///
+  /// In en, this message translates to:
+  /// **'Eraser Tool'**
+  String get eraserTool;
+
+  /// No description provided for @addPoleTool.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Pole Tool'**
+  String get addPoleTool;
+
+  /// No description provided for @createTruss.
+  ///
+  /// In en, this message translates to:
+  /// **'CREATE TRUSS'**
+  String get createTruss;
+
+  /// No description provided for @enterPlotAndTrussSpec.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter plot & custom truss specifications'**
+  String get enterPlotAndTrussSpec;
+
+  /// No description provided for @plotSizeLengthWidth.
+  ///
+  /// In en, this message translates to:
+  /// **'PLOT SIZE (Length / Width)'**
+  String get plotSizeLengthWidth;
+
+  /// No description provided for @selectOrWriteTrussSize.
+  ///
+  /// In en, this message translates to:
+  /// **'SELECT OR WRITE TRUSS SIZE'**
+  String get selectOrWriteTrussSize;
+
+  /// No description provided for @custom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get custom;
+
+  /// No description provided for @customTrussSizeWrite.
+  ///
+  /// In en, this message translates to:
+  /// **'CUSTOM TRUSS SIZE (Write your value)'**
+  String get customTrussSizeWrite;
+
+  /// No description provided for @trussSizeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'TRUSS SIZE'**
+  String get trussSizeLabel;
+
+  /// No description provided for @generateTrussButton.
+  ///
+  /// In en, this message translates to:
+  /// **'GENERATE TRUSS'**
+  String get generateTrussButton;
+
+  /// No description provided for @designComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Design Complete'**
+  String get designComplete;
+
+  /// No description provided for @trussAndPolesSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Truss & Poles Summary'**
+  String get trussAndPolesSummary;
+
+  /// No description provided for @totalTrusses.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Trusses'**
+  String get totalTrusses;
+
+  /// No description provided for @totalSpan.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Span'**
+  String get totalSpan;
+
+  /// No description provided for @supportPoles.
+  ///
+  /// In en, this message translates to:
+  /// **'Support Poles'**
+  String get supportPoles;
+
+  /// No description provided for @corner.
+  ///
+  /// In en, this message translates to:
+  /// **'Corner'**
+  String get corner;
+
+  /// No description provided for @mid.
+  ///
+  /// In en, this message translates to:
+  /// **'Mid'**
+  String get mid;
+
+  /// No description provided for @trussSizesUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'TRUSS SIZES USED'**
+  String get trussSizesUsed;
+
+  /// No description provided for @totalLength.
+  ///
+  /// In en, this message translates to:
+  /// **'total length'**
+  String get totalLength;
+
+  /// No description provided for @gatesAndEntrances.
+  ///
+  /// In en, this message translates to:
+  /// **'GATES & ENTRANCES'**
+  String get gatesAndEntrances;
+
+  /// No description provided for @gateOpening.
+  ///
+  /// In en, this message translates to:
+  /// **'Gate Opening'**
+  String get gateOpening;
+
+  /// No description provided for @copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get copy;
+
+  /// No description provided for @okDone.
+  ///
+  /// In en, this message translates to:
+  /// **'OK / Done'**
+  String get okDone;
+
+  /// No description provided for @summaryCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary copied to clipboard!'**
+  String get summaryCopied;
+
+  /// No description provided for @noTrussMembersDrawn.
+  ///
+  /// In en, this message translates to:
+  /// **'No truss members drawn yet.'**
+  String get noTrussMembersDrawn;
+
+  /// No description provided for @trussEditorHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Pencil to draw or split truss. Use Eraser to remove truss. Tap center dot to create center cross.'**
+  String get trussEditorHint;
+
+  /// No description provided for @createStageStructure.
+  ///
+  /// In en, this message translates to:
+  /// **'CREATE STAGE STRUCTURE'**
+  String get createStageStructure;
+
+  /// No description provided for @enterStageDimensionsAndTable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter stage dimensions & table layout'**
+  String get enterStageDimensionsAndTable;
+
+  /// No description provided for @stageSizeLengthWidth.
+  ///
+  /// In en, this message translates to:
+  /// **'STAGE SIZE (Length / Width)'**
+  String get stageSizeLengthWidth;
+
+  /// No description provided for @stageTableSizeLengthWidth.
+  ///
+  /// In en, this message translates to:
+  /// **'STAGE TABLE SIZE (Length / Width)'**
+  String get stageTableSizeLengthWidth;
+
+  /// No description provided for @generateStageStructure.
+  ///
+  /// In en, this message translates to:
+  /// **'GENERATE STAGE STRUCTURE'**
+  String get generateStageStructure;
+
+  /// No description provided for @stageComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Stage Complete'**
+  String get stageComplete;
+
+  /// No description provided for @stageTablesSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Stage Tables Summary'**
+  String get stageTablesSummary;
+
+  /// No description provided for @totalStageTables.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Stage Tables'**
+  String get totalStageTables;
+
+  /// No description provided for @totalSupportLegs.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Support Legs'**
+  String get totalSupportLegs;
+
+  /// No description provided for @tables.
+  ///
+  /// In en, this message translates to:
+  /// **'Tables'**
+  String get tables;
+
+  /// No description provided for @legs.
+  ///
+  /// In en, this message translates to:
+  /// **'Legs'**
+  String get legs;
+
+  /// No description provided for @enterPlotAndPipeSpec.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter plot & pipe size specifications'**
+  String get enterPlotAndPipeSpec;
+
+  /// No description provided for @pipeSizeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'PIPE SIZE'**
+  String get pipeSizeLabel;
+
+  /// No description provided for @generatePipeStructure.
+  ///
+  /// In en, this message translates to:
+  /// **'GENERATE PIPE STRUCTURE'**
+  String get generatePipeStructure;
+
+  /// No description provided for @polesSetupComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Poles Setup Complete'**
+  String get polesSetupComplete;
+
+  /// No description provided for @polesAndPipesSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Poles & Pipes Summary'**
+  String get polesAndPipesSummary;
+
+  /// No description provided for @totalVerticalPoles.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Vertical Poles'**
+  String get totalVerticalPoles;
+
+  /// No description provided for @totalHorizontalPipes.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Horizontal Pipes'**
+  String get totalHorizontalPipes;
+
+  /// No description provided for @createFlooringLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'CREATE FLOORING LAYOUT'**
+  String get createFlooringLayout;
+
+  /// No description provided for @enterPlotAndCarpetSpec.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter plot & carpet specifications'**
+  String get enterPlotAndCarpetSpec;
+
+  /// No description provided for @carpetSizeLengthWidth.
+  ///
+  /// In en, this message translates to:
+  /// **'CARPET SIZE (Length / Width)'**
+  String get carpetSizeLengthWidth;
+
+  /// No description provided for @generateFlooringLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'GENERATE FLOORING LAYOUT'**
+  String get generateFlooringLayout;
+
+  /// No description provided for @flooringComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Flooring Complete'**
+  String get flooringComplete;
+
+  /// No description provided for @carpetsAndFlooringSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Carpets & Flooring Summary'**
+  String get carpetsAndFlooringSummary;
+
+  /// No description provided for @carpetRollsUnits.
+  ///
+  /// In en, this message translates to:
+  /// **'Carpet Rolls / Units'**
+  String get carpetRollsUnits;
+
+  /// No description provided for @carpets.
+  ///
+  /// In en, this message translates to:
+  /// **'Carpets'**
+  String get carpets;
+
+  /// No description provided for @totalFloorArea.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Floor Area'**
+  String get totalFloorArea;
+
+  /// No description provided for @centerCrossSupportRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Center Cross Support Required'**
+  String get centerCrossSupportRequired;
+
+  /// No description provided for @centerCrossSupportDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'4 supporting perimeter poles are required before creating a center cross structure.'**
+  String get centerCrossSupportDesc;
 }
 
 class _AppLocalizationsDelegate

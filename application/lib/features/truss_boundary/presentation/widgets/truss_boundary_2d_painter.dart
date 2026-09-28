@@ -408,9 +408,9 @@ class TrussBoundary2dPainter extends CustomPainter {
       fontSize: 9.5,
     );
 
-    // 3. Section Span Dimension Lines on North side runs (inside / near top perimeter)
+    // 3. Section Span Dimension Lines on North side runs
     final northSide = fourSides['north'];
-    if (northSide != null && northSide.runs.length > 1) {
+    if (northSide != null && northSide.runs.isNotEmpty) {
       double acc = 0.0;
       for (final run in northSide.runs) {
         final startX = plotRect.left + acc * scale;
@@ -422,10 +422,11 @@ class TrussBoundary2dPainter extends CustomPainter {
             : '${run.geometricSpan.toStringAsFixed(1)} ft';
 
         final secY = plotRect.top + 14.0;
-        if ((endX - startX) > 22.0) {
+        final margin = math.min(4.0, (endX - startX) * 0.1);
+        if ((endX - startX) > 4.0) {
           draw2DDimensionLine(
-            pStart: Offset(startX + 4, secY),
-            pEnd: Offset(endX - 4, secY),
+            pStart: Offset(startX + margin, secY),
+            pEnd: Offset(endX - margin, secY),
             text: spanText,
             lineColor: const Color(0xFF38BDF8),
             badgeBg: const Color(0xDD0F172A),
@@ -437,9 +438,9 @@ class TrussBoundary2dPainter extends CustomPainter {
       }
     }
 
-    // 4. Section Span Dimension Lines on West side runs (inside / near west perimeter)
+    // 4. Section Span Dimension Lines on West side runs
     final westSide = fourSides['west'];
-    if (westSide != null && westSide.runs.length > 1) {
+    if (westSide != null && westSide.runs.isNotEmpty) {
       double acc = 0.0;
       for (final run in westSide.runs) {
         final startZ = plotRect.top + acc * scale;
@@ -451,10 +452,11 @@ class TrussBoundary2dPainter extends CustomPainter {
             : '${run.geometricSpan.toStringAsFixed(1)} ft';
 
         final secX = plotRect.left + 14.0;
-        if ((endZ - startZ) > 22.0) {
+        final margin = math.min(4.0, (endZ - startZ) * 0.1);
+        if ((endZ - startZ) > 4.0) {
           draw2DDimensionLine(
-            pStart: Offset(secX, startZ + 4),
-            pEnd: Offset(secX, endZ - 4),
+            pStart: Offset(secX, startZ + margin),
+            pEnd: Offset(secX, endZ - margin),
             text: spanText,
             lineColor: const Color(0xFF38BDF8),
             badgeBg: const Color(0xDD0F172A),

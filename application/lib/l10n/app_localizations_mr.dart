@@ -651,4 +651,22 @@ class AppLocalizationsMr extends AppLocalizations {
   @override
   String get centerCrossSupportDesc =>
       'सेंटर क्रॉस तयार करण्यापूर्वी 4 सपोर्ट पोल आवश्यक आहेत.';
+
+  @override
+  String get trussCalculationSize => 'TRUSS CALCULATION SIZE';
+
+  @override
+  String get ok => 'OK';
+
+  @override
+  String get extra => 'Extra';
+
+  @override
+  String get covered => 'Covered';
+
+  @override
+  String get plotLimit => 'Plot Limit';
+
+  @override
+  String get box => 'Box';
 }

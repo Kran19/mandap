@@ -52,5 +52,15 @@ void main() {
       expect(notifier.locale.languageCode, equals('gu'));
       expect(notifier.currentLanguage.nativeName, equals('ગુજરાતી'));
     });
+
+    test('Gujarati locale contains newly added translations', () {
+      final guL10n = lookupAppLocalizations(const Locale('gu'));
+      expect(guL10n.trussCalculationSize, equals('ટ્રસ ગણતરી સાઇઝ'));
+      expect(guL10n.ok, equals('બરાબર'));
+      expect(guL10n.extra, equals('વધારાનું'));
+      expect(guL10n.covered, equals('કવર કરેલ'));
+      expect(guL10n.plotLimit, equals('પ્લોટ મર્યાદા'));
+      expect(guL10n.box, equals('બોક્સ'));
+    });
   });
 }

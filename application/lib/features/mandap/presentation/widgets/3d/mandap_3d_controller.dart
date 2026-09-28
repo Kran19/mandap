@@ -51,7 +51,7 @@ class Mandap3DController extends ChangeNotifier {
   }
 
   /// Fits camera view dynamically based on the bounding box of [layout].
-  void fitCamera(MandapLayout layout) {
+  void fitCamera(MandapLayout layout, {Size? viewportSize}) {
     if (layout.nodes.isEmpty) return;
 
     double minX = double.infinity;
@@ -80,7 +80,23 @@ class Mandap3DController extends ChangeNotifier {
     final spanZ = (maxZ - minZ).abs();
     final maxSpan = math.max(spanX, spanZ);
 
-    cameraDistance = math.max(115.0, maxSpan * 1.55 + maxElev * 1.2);
+    // Calculate aspect ratio (default to mobile portrait 0.48 if not provided)
+    final aspect = (viewportSize != null && viewportSize.height > 0)
+        ? (viewportSize.width / viewportSize.height).clamp(0.2, 3.0)
+        : 0.48;
+
+    const tanHalfFovY = 0.41421356;
+    final tanHalfFovX = tanHalfFovY * aspect;
+
+    // Projected bounding width at 45° azimuth and 32° elevation
+    final horizSpan = (spanX + spanZ) * 0.7071 + 35.0;
+    final vertSpan = (spanX + spanZ) * 0.7071 * 0.53 + maxElev * 0.85 + 35.0;
+
+    final distNeededX = horizSpan / (2.0 * tanHalfFovX);
+    final distNeededY = vertSpan / (2.0 * tanHalfFovY);
+    final neededDist = math.max(distNeededX, distNeededY) * 1.15;
+
+    cameraDistance = math.max(115.0, math.max(neededDist, maxSpan * 1.55 + maxElev * 1.2));
     cameraAzimuth = 45.0 * math.pi / 180.0;
     cameraElevation = 32.0 * math.pi / 180.0; // Cinematic eye-level perspective
 
@@ -277,7 +293,7 @@ class Mandap3DController extends ChangeNotifier {
 
   /// Zoom camera view.
   void zoomCamera(double zoomFactor) {
-    cameraDistance = (cameraDistance * zoomFactor).clamp(20.0, 300.0);
+    cameraDistance = (cameraDistance * zoomFactor).clamp(15.0, 10000.0);
     notifyListeners();
   }
 
@@ -326,7 +342,7 @@ class Mandap3DController extends ChangeNotifier {
       45.0 * math.pi / 180.0,
       aspect,
       1.0,
-      1000.0,
+      math.max(15000.0, cameraDistance * 4.0),
     );
 
     return CoordinateTransform.screen3DToWorldRay(
@@ -361,7 +377,7 @@ class Mandap3DController extends ChangeNotifier {
       45.0 * math.pi / 180.0,
       aspect,
       1.0,
-      1000.0,
+      math.max(15000.0, cameraDistance * 4.0),
     );
 
     final viewProj = projectionMatrix * viewMatrix;

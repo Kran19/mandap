@@ -164,7 +164,7 @@ class BomPanel extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Standard ${controller.standardTrussPieceSize.toStringAsFixed(0)} ft Trusses',
+                                'Standard ${controller.trussCalculationUnitSize.toStringAsFixed(0)} ft Trusses',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 13,
@@ -341,7 +341,7 @@ class BomPanel extends StatelessWidget {
   void _showMaterialSummary(BuildContext context) {
     final result = controller.result;
     final totalTruss = controller.totalLinearTrussFt;
-    final trussSize = controller.standardTrussPieceSize;
+    final trussSize = controller.trussCalculationUnitSize;
     final requiredPieces = controller.totalPiecesRequired;
     
     // Conversions

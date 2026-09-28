@@ -489,27 +489,58 @@ class _RealisticTruss3dPainter extends CustomPainter {
       text: '${plotDepth.toInt()} ft',
     );
 
-    // 3. Section Span Dimension Badges along North Upper Truss Chords
-    final northSide = fourSides['north'];
-    if (northSide != null && northSide.runs.length > 1) {
+    // 3. Section Span Dimension Badges along Perimeter Upper Truss Chords
+    for (final entry in fourSides.entries) {
+      final sideId = entry.key;
+      final side = entry.value;
       double acc = 0.0;
-      for (final run in northSide.runs) {
-        final x1 = acc;
-        final x2 = acc + run.geometricSpan;
+      for (final run in side.runs) {
+        final startPos = acc;
+        final endPos = acc + run.geometricSpan;
         acc += run.geometricSpan;
 
         final spanText = run.geometricSpan % 1 == 0
             ? '${run.geometricSpan.toInt()} ft'
             : '${run.geometricSpan.toStringAsFixed(1)} ft';
 
-        if (run.geometricSpan >= 15.0) {
+        if (run.geometricSpan >= 1.0) {
+          final margin = math.min(1.5, run.geometricSpan * 0.1);
+          
+          double x1 = 0.0, z1 = 0.0, x2 = 0.0, z2 = 0.0;
+          switch (sideId) {
+            case 'north':
+              x1 = startPos + margin;
+              z1 = 0;
+              x2 = endPos - margin;
+              z2 = 0;
+              break;
+            case 'east':
+              x1 = plotWidth;
+              z1 = startPos + margin;
+              x2 = plotWidth;
+              z2 = endPos - margin;
+              break;
+            case 'south':
+              x1 = startPos + margin;
+              z1 = plotDepth;
+              x2 = endPos - margin;
+              z2 = plotDepth;
+              break;
+            case 'west':
+              x1 = 0;
+              z1 = startPos + margin;
+              x2 = 0;
+              z2 = endPos - margin;
+              break;
+          }
+
           draw3DDimensionLine(
-            x1: x1 + 1.5,
+            x1: x1,
             y1: trussHeight + 0.8,
-            z1: 0,
-            x2: x2 - 1.5,
+            z1: z1,
+            x2: x2,
             y2: trussHeight + 0.8,
-            z2: 0,
+            z2: z2,
             text: spanText,
             lineColor: const Color(0xFF38BDF8),
             badgeBg: const Color(0xDD0F172A),

@@ -5,16 +5,19 @@ import '../../domain/models/flooring_calculation_result.dart';
 import '../../domain/models/flooring_carpet.dart';
 import '../flooring_calculator_controller.dart';
 import '../../../mandap/presentation/widgets/3d/environment/festival_world_environment.dart';
+import 'package:mandap/l10n/app_localizations.dart';
 
 class Flooring3DPainter extends CustomPainter {
   final FlooringCalculationResult result;
   final FlooringCalculatorController controller;
   final double animationProgress;
+  final AppLocalizations? l10n;
 
   Flooring3DPainter({
     required this.result,
     required this.controller,
     this.animationProgress = 1.0,
+    this.l10n,
   }) : super(repaint: controller);
 
   @override
@@ -581,10 +584,12 @@ class Flooring3DPainter extends CustomPainter {
         // 3. 3D In-Model Overhang Badge
         if (cutMid != null) {
           final extraText = excessL % 1 == 0 ? excessL.toStringAsFixed(0) : excessL.toStringAsFixed(1);
+          final plotLimitStr = l10n?.plotLimit ?? 'Plot Limit';
+          final extraStr = l10n?.extra ?? 'Extra';
           drawCalloutBadge(
             center: Offset(cutMid.dx, cutMid.dy - 18),
-            title: 'Plot Limit: ${pl.toInt()} ft',
-            subtitle: '⚠ $extraText ft Extra ($extraSqFt sq ft)',
+            title: '$plotLimitStr: ${pl.toInt()} ft',
+            subtitle: '⚠ $extraText ft $extraStr ($extraSqFt sq ft)',
           );
         }
       }
@@ -647,10 +652,12 @@ class Flooring3DPainter extends CustomPainter {
 
         if (wCutMid != null) {
           final extraTextW = excessW % 1 == 0 ? excessW.toStringAsFixed(0) : excessW.toStringAsFixed(1);
+          final plotLimitStr = l10n?.plotLimit ?? 'Plot Limit';
+          final extraStr = l10n?.extra ?? 'Extra';
           drawCalloutBadge(
             center: Offset(wCutMid.dx, wCutMid.dy - 18),
-            title: 'Plot Limit: ${pw.toInt()} ft',
-            subtitle: '⚠ $extraTextW ft Extra ($extraSqFt sq ft)',
+            title: '$plotLimitStr: ${pw.toInt()} ft',
+            subtitle: '⚠ $extraTextW ft $extraStr ($extraSqFt sq ft)',
           );
         }
       }
@@ -661,6 +668,7 @@ class Flooring3DPainter extends CustomPainter {
   bool shouldRepaint(covariant Flooring3DPainter oldDelegate) {
     return oldDelegate.result != result ||
         oldDelegate.controller != controller ||
-        oldDelegate.animationProgress != animationProgress;
+        oldDelegate.animationProgress != animationProgress ||
+        oldDelegate.l10n != l10n;
   }
 }

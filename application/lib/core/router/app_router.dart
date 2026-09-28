@@ -257,14 +257,17 @@ class AppRouter {
           builder: (context, state) {
             final projectId = state.uri.queryParameters['projectId'] ?? 'new';
             final trussSizeStr = state.uri.queryParameters['trussSize'];
+            final calcSizeStr = state.uri.queryParameters['calcSize'];
             final widthStr = state.uri.queryParameters['width'];
             final lengthStr = state.uri.queryParameters['length'];
             final trussSize = trussSizeStr != null ? double.tryParse(trussSizeStr) : null;
+            final calcSize = calcSizeStr != null ? double.tryParse(calcSizeStr) : null;
             final width = widthStr != null ? double.tryParse(widthStr) : null;
             final length = lengthStr != null ? double.tryParse(lengthStr) : null;
             return MandapEditorScreen(
               projectId: projectId ?? 'new',
               initialTrussSize: trussSize,
+              initialCalculationUnitSize: calcSize,
               initialPlotWidth: width,
               initialPlotLength: length,
             );

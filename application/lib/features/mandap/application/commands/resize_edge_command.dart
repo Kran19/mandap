@@ -50,7 +50,7 @@ class ResizeEdgeCommand implements MandapCommand {
     final dz = targetZ - fromZ;
 
     for (final node in layout.nodes.values) {
-      if (node.id != movingNodeId) {
+      if (node.id != movingNodeId && node.structureId == currentNode.structureId) {
         if ((node.x - fromX).abs() < 1e-4 && dx.abs() > 1e-4) {
           updatedNodes[node.id] = node.copyWith(x: node.x + dx);
         }

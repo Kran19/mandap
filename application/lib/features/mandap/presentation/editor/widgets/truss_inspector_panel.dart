@@ -44,8 +44,9 @@ class TrussInspectorPanel extends StatelessWidget {
             .where((n) => n.support == NodeSupport.pole)
             .length;
 
-        final materialPieces = (totalFt / (currentTrussFt > 0 ? currentTrussFt : 30.0) * (currentTrussFt == 30.0 ? 1.2 : 1.0)).round();
-        final effectiveMaterialPieces = materialPieces > 0 ? materialPieces : 16;
+        final effectiveMaterialPieces = controller.totalPiecesRequired > 0
+            ? controller.totalPiecesRequired
+            : ((totalFt / (currentTrussFt > 0 ? currentTrussFt : 30.0) * (currentTrussFt == 30.0 ? 1.2 : 1.0)).round());
 
         return Container(
           width: 320,

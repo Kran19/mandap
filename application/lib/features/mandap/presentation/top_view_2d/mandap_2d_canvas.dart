@@ -79,7 +79,7 @@ class _Mandap2DCanvasState extends State<Mandap2DCanvas> {
         );
         
         if (hit < 0.3) { // 0.3 feet tolerance
-          widget.controller.selectEdge(edge.id);
+          widget.controller.selectEdge(edge.id, worldX: worldPos.dx, worldZ: worldPos.dy);
           widget.controller.deselectBay();
           return;
         }
@@ -188,6 +188,7 @@ class _Mandap2DCanvasState extends State<Mandap2DCanvas> {
                 selectedEdgeId: widget.controller.selectedEdgeId,
                 bays: widget.controller.bays,
                 selectedBayId: widget.controller.selectedBayId,
+                showMarkings: widget.controller.showMarkings,
               ),
             ),
           ),

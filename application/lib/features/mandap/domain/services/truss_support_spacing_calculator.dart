@@ -64,6 +64,10 @@ class TrussSupportSpacingCalculator {
       throw ArgumentError('interval must be a positive finite number: $interval');
     }
 
+    if (totalLength <= 40.0 + epsilon) {
+      return List.unmodifiable([0.0, totalLength]);
+    }
+
     final positions = <double>[0.0];
     var current = interval;
 

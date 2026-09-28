@@ -36,6 +36,7 @@ class Mandap2DInteractivePainter extends CustomPainter {
   final String? selectedBayId;
   final double plotWidth;
   final double plotDepth;
+  final bool showMarkings;
 
   /// Current snap position to render as a cursor dot (world coords), or null.
   final ({double x, double z})? snapCursor;
@@ -62,6 +63,7 @@ class Mandap2DInteractivePainter extends CustomPainter {
     required this.gridSettings,
     this.plotWidth = 100.0,
     this.plotDepth = 100.0,
+    this.showMarkings = true,
   });
 
   // Paints
@@ -144,10 +146,10 @@ class Mandap2DInteractivePainter extends CustomPainter {
     _drawCenterDot(canvas);
 
     // 7. Stage-Type Architectural CAD Dimension Lines & Badges
-    _drawStageTypeDimensionLines(canvas);
+    if (showMarkings) _drawStageTypeDimensionLines(canvas);
 
     // 8. Box Size Badges (00/00) in all created/detected bays
-    _drawBayBoxSizeBadges(canvas);
+    if (showMarkings) _drawBayBoxSizeBadges(canvas);
 
     // 9. Snap cursor if active
     if (snapCursor != null) _drawSnapCursor(canvas);
@@ -539,13 +541,14 @@ class Mandap2DInteractivePainter extends CustomPainter {
   }
 
   void _drawBayBoxSizeBadges(Canvas canvas) {
+    if (!showMarkings) return;
     final effectiveBays = bays.isNotEmpty ? bays : const TrussBayDetector().detectBays(layout);
     for (final bay in effectiveBays) {
       final centerScreen = transform.worldToScreen(bay.centerX, bay.centerZ);
       final isSelected = bay.id == selectedBayId;
 
-      final w = bay.widthFt.toInt().toString().padLeft(2, '0');
-      final l = bay.lengthFt.toInt().toString().padLeft(2, '0');
+      final w = bay.widthFt % 1 == 0 ? bay.widthFt.toInt().toString() : bay.widthFt.toStringAsFixed(1);
+      final l = bay.lengthFt % 1 == 0 ? bay.lengthFt.toInt().toString() : bay.lengthFt.toStringAsFixed(1);
       final text = '$w/$l';
 
       final tp = TextPainter(
@@ -599,6 +602,7 @@ class Mandap2DInteractivePainter extends CustomPainter {
         oldDelegate.selectedNodeId != selectedNodeId ||
         oldDelegate.selectedBayId != selectedBayId ||
         oldDelegate.bays != bays ||
-        oldDelegate.snapCursor != snapCursor;
+        oldDelegate.snapCursor != snapCursor ||
+        oldDelegate.showMarkings != showMarkings;
   }
 }

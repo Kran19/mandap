@@ -591,13 +591,14 @@ class _ModuleSelectionScreenState extends State<ModuleSelectionScreen> {
           'width': params.plotWidth,
           'length': params.plotLength,
           'trussSize': params.trussSize,
+          'calcSize': params.calculationUnitSize,
         },
       ),
     );
 
     if (context.mounted) {
       await context.push(
-        '/editor?projectId=$projectId&trussSize=${params.trussSize}&width=${params.plotWidth}&length=${params.plotLength}',
+        '/editor?projectId=$projectId&trussSize=${params.trussSize}&calcSize=${params.calculationUnitSize}&width=${params.plotWidth}&length=${params.plotLength}',
       );
       if (mounted) setState(() => _projectsKey = UniqueKey());
     }

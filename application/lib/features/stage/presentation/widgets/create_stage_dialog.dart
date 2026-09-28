@@ -93,10 +93,12 @@ class _CreateStageDialogState extends State<CreateStageDialog> {
       final savedTableWidth = prefs.getDouble('stage_last_table_width');
 
       if (savedLength != null && savedWidth != null && savedLength > 0 && savedWidth > 0 && mounted) {
-        final slStr = savedLength.toStringAsFixed(0);
-        final swStr = savedWidth.toStringAsFixed(0);
-        final tlStr = (savedTableLength ?? widget.initialTableLength).toStringAsFixed(0);
-        final twStr = (savedTableWidth ?? widget.initialTableWidth).toStringAsFixed(0);
+        final slStr = savedLength == savedLength.roundToDouble() ? savedLength.toInt().toString() : savedLength.toString();
+        final swStr = savedWidth == savedWidth.roundToDouble() ? savedWidth.toInt().toString() : savedWidth.toString();
+        final tl = savedTableLength ?? widget.initialTableLength;
+        final tw = savedTableWidth ?? widget.initialTableWidth;
+        final tlStr = tl == tl.roundToDouble() ? tl.toInt().toString() : tl.toString();
+        final twStr = tw == tw.roundToDouble() ? tw.toInt().toString() : tw.toString();
 
         setState(() {
           _stageSizeController.text = '$slStr / $swStr';
@@ -113,12 +115,20 @@ class _CreateStageDialogState extends State<CreateStageDialog> {
     super.dispose();
   }
 
-  /// Parses inputs formatted as "32 / 20", "32 x 20", "32*20", "32, 20", or "32".
+  /// Parses inputs formatted as "32 / 20", "32 x 20", "32*20", "32, 20", "32 ft", or single number "32".
   ({double length, double width})? _parseDimensions(String raw) {
-    final clean = raw.trim().toLowerCase();
+    final clean = raw
+        .trim()
+        .toLowerCase()
+        .replaceAll("'", '')
+        .replaceAll('"', '')
+        .replaceAll('ft', '')
+        .replaceAll('feet', '')
+        .replaceAll('m', '')
+        .trim();
     if (clean.isEmpty) return null;
 
-    final parts = clean.split(RegExp(r'[/x,*\s]+')).where((p) => p.isNotEmpty).toList();
+    final parts = clean.split(RegExp(r'[/x,*\s\-]+')).where((p) => p.isNotEmpty).toList();
     if (parts.length == 1) {
       final val = double.tryParse(parts[0]);
       if (val != null && val.isFinite && val > 0) {
@@ -158,12 +168,12 @@ class _CreateStageDialogState extends State<CreateStageDialog> {
     }
   }
 
-  void _handleGenerate() {
+  Future<void> _handleGenerate() async {
     final stageSize = _parseDimensions(_stageSizeController.text);
     final tableSize = _parseDimensions(_tableSizeController.text) ?? (length: 4.0, width: 8.0);
 
     if (stageSize == null) {
-      setState(() => _errorMessage = 'Please enter a valid Stage Size (e.g. 32 / 20 or 30 x 20 ft).');
+      setState(() => _errorMessage = 'Please enter a valid Stage Size (e.g. 32 / 20 or 30 x 20 ft or 40).');
       return;
     }
 
@@ -176,13 +186,14 @@ class _CreateStageDialogState extends State<CreateStageDialog> {
 
     // Persist user-entered values immediately
     try {
-      SharedPreferences.getInstance().then((prefs) {
-        prefs.setDouble('stage_last_length', stageSize.length);
-        prefs.setDouble('stage_last_width', stageSize.width);
-        prefs.setDouble('stage_last_table_length', tableSize.length);
-        prefs.setDouble('stage_last_table_width', tableSize.width);
-      });
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble('stage_last_length', stageSize.length);
+      await prefs.setDouble('stage_last_width', stageSize.width);
+      await prefs.setDouble('stage_last_table_length', tableSize.length);
+      await prefs.setDouble('stage_last_table_width', tableSize.width);
     } catch (_) {}
+
+    if (!mounted) return;
 
     Navigator.of(context).pop(
       StageConfigurationParams(

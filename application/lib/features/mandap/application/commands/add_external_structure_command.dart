@@ -114,6 +114,16 @@ class AddExternalStructureCommand implements MandapCommand {
     MandapNode findOrCreateNode(double x, double z, NodeType role, NodeSupport support) {
       for (final existing in current.nodes.values) {
         if ((existing.x - x).abs() < 0.01 && (existing.z - z).abs() < 0.01) {
+          if (!existing.hasPole && support == NodeSupport.pole) {
+            final updated = existing.copyWith(
+              support: NodeSupport.pole,
+              type: existing.type == NodeType.carpet || existing.type == NodeType.stage
+                  ? existing.type
+                  : role,
+            );
+            current = current.withNode(updated);
+            return updated;
+          }
           return existing;
         }
       }

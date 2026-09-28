@@ -108,6 +108,21 @@ class MandapEditorController extends ChangeNotifier {
   double _standardTrussPieceSize = 30.0;
   double get standardTrussPieceSize => _standardTrussPieceSize;
 
+  bool _showMarkings = true;
+  bool get showMarkings => _showMarkings;
+
+  void toggleShowMarkings() {
+    _showMarkings = !_showMarkings;
+    notifyListeners();
+  }
+
+  void setShowMarkings(bool value) {
+    if (_showMarkings != value) {
+      _showMarkings = value;
+      notifyListeners();
+    }
+  }
+
   /// Active structural analysis report reflecting live support and connectivity.
   StructuralAnalysisReport get structuralReport =>
       result.structuralReport ??
@@ -254,48 +269,18 @@ class MandapEditorController extends ChangeNotifier {
       final wallNodes = layout.nodes.values
           .where((n) => n.id != endNode.id && (n.x - endNode.x).abs() < 0.5)
           .toList();
-      if (wallNodes.length > 1) {
-        for (final wn in wallNodes) {
-          additionalOld[wn.id] = v64.Vector3(wn.x, wn.elevation, wn.z);
-          additionalNew[wn.id] = v64.Vector3(wn.x + shiftX, wn.elevation, wn.z);
-        }
-        if (newX > plotWidth) plotWidth = newX;
-      } else {
-        for (final candidate in layout.nodes.values) {
-          if (candidate.id != endNode.id &&
-              candidate.id != startNode.id &&
-              (candidate.x - endNode.x).abs() < 0.5 &&
-              (candidate.z - endNode.z).abs() > 5.0) {
-            parallelNodeId = candidate.id;
-            oldParallelPos = v64.Vector3(candidate.x, candidate.elevation, candidate.z);
-            newParallelPos = v64.Vector3(newX, candidate.elevation, candidate.z);
-            break;
-          }
-        }
+      for (final wn in wallNodes) {
+        additionalOld[wn.id] = v64.Vector3(wn.x, wn.elevation, wn.z);
+        additionalNew[wn.id] = v64.Vector3(wn.x + shiftX, wn.elevation, wn.z);
       }
     } else if (isAlongZ) {
       final shiftZ = newZ - endNode.z;
       final wallNodes = layout.nodes.values
           .where((n) => n.id != endNode.id && (n.z - endNode.z).abs() < 0.5)
           .toList();
-      if (wallNodes.length > 1) {
-        for (final wn in wallNodes) {
-          additionalOld[wn.id] = v64.Vector3(wn.x, wn.elevation, wn.z);
-          additionalNew[wn.id] = v64.Vector3(wn.x, wn.elevation, wn.z + shiftZ);
-        }
-        if (newZ > plotDepth) plotDepth = newZ;
-      } else {
-        for (final candidate in layout.nodes.values) {
-          if (candidate.id != endNode.id &&
-              candidate.id != startNode.id &&
-              (candidate.z - endNode.z).abs() < 0.5 &&
-              (candidate.x - endNode.x).abs() > 5.0) {
-            parallelNodeId = candidate.id;
-            oldParallelPos = v64.Vector3(candidate.x, candidate.elevation, candidate.z);
-            newParallelPos = v64.Vector3(candidate.x, candidate.elevation, newZ);
-            break;
-          }
-        }
+      for (final wn in wallNodes) {
+        additionalOld[wn.id] = v64.Vector3(wn.x, wn.elevation, wn.z);
+        additionalNew[wn.id] = v64.Vector3(wn.x, wn.elevation, wn.z + shiftZ);
       }
     }
 
@@ -313,7 +298,84 @@ class MandapEditorController extends ChangeNotifier {
       oldLength: currentLen,
       newLength: newLengthFt,
     ));
+
+    // Merge collinear degree-2 nodes so edges <= 40ft stay direct single edges
+    mergeCollinearDegree2Nodes();
     return true;
+  }
+
+  void mergeCollinearDegree2Nodes() {
+    bool mergedAny = false;
+
+    for (final node in layout.nodes.values.toList()) {
+      if (node.isControlPoint || node.type == NodeType.controlPoint) continue;
+
+      final connectedEdges = layout.edges.values
+          .where((e) => e.startNodeId == node.id || e.endNodeId == node.id)
+          .toList();
+
+      if (connectedEdges.length == 2) {
+        final e1 = connectedEdges[0];
+        final e2 = connectedEdges[1];
+
+        final other1Id = e1.startNodeId == node.id ? e1.endNodeId : e1.startNodeId;
+        final other2Id = e2.startNodeId == node.id ? e2.endNodeId : e2.startNodeId;
+
+        final n1 = layout.getNode(other1Id);
+        final n2 = layout.getNode(other2Id);
+
+        if (n1 != null && n2 != null && other1Id != other2Id) {
+          final v1x = node.x - n1.x;
+          final v1z = node.z - n1.z;
+          final v2x = n2.x - node.x;
+          final v2z = n2.z - node.z;
+
+          final cross = (v1x * v2z - v1z * v2x).abs();
+          final dot = v1x * v2x + v1z * v2z;
+
+          if (cross < 0.1 && dot > 0) {
+            final len1 = math.sqrt(v1x * v1x + v1z * v1z);
+            final len2 = math.sqrt(v2x * v2x + v2z * v2z);
+            final totalLen = len1 + len2;
+
+            if (totalLen <= 40.0 + 0.05) {
+              final mergedEdge = MandapEdge(
+                id: EdgeId('e_mrg_${n1.id.value}_${n2.id.value}_${DateTime.now().microsecondsSinceEpoch}'),
+                startNodeId: n1.id,
+                endNodeId: n2.id,
+                role: e1.role,
+                profile: e1.profile,
+              );
+
+              final newEdges = Map<EdgeId, MandapEdge>.from(layout.edges);
+              newEdges.remove(e1.id);
+              newEdges.remove(e2.id);
+              newEdges[mergedEdge.id] = mergedEdge;
+
+              final newNodes = Map<NodeId, MandapNode>.from(layout.nodes);
+              newNodes.remove(node.id);
+
+              layout = MandapLayout(
+                nodes: newNodes,
+                edges: newEdges,
+                zones: layout.zones,
+              );
+
+              if (selectedEdgeId == e1.id || selectedEdgeId == e2.id) {
+                selectedEdgeId = mergedEdge.id;
+              }
+
+              mergedAny = true;
+            }
+          }
+        }
+      }
+    }
+
+    if (mergedAny) {
+      _recalculate();
+      notifyListeners();
+    }
   }
 
   int _nodeSequence = 0;
@@ -342,6 +404,7 @@ class MandapEditorController extends ChangeNotifier {
       return node.id;
     } else if (x != null && z != null) {
       final id = NodeId('n_${DateTime.now().microsecondsSinceEpoch}_${_nodeSequence++}');
+      final effSupport = support ?? ((type == NodeType.carpet || type == NodeType.stage) ? NodeSupport.none : NodeSupport.pole);
       executeCommand(AddNodeCommand(node: MandapNode(
         id: id,
         x: x,
@@ -349,7 +412,7 @@ class MandapEditorController extends ChangeNotifier {
         type: type ?? NodeType.corner,
         elevation: elevation ?? 0.0,
         height: elevation ?? 0.0,
-        support: support ?? (type == NodeType.pole ? NodeSupport.pole : NodeSupport.none),
+        support: effSupport,
       )));
       return id;
     }
@@ -445,6 +508,14 @@ class MandapEditorController extends ChangeNotifier {
       poleZ = (start.z + end.z) / 2.0;
     }
 
+    // Align snap to matching X/Z coordinates of existing poles in layout
+    for (final node in layout.nodes.values) {
+      if (!node.isControlPoint) {
+        if ((node.x - poleX).abs() <= 3.0) poleX = node.x;
+        if ((node.z - poleZ).abs() <= 3.0) poleZ = node.z;
+      }
+    }
+
     final poleElev = elevation ?? (start.elevation > 0 ? start.elevation : mandapHeight);
     final poleNodeId = NodeId('pole_${DateTime.now().microsecondsSinceEpoch}_${_nodeSequence++}');
 
@@ -492,6 +563,8 @@ class MandapEditorController extends ChangeNotifier {
     required double targetVal,
     required double startVal,
   }) {
+    final step = subGridSize > 0 ? subGridSize : (standardTrussPieceSize > 0 ? standardTrussPieceSize : 5.0);
+
     final candidates = <double>{
       0.0,
       axis == 'X' ? plotWidth : plotDepth,
@@ -521,25 +594,130 @@ class MandapEditorController extends ChangeNotifier {
       }
     }
 
-    double bestVal = targetVal;
+    double? bestCandidate;
     double minDiff = double.infinity;
     for (final c in candidates) {
       if ((c - startVal).abs() > 0.01) {
         final diff = (c - targetVal).abs();
-        if (diff < minDiff) {
+        if (diff <= 6.0 && diff < minDiff) {
           minDiff = diff;
-          bestVal = c;
+          bestCandidate = c;
         }
       }
     }
 
-    if (minDiff > 25.0) {
-      final signedDelta = targetVal - startVal;
-      final snapped = (signedDelta / 10.0).round() * 10.0;
-      final eff = (snapped.abs() < 0.001) ? ((signedDelta / 0.5).round() * 0.5) : snapped;
-      bestVal = startVal + eff;
+    if (bestCandidate != null) {
+      return bestCandidate;
     }
-    return bestVal;
+
+    final signedDelta = targetVal - startVal;
+    int units = (signedDelta / step).round();
+    if (units == 0) {
+      units = signedDelta >= 0 ? 1 : -1;
+    }
+    return startVal + units * step;
+  }
+
+  void addOrSubdivideEdge(
+    NodeId startNodeId,
+    NodeId endNodeId, {
+    TrussMemberRole role = TrussMemberRole.upper,
+    EdgeProfile profile = EdgeProfile.box,
+  }) {
+    final startNode = layout.getNode(startNodeId);
+    final endNode = layout.getNode(endNodeId);
+    if (startNode == null || endNode == null) return;
+
+    final isPillar = (startNode.x == endNode.x) && (startNode.z == endNode.z) && (startNode.elevation != endNode.elevation);
+    if (isPillar) {
+      final newEdge = MandapEdge(
+        id: EdgeId('custom_edge_${DateTime.now().millisecondsSinceEpoch}'),
+        startNodeId: startNodeId,
+        endNodeId: endNodeId,
+        role: TrussMemberRole.tower,
+        profile: profile,
+      );
+      executeCommand(CreateTrussMemberCommand(newEdge: newEdge));
+      return;
+    }
+
+    final dx = endNode.x - startNode.x;
+    final dz = endNode.z - startNode.z;
+    final length = math.sqrt(dx * dx + dz * dz);
+    if (length < 0.05) return;
+
+    final step = subGridSize > 0 ? subGridSize : (standardTrussPieceSize > 0 ? standardTrussPieceSize : 30.0);
+
+    final nodePoints = <({double t, NodeId id})>[
+      (t: 0.0, id: startNodeId),
+      (t: 1.0, id: endNodeId),
+    ];
+
+    for (final node in layout.nodes.values) {
+      if (node.id == startNodeId || node.id == endNodeId || node.isControlPoint) continue;
+      final px = node.x - startNode.x;
+      final pz = node.z - startNode.z;
+      final dot = (dx.abs() >= dz.abs()) ? (dx != 0 ? px / dx : 0.0) : (dz != 0 ? pz / dz : 0.0);
+      if (dot > 0.01 && dot < 0.99) {
+        final projX = startNode.x + dot * dx;
+        final projZ = startNode.z + dot * dz;
+        final distSq = (node.x - projX) * (node.x - projX) + (node.z - projZ) * (node.z - projZ);
+        if (distSq < 0.25) {
+          nodePoints.add((t: dot, id: node.id));
+        }
+      }
+    }
+
+    if (length > 40.0 + 0.05) {
+      double acc = 0.0;
+      final maxSpan = (step > 0 && step <= 40.0) ? step : 40.0;
+      while (length - acc > 40.0 + 0.05) {
+        final currentSpan = (acc == 0) ? maxSpan : 40.0;
+        acc += currentSpan;
+        final t = (acc / length).clamp(0.01, 0.99);
+        final subX = startNode.x + t * dx;
+        final subZ = startNode.z + t * dz;
+        final subNodeId = getOrCreateNodeAt(subX, subZ, elevation: startNode.elevation, support: NodeSupport.pole);
+        if (!nodePoints.any((item) => item.id == subNodeId)) {
+          nodePoints.add((t: t, id: subNodeId));
+        }
+      }
+    }
+
+    nodePoints.sort((a, b) => a.t.compareTo(b.t));
+
+    final uniqueNodes = <NodeId>[];
+    for (final item in nodePoints) {
+      if (uniqueNodes.isEmpty || uniqueNodes.last != item.id) {
+        uniqueNodes.add(item.id);
+      }
+    }
+
+    for (int i = 0; i < uniqueNodes.length - 1; i++) {
+      final sId = uniqueNodes[i];
+      final eId = uniqueNodes[i + 1];
+      if (sId == eId) continue;
+
+      bool exists = false;
+      for (final existingEdge in layout.edges.values) {
+        if ((existingEdge.startNodeId == sId && existingEdge.endNodeId == eId) ||
+            (existingEdge.startNodeId == eId && existingEdge.endNodeId == sId)) {
+          exists = true;
+          break;
+        }
+      }
+
+      if (!exists) {
+        final newEdge = MandapEdge(
+          id: EdgeId('e_sub_${DateTime.now().microsecondsSinceEpoch}_$i'),
+          startNodeId: sId,
+          endNodeId: eId,
+          role: role,
+          profile: profile,
+        );
+        executeCommand(CreateTrussMemberCommand(newEdge: newEdge));
+      }
+    }
   }
 
   /// Creates a truss member connecting two nodes or from pen points.
@@ -554,15 +732,22 @@ class MandapEditorController extends ChangeNotifier {
     EdgeProfile profile = EdgeProfile.box,
   }) {
     if (startNodeId != null && endNodeId != null) {
-      final eId = edgeId ?? EdgeId('custom_edge_${DateTime.now().millisecondsSinceEpoch}');
-      final edge = MandapEdge(
-        id: eId,
-        startNodeId: startNodeId,
-        endNodeId: endNodeId,
-        role: role,
-        profile: profile,
-      );
-      executeCommand(CreateTrussMemberCommand(newEdge: edge));
+      NodeId effectiveEndNodeId = endNodeId;
+      final startNode = layout.getNode(startNodeId);
+      final endNode = layout.getNode(endNodeId);
+      if (startNode != null && endNode != null) {
+        final isPillar = (startNode.x == endNode.x) && (startNode.z == endNode.z) && (startNode.elevation != endNode.elevation);
+        if (!isPillar) {
+          final dx = (endNode.x - startNode.x).abs();
+          final dz = (endNode.z - startNode.z).abs();
+          if (dx > 0.05 && dz > 0.05) {
+            final targetX = (dx >= dz) ? endNode.x : startNode.x;
+            final targetZ = (dx >= dz) ? startNode.z : endNode.z;
+            effectiveEndNodeId = getOrCreateNodeAt(targetX, targetZ, elevation: startNode.elevation);
+          }
+        }
+      }
+      addOrSubdivideEdge(startNodeId, effectiveEndNodeId, role: role, profile: profile);
       return true;
     }
 
@@ -574,14 +759,17 @@ class MandapEditorController extends ChangeNotifier {
       final startNode = layout.getNode(penStartNodeId!)!;
       final endNode = layout.getNode(targetEndNodeId)!;
       final isPillar = (startNode.x == endNode.x) && (startNode.z == endNode.z) && (startNode.elevation != endNode.elevation);
-      final newEdge = MandapEdge(
-        id: newEdgeId,
-        startNodeId: penStartNodeId!,
-        endNodeId: targetEndNodeId,
-        role: isPillar ? TrussMemberRole.tower : role,
-        profile: profile,
-      );
-      executeCommand(CreateTrussMemberCommand(newEdge: newEdge));
+      NodeId effectiveEndNodeId = targetEndNodeId;
+      if (!isPillar) {
+        final dx = (endNode.x - startNode.x).abs();
+        final dz = (endNode.z - startNode.z).abs();
+        if (dx > 0.05 && dz > 0.05) {
+          final targetX = (dx >= dz) ? endNode.x : startNode.x;
+          final targetZ = (dx >= dz) ? startNode.z : endNode.z;
+          effectiveEndNodeId = getOrCreateNodeAt(targetX, targetZ, elevation: startNode.elevation);
+        }
+      }
+      addOrSubdivideEdge(penStartNodeId!, effectiveEndNodeId, role: isPillar ? TrussMemberRole.tower : role, profile: profile);
       cancelPenDrawing();
       return true;
     }
@@ -777,29 +965,64 @@ class MandapEditorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Total pieces of standard truss required (e.g. 90 ft / 30 ft piece = 3 pcs).
+  double _trussCalculationUnitSize = 10.0;
+  double get trussCalculationUnitSize => _trussCalculationUnitSize;
+
+  /// Total pieces of truss required calculated based on standard truss piece size (or user calculation unit size).
   int get totalPiecesRequired {
-    if (_standardTrussPieceSize <= 0) return 0;
     final totalFt = totalLinearTrussFt;
     if (totalFt <= 0) return 0;
-    return (totalFt / _standardTrussPieceSize).ceil();
+    final unit = _standardTrussPieceSize > 0
+        ? _standardTrussPieceSize
+        : (_trussCalculationUnitSize > 0 ? _trussCalculationUnitSize : 10.0);
+    return (totalFt / unit).ceil();
   }
 
-  /// Sets the standard stock truss piece size (e.g. 30 ft), rebuilds catalog and recalculates BOM.
+  /// Total pillar/vertical pieces calculated based on the user-defined unit calculation size.
+  int get pillarPiecesRequired {
+    final ft = pillarTotalFeet;
+    if (ft <= 0) return 0;
+    final unit = _trussCalculationUnitSize > 0 ? _trussCalculationUnitSize : 10.0;
+    return (ft / unit).ceil();
+  }
+
+  /// Total upper/roof pieces calculated based on the user-defined unit calculation size.
+  int get upperPiecesRequired {
+    final ft = upperTotalFeet;
+    if (ft <= 0) return 0;
+    final unit = _trussCalculationUnitSize > 0 ? _trussCalculationUnitSize : 10.0;
+    return (ft / unit).ceil();
+  }
+
+  /// Sets the user-defined truss unit calculation size (e.g., 10ft, 12ft, 15ft, 20ft, 25ft, 30ft, or custom).
+  void setTrussCalculationUnitSize(double sizeInFeet) {
+    if (sizeInFeet <= 0) return;
+    _trussCalculationUnitSize = sizeInFeet;
+    _updateCatalogWithStandardSize();
+    _recalculate();
+    notifyListeners();
+  }
+
+  /// Sets the standard stock truss piece size, rebuilds catalog and recalculates BOM.
   void setStandardTrussPieceSize(double sizeInFeet) {
     if (sizeInFeet <= 0) return;
     _standardTrussPieceSize = sizeInFeet;
+    gridSettings = gridSettings.copyWith(minorSpacing: sizeInFeet);
     _updateCatalogWithStandardSize();
     _recalculate();
     notifyListeners();
   }
 
   void _updateCatalogWithStandardSize() {
-    final maxPieceSize = _standardTrussPieceSize > 0 ? _standardTrussPieceSize : 30.0;
-    final allStandardSizes = [1.0, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 12.0, 15.0, 20.0, 25.0, 30.0, 40.0, 50.0];
-    final sizes = allStandardSizes.where((s) => s <= maxPieceSize).toList();
-    if (!sizes.contains(maxPieceSize)) {
-      sizes.add(maxPieceSize);
+    final maxModularPieceSize = (_trussCalculationUnitSize > 0)
+        ? _trussCalculationUnitSize
+        : ((_standardTrussPieceSize > 0 && _standardTrussPieceSize < 10.0)
+            ? _standardTrussPieceSize
+            : 10.0);
+    final allStandardSizes = [1.0, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 15.0, 20.0, 25.0, 30.0];
+    final sizes = allStandardSizes.where((s) => s <= maxModularPieceSize).toSet().toList();
+    if (!sizes.contains(maxModularPieceSize)) {
+      sizes.add(maxModularPieceSize);
     }
     sizes.sort();
     final types = sizes.map((ft) {
@@ -835,6 +1058,7 @@ class MandapEditorController extends ChangeNotifier {
     double? initialWidth,
     double? initialDepth,
     double? initialTrussSize,
+    double? initialCalculationUnitSize,
     double? initialPoleHeight,
     bool includeTowerEdges = false,
   }) {
@@ -843,6 +1067,9 @@ class MandapEditorController extends ChangeNotifier {
     if (initialPoleHeight != null && initialPoleHeight > 0) mandapHeight = initialPoleHeight;
     if (initialTrussSize != null && initialTrussSize > 0) {
       _standardTrussPieceSize = initialTrussSize;
+    }
+    if (initialCalculationUnitSize != null && initialCalculationUnitSize > 0) {
+      _trussCalculationUnitSize = initialCalculationUnitSize;
     }
     _updateCatalogWithStandardSize();
 
@@ -923,14 +1150,21 @@ class MandapEditorController extends ChangeNotifier {
         n.type == NodeType.corner ||
         n.type == NodeType.pole;
 
-    // A supporting pole must be aligned with the cross arm on each boundary
-    // (within tolerance of the cross line) or at the center.
-    final alignTol = _standardTrussPieceSize > 0 ? (_standardTrussPieceSize / 2.0 + 1.0) : 16.0;
+    // Determine actual bounding box of main layout nodes
+    double minX = 0.0, maxX = plotWidth, minZ = 0.0, maxZ = plotDepth;
+    if (layout.nodes.isNotEmpty) {
+      final elevated = layout.nodes.values.where((n) => isPoleNode(n) && !n.isControlPoint);
+      final pool = elevated.isNotEmpty ? elevated : layout.nodes.values;
+      minX = pool.map((n) => n.x).reduce(math.min);
+      maxX = pool.map((n) => n.x).reduce(math.max);
+      minZ = pool.map((n) => n.z).reduce(math.min);
+      maxZ = pool.map((n) => n.z).reduce(math.max);
+    }
 
-    bool hasForward = false;  // North side (z ~ 0) aligned with cX
-    bool hasBackward = false; // South side (z ~ plotDepth) aligned with cX
-    bool hasLeft = false;     // West side (x ~ 0) aligned with cZ
-    bool hasRight = false;    // East side (x ~ plotWidth) aligned with cZ
+    bool hasForward = false;  // North side (z ~ minZ)
+    bool hasBackward = false; // South side (z ~ maxZ)
+    bool hasLeft = false;     // West side (x ~ minX)
+    bool hasRight = false;    // East side (x ~ maxX)
     bool hasCenterPole = false;
 
     for (final node in layout.nodes.values) {
@@ -942,23 +1176,23 @@ class MandapEditorController extends ChangeNotifier {
         hasCenterPole = true;
       }
 
-      // North side (z ~ 0, must be an intermediate pole, NOT a corner)
-      if ((node.z - 0.0).abs() <= 1.0 && node.x > 1.0 && node.x < (plotWidth - 1.0)) {
+      // North side (z ~ minZ) - accepts any pole/corner on North boundary
+      if ((node.z - minZ).abs() <= 1.5) {
         hasForward = true;
       }
 
-      // South side (z ~ plotDepth, must be an intermediate pole, NOT a corner)
-      if ((node.z - plotDepth).abs() <= 1.0 && node.x > 1.0 && node.x < (plotWidth - 1.0)) {
+      // South side (z ~ maxZ) - accepts any pole/corner on South boundary
+      if ((node.z - maxZ).abs() <= 1.5) {
         hasBackward = true;
       }
 
-      // West side (x ~ 0, must be an intermediate pole, NOT a corner)
-      if ((node.x - 0.0).abs() <= 1.0 && node.z > 1.0 && node.z < (plotDepth - 1.0)) {
+      // West side (x ~ minX) - accepts any pole/corner on West boundary
+      if ((node.x - minX).abs() <= 1.5) {
         hasLeft = true;
       }
 
-      // East side (x ~ plotWidth, must be an intermediate pole, NOT a corner)
-      if ((node.x - plotWidth).abs() <= 1.0 && node.z > 1.0 && node.z < (plotDepth - 1.0)) {
+      // East side (x ~ maxX) - accepts any pole/corner on East boundary
+      if ((node.x - maxX).abs() <= 1.5) {
         hasRight = true;
       }
     }
@@ -986,6 +1220,7 @@ class MandapEditorController extends ChangeNotifier {
         plotWidth: plotWidth,
         plotDepth: plotDepth,
         elevation: mandapHeight > 0 ? mandapHeight : 20.0,
+        preferredPoleSpacing: standardTrussPieceSize > 0 ? standardTrussPieceSize : 30.0,
       ),
     );
   }
@@ -1002,10 +1237,58 @@ class MandapEditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Auto-aligns any misaligned poles in the layout to match existing X and Z grid lines.
+  void alignAllPoles() {
+    if (layout.nodes.isEmpty) return;
+
+    final poleXs = layout.nodes.values
+        .where((n) => !n.isControlPoint && (n.support == NodeSupport.pole || n.type == NodeType.corner || n.type == NodeType.pole))
+        .map((n) => n.x)
+        .toList();
+    final poleZs = layout.nodes.values
+        .where((n) => !n.isControlPoint && (n.support == NodeSupport.pole || n.type == NodeType.corner || n.type == NodeType.pole))
+        .map((n) => n.z)
+        .toList();
+
+    var updatedNodes = Map<NodeId, MandapNode>.from(layout.nodes);
+    bool changed = false;
+
+    for (final entry in layout.nodes.entries) {
+      final n = entry.value;
+      if (n.isControlPoint) continue;
+
+      double newX = n.x;
+      double newZ = n.z;
+
+      for (final px in poleXs) {
+        if (px != n.x && (px - n.x).abs() <= 2.5) {
+          newX = px;
+          break;
+        }
+      }
+      for (final pz in poleZs) {
+        if (pz != n.z && (pz - n.z).abs() <= 2.5) {
+          newZ = pz;
+          break;
+        }
+      }
+
+      if (newX != n.x || newZ != n.z) {
+        updatedNodes[entry.key] = n.copyWith(x: newX, z: newZ);
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      layout = layout.copyWith(nodes: updatedNodes);
+    }
+  }
+
   TrussDisplayNumberingResult _displayNumbering = const TrussDisplayNumberingResult();
   TrussDisplayNumberingResult get displayNumbering => _displayNumbering;
 
   void _recalculate() {
+    alignAllPoles();
     isCustomLayout = history.canUndo;
     _displayNumbering = const TrussDisplayNumberingService().computeNumbering(layout);
     if (isShortageTestMode) {
@@ -1029,7 +1312,43 @@ class MandapEditorController extends ChangeNotifier {
       _bays = const [];
     }
 
+    _updatePlotDimensionsFromLayout();
+
     notifyListeners();
+  }
+
+  /// Dynamically computes and synchronizes plotWidth and plotDepth from outer structural nodes.
+  void _updatePlotDimensionsFromLayout() {
+    if (layout.nodes.isEmpty) return;
+    double minX = double.infinity;
+    double maxX = -double.infinity;
+    double minZ = double.infinity;
+    double maxZ = -double.infinity;
+    bool hasStructuralNode = false;
+
+    for (final node in layout.nodes.values) {
+      if (node.isControlPoint ||
+          node.type == NodeType.controlPoint ||
+          node.id.value.contains('center')) {
+        continue;
+      }
+      hasStructuralNode = true;
+      if (node.x < minX) minX = node.x;
+      if (node.x > maxX) maxX = node.x;
+      if (node.z < minZ) minZ = node.z;
+      if (node.z > maxZ) maxZ = node.z;
+    }
+
+    if (hasStructuralNode) {
+      final spanX = (maxX - minX).abs();
+      final spanZ = (maxZ - minZ).abs();
+      if (spanX >= 5.0) {
+        plotWidth = double.parse(spanX.toStringAsFixed(2));
+      }
+      if (spanZ >= 5.0) {
+        plotDepth = double.parse(spanZ.toStringAsFixed(2));
+      }
+    }
   }
 
   void setMode(EditorMode newMode) {
@@ -1071,11 +1390,40 @@ class MandapEditorController extends ChangeNotifier {
     _recalculate();
   }
 
-  void selectEdge(EdgeId? edgeId) {
-    selectedEdgeId = edgeId;
+  void selectEdge(EdgeId? edgeId, {double? worldX, double? worldZ}) => _selectEdge(edgeId, worldX: worldX, worldZ: worldZ);
+  void selectEdgeAt(EdgeId edgeId, {double? worldX, double? worldZ}) => _selectEdge(edgeId, worldX: worldX, worldZ: worldZ);
+
+  void _selectEdge(EdgeId? edgeId, {double? worldX, double? worldZ}) {
+    if (edgeId == null) {
+      selectedEdgeId = null;
+      selectedNodeId = null;
+      notifyListeners();
+      return;
+    }
+
+    final edge = layout.edges[edgeId];
+    if (edge == null) {
+      selectedEdgeId = edgeId;
+      selectedNodeId = null;
+      notifyListeners();
+      return;
+    }
+
+    if (worldX != null && worldZ != null) {
+      final res = _subdivideEdgeForInteraction(edgeId, worldX: worldX, worldZ: worldZ);
+      if (res.targetedEdge != null) {
+        selectedEdgeId = res.targetedEdge!.id;
+      } else {
+        selectedEdgeId = edgeId;
+      }
+    } else {
+      selectedEdgeId = edgeId;
+    }
+
     selectedNodeId = null;
     notifyListeners();
   }
+
 
   void selectNode(NodeId? nodeId) {
     selectedNodeId = nodeId;
@@ -1191,17 +1539,30 @@ class MandapEditorController extends ChangeNotifier {
   }
 
   NodeId getOrCreateNodeAt(double x, double z, {double? elevation, NodeSupport? support}) {
+    double snappedX = x;
+    double snappedZ = z;
     for (final node in layout.nodes.values) {
-      if ((node.x - x).abs() < 0.25 && (node.z - z).abs() < 0.25) {
+      if (!node.isControlPoint) {
+        if ((node.x - x).abs() <= 2.5) snappedX = node.x;
+        if ((node.z - z).abs() <= 2.5) snappedZ = node.z;
+      }
+    }
+
+    for (final node in layout.nodes.values) {
+      if ((node.x - snappedX).abs() < 0.25 && (node.z - snappedZ).abs() < 0.25) {
+        if (!node.hasPole && (support == NodeSupport.pole || support == null)) {
+          final updated = node.copyWith(support: NodeSupport.pole);
+          layout = layout.withNode(updated);
+        }
         return node.id;
       }
     }
     return addNodeNamed(
-      x: x,
-      z: z,
+      x: snappedX,
+      z: snappedZ,
       type: NodeType.junction,
       elevation: elevation ?? mandapHeight,
-      support: support,
+      support: support ?? NodeSupport.pole,
     )!;
   }
 
@@ -1221,13 +1582,13 @@ class MandapEditorController extends ChangeNotifier {
       return targetNodeId;
     }
 
-    // Check if targetWorldX / targetWorldZ is near an existing node
+    // Check if targetWorldX / targetWorldZ is near ANY existing node (within 5.0 ft)
     MandapNode? closestExistingNode;
     double minNodeDist = double.infinity;
     for (final node in layout.nodes.values) {
       if (node.id != startNode.id && !node.isControlPoint) {
         final dist = math.sqrt(math.pow(node.x - targetWorldX, 2) + math.pow(node.z - targetWorldZ, 2));
-        if (dist <= 6.0 && dist < minNodeDist) {
+        if (dist <= 5.0 && dist < minNodeDist) {
           minNodeDist = dist;
           closestExistingNode = node;
         }
@@ -1239,37 +1600,44 @@ class MandapEditorController extends ChangeNotifier {
       return closestExistingNode.id;
     }
 
-    final dx = targetWorldX - startNode.x;
-    final dz = targetWorldZ - startNode.z;
+    // Alignment snap to existing poles on X/Z axis
+    double snappedX = targetWorldX;
+    double snappedZ = targetWorldZ;
+    for (final node in layout.nodes.values) {
+      if (!node.isControlPoint) {
+        if ((node.x - targetWorldX).abs() <= 3.0) snappedX = node.x;
+        if ((node.z - targetWorldZ).abs() <= 3.0) snappedZ = node.z;
+      }
+    }
+
+    final dx = snappedX - startNode.x;
+    final dz = snappedZ - startNode.z;
     if (dx.abs() < 0.05 && dz.abs() < 0.05) {
       return null;
     }
 
-    final step = standardTrussPieceSize > 0 ? standardTrussPieceSize : 10.0;
+    final step = subGridSize > 0 ? subGridSize : (standardTrussPieceSize > 0 ? standardTrussPieceSize : 25.0);
+    final isHorizontal = dx.abs() >= dz.abs();
     double endX;
     double endZ;
 
-    if (dx.abs() >= dz.abs()) {
-      // Strictly horizontal along X-axis
+    if (isHorizontal) {
       endZ = startNode.z;
-      if ((targetWorldX - plotWidth).abs() <= step) {
+      if ((snappedX - plotWidth).abs() <= step) {
         endX = plotWidth;
-      } else if ((targetWorldX - 0.0).abs() <= step) {
+      } else if ((snappedX - 0.0).abs() <= step) {
         endX = 0.0;
       } else {
-        final units = math.max(1, (dx.abs() / step).round());
-        endX = startNode.x + (dx >= 0 ? 1 : -1) * units * step;
+        endX = snappedX;
       }
     } else {
-      // Strictly vertical along Z-axis
       endX = startNode.x;
-      if ((targetWorldZ - plotDepth).abs() <= step) {
+      if ((snappedZ - plotDepth).abs() <= step) {
         endZ = plotDepth;
-      } else if ((targetWorldZ - 0.0).abs() <= step) {
+      } else if ((snappedZ - 0.0).abs() <= step) {
         endZ = 0.0;
       } else {
-        final units = math.max(1, (dz.abs() / step).round());
-        endZ = startNode.z + (dz >= 0 ? 1 : -1) * units * step;
+        endZ = snappedZ;
       }
     }
 
@@ -1293,15 +1661,24 @@ class MandapEditorController extends ChangeNotifier {
 
         if (startNode != null && endNode != null) {
           final isPillar = (startNode.x == endNode.x) && (startNode.z == endNode.z) && (startNode.elevation != endNode.elevation);
+          NodeId effectiveEndNodeId = tappedNodeId;
 
-          final newEdge = MandapEdge(
-            id: EdgeId('custom_edge_${DateTime.now().millisecondsSinceEpoch}'),
-            startNodeId: pendingEdgeStartNodeId!,
-            endNodeId: tappedNodeId,
+          if (!isPillar) {
+            final dx = (endNode.x - startNode.x).abs();
+            final dz = (endNode.z - startNode.z).abs();
+            if (dx > 0.05 && dz > 0.05) {
+              final targetX = (dx >= dz) ? endNode.x : startNode.x;
+              final targetZ = (dx >= dz) ? startNode.z : endNode.z;
+              effectiveEndNodeId = getOrCreateNodeAt(targetX, targetZ, elevation: startNode.elevation);
+            }
+          }
+
+          addOrSubdivideEdge(
+            pendingEdgeStartNodeId!,
+            effectiveEndNodeId,
             role: isPillar ? TrussMemberRole.tower : TrussMemberRole.upper,
             profile: EdgeProfile.box,
           );
-          executeCommand(CreateTrussMemberCommand(newEdge: newEdge));
         }
         _penState = PenState.idle;
       }
@@ -1526,7 +1903,8 @@ class MandapEditorController extends ChangeNotifier {
   }
 
   void deleteNode(NodeId nodeId) => _deleteNode(nodeId);
-  void deleteEdge(EdgeId edgeId) => _deleteEdge(edgeId);
+  void deleteEdge(EdgeId edgeId, {double? worldX, double? worldZ}) => _deleteEdge(edgeId, worldX: worldX, worldZ: worldZ);
+  void deleteEdgeAt(EdgeId edgeId, {double? worldX, double? worldZ}) => _deleteEdge(edgeId, worldX: worldX, worldZ: worldZ);
 
   void deletePole(PolePlacement pole) {
     NodeId? matchingNodeId;
@@ -1580,7 +1958,6 @@ class MandapEditorController extends ChangeNotifier {
       }
     }
 
-    // Parallel sync: check if there is a matching parallel node on opposing wall
     NodeId? parallelNodeId;
     MandapNode? parallelNodeSnapshot;
     List<MandapEdge>? parallelConnectedEdgeSnapshots;
@@ -1641,9 +2018,167 @@ class MandapEditorController extends ChangeNotifier {
     if (selectedNodeId == nodeId) selectedNodeId = null;
   }
 
-  void _deleteEdge(EdgeId edgeId) {
+  ({List<MandapEdge> createdEdges, MandapEdge? targetedEdge}) _subdivideEdgeForInteraction(
+    EdgeId edgeId, {
+    double? worldX,
+    double? worldZ,
+  }) {
+    final edge = layout.edges[edgeId];
+    if (edge == null) return (createdEdges: [], targetedEdge: null);
+
+    final startNode = layout.getNode(edge.startNodeId);
+    final endNode = layout.getNode(edge.endNodeId);
+    if (startNode == null || endNode == null) return (createdEdges: [edge], targetedEdge: edge);
+
+    final dx = endNode.x - startNode.x;
+    final dz = endNode.z - startNode.z;
+    final length = math.sqrt(dx * dx + dz * dz);
+    if (length < 0.1) return (createdEdges: [edge], targetedEdge: edge);
+
+    final pointsWithT = <({double t, NodeId nodeId})>[
+      (t: 0.0, nodeId: startNode.id),
+      (t: 1.0, nodeId: endNode.id),
+    ];
+
+    // Gather existing intermediate nodes in layout
+    for (final node in layout.nodes.values) {
+      if (node.id == edge.startNodeId || node.id == edge.endNodeId || node.isControlPoint) continue;
+      final px = node.x - startNode.x;
+      final pz = node.z - startNode.z;
+      final dot = (dx.abs() >= dz.abs()) ? (dx != 0 ? px / dx : 0.0) : (dz != 0 ? pz / dz : 0.0);
+      if (dot > 0.01 && dot < 0.99) {
+        final projX = startNode.x + dot * dx;
+        final projZ = startNode.z + dot * dz;
+        final distSq = (node.x - projX) * (node.x - projX) + (node.z - projZ) * (node.z - projZ);
+        if (distSq < 0.25) {
+          pointsWithT.add((t: dot, nodeId: node.id));
+        }
+      }
+    }
+
+    // Gather support poles from result.poles
+    if (result != null) {
+      for (final pole in result.poles) {
+        final px = pole.x - startNode.x;
+        final pz = pole.z - startNode.z;
+        final dot = (dx.abs() >= dz.abs()) ? (dx != 0 ? px / dx : 0.0) : (dz != 0 ? pz / dz : 0.0);
+        if (dot > 0.01 && dot < 0.99) {
+          final projX = startNode.x + dot * dx;
+          final projZ = startNode.z + dot * dz;
+          final distSq = (pole.x - projX) * (pole.x - projX) + (pole.z - projZ) * (pole.z - projZ);
+          if (distSq < 0.25) {
+            final poleNodeId = getOrCreateNodeAt(pole.x, pole.z, elevation: startNode.elevation, support: NodeSupport.pole);
+            if (!pointsWithT.any((p) => (p.t - dot).abs() < 0.001 || p.nodeId == poleNodeId)) {
+              pointsWithT.add((t: dot, nodeId: poleNodeId));
+            }
+          }
+        }
+      }
+    }
+
+    // If edge is long (> 40.0ft) and has no intermediate nodes yet, create 30ft step division nodes
+    if (length > 40.0 + 0.05 && pointsWithT.length == 2) {
+      final step = standardTrussPieceSize > 0 ? standardTrussPieceSize : 30.0;
+      final numSteps = (length / step).round();
+      if (numSteps > 1) {
+        final stepT = 1.0 / numSteps;
+        for (int i = 1; i < numSteps; i++) {
+          final t = i * stepT;
+          final subX = startNode.x + t * dx;
+          final subZ = startNode.z + t * dz;
+          final subNodeId = getOrCreateNodeAt(subX, subZ, elevation: startNode.elevation, support: NodeSupport.pole);
+          if (!pointsWithT.any((p) => (p.t - t).abs() < 0.001 || p.nodeId == subNodeId)) {
+            pointsWithT.add((t: t, nodeId: subNodeId));
+          }
+        }
+      }
+    }
+
+    pointsWithT.sort((a, b) => a.t.compareTo(b.t));
+
+    final uniquePoints = <({double t, NodeId nodeId})>[];
+    for (final p in pointsWithT) {
+      if (uniquePoints.isEmpty || (p.t - uniquePoints.last.t).abs() > 0.005) {
+        uniquePoints.add(p);
+      }
+    }
+
+    if (uniquePoints.length <= 2) {
+      return (createdEdges: [edge], targetedEdge: edge);
+    }
+
+    // Determine target t based on worldX, worldZ
+    double targetT = 0.95;
+    if (worldX != null && worldZ != null) {
+      final px = worldX - startNode.x;
+      final pz = worldZ - startNode.z;
+      targetT = (dx.abs() >= dz.abs()) ? (dx != 0 ? px / dx : 0.0) : (dz != 0 ? pz / dz : 0.0);
+      targetT = targetT.clamp(0.0, 1.0);
+    }
+
+    int targetK = uniquePoints.length - 2;
+    for (int i = 0; i < uniquePoints.length - 1; i++) {
+      if (targetT >= uniquePoints[i].t - 0.01 && targetT <= uniquePoints[i + 1].t + 0.01) {
+        targetK = i;
+        break;
+      }
+    }
+
+    // Delete the original long edge
+    executeCommand(DeleteEdgeCommand(edgeId: edgeId, snapshot: edge));
+
+    final createdEdges = <MandapEdge>[];
+    MandapEdge? targetedEdge;
+
+    for (int i = 0; i < uniquePoints.length - 1; i++) {
+      final sId = uniquePoints[i].nodeId;
+      final eId = uniquePoints[i + 1].nodeId;
+      if (sId == eId) continue;
+
+      final subEdge = MandapEdge(
+        id: EdgeId('e_sub_${DateTime.now().microsecondsSinceEpoch}_${_nodeSequence++}_$i'),
+        startNodeId: sId,
+        endNodeId: eId,
+        role: edge.role,
+        profile: edge.profile,
+      );
+      executeCommand(CreateTrussMemberCommand(newEdge: subEdge));
+      createdEdges.add(subEdge);
+
+      if (i == targetK) {
+        targetedEdge = subEdge;
+      }
+    }
+
+    return (createdEdges: createdEdges, targetedEdge: targetedEdge ?? createdEdges.last);
+  }
+
+  void _deleteEdge(EdgeId edgeId, {double? worldX, double? worldZ}) {
     final edge = layout.edges[edgeId];
     if (edge == null) return;
+
+    if (worldX != null && worldZ != null) {
+      final subResult = _subdivideEdgeForInteraction(edgeId, worldX: worldX, worldZ: worldZ);
+      if (subResult.createdEdges.isNotEmpty) {
+        if (subResult.createdEdges.length == 1) {
+          executeCommand(DeleteEdgeCommand(
+            edgeId: edgeId,
+            snapshot: edge,
+          ));
+        } else if (subResult.targetedEdge != null) {
+          executeCommand(DeleteEdgeCommand(
+            edgeId: subResult.targetedEdge!.id,
+            snapshot: subResult.targetedEdge!,
+          ));
+        }
+
+        if (selectedEdgeId == edgeId || (subResult.targetedEdge != null && selectedEdgeId == subResult.targetedEdge!.id)) {
+          selectedEdgeId = null;
+        }
+        notifyListeners();
+        return;
+      }
+    }
 
     executeCommand(DeleteEdgeCommand(
       edgeId: edgeId,
@@ -1651,6 +2186,7 @@ class MandapEditorController extends ChangeNotifier {
     ));
 
     if (selectedEdgeId == edgeId) selectedEdgeId = null;
+    notifyListeners();
   }
 
   void deleteZone(String zoneId) {

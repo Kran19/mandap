@@ -225,5 +225,11 @@
   "totalFloorArea": "કુલ ફ્લોર વિસ્તાર",
 
   "centerCrossSupportRequired": "સેન્ટર ક્રોસ સપોર્ટ જરૂરી",
-  "centerCrossSupportDesc": "સેન્ટર ક્રોસ બનાવતા પહેલા 4 સપોર્ટિંગ પોલ જરૂરી છે."
+  "centerCrossSupportDesc": "સેન્ટર ક્રોસ બનાવતા પહેલા 4 સપોર્ટિંગ પોલ જરૂરી છે.",
+  "trussCalculationSize": "ટ્રસ ગણતરી સાઇઝ",
+  "ok": "બરાબર",
+  "extra": "વધારાનું",
+  "covered": "કવર કરેલ",
+  "plotLimit": "પ્લોટ મર્યાદા",
+  "box": "બોક્સ"
 }

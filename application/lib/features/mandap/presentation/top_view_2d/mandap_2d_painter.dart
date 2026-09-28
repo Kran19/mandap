@@ -15,6 +15,7 @@ class Mandap2DPainter extends CustomPainter {
   final NodeId? selectedNodeId;
   final List<TrussBay> bays;
   final String? selectedBayId;
+  final bool showMarkings;
 
   Mandap2DPainter({
     required this.layout,
@@ -23,6 +24,7 @@ class Mandap2DPainter extends CustomPainter {
     this.selectedNodeId,
     this.bays = const [],
     this.selectedBayId,
+    this.showMarkings = true,
   });
 
   @override
@@ -78,14 +80,16 @@ class Mandap2DPainter extends CustomPainter {
       if (isSelected) {
         canvas.drawRect(rect, selectedBayPaint);
         canvas.drawRect(rect, selectedBayBorderPaint);
-        final midPoint = Offset((p1.dx + p2.dx) / 2, (p1.dy + p2.dy) / 2);
-        _drawText(
-          canvas,
-          midPoint,
-          '${bay.widthFt.toStringAsFixed(bay.widthFt % 1 == 0 ? 0 : 1)} × ${bay.lengthFt.toStringAsFixed(bay.lengthFt % 1 == 0 ? 0 : 1)} ft',
-          const Color(0xFF00E5FF),
-          isBold: true,
-        );
+        if (showMarkings) {
+          final midPoint = Offset((p1.dx + p2.dx) / 2, (p1.dy + p2.dy) / 2);
+          _drawText(
+            canvas,
+            midPoint,
+            '${bay.widthFt.toStringAsFixed(bay.widthFt % 1 == 0 ? 0 : 1)} × ${bay.lengthFt.toStringAsFixed(bay.lengthFt % 1 == 0 ? 0 : 1)} ft',
+            const Color(0xFF00E5FF),
+            isBold: true,
+          );
+        }
       } else {
         canvas.drawRect(rect, bayBorderPaint);
       }
@@ -115,23 +119,25 @@ class Mandap2DPainter extends CustomPainter {
         canvas.drawLine(p1, p2, isSelected ? selectedEdgePaint : edgePaint);
 
         // Draw Edge Label
-        final len = layout.getEdgeLength(edge);
-        final sol = result.edgeSolutions[edge.id];
-        final pieceStr = sol != null && sol.exactFit
-            ? ' (${sol.pieces.map((p) => p.length.ticks ~/ 2).join("+")})'
-            : '';
-        final trussNumber = edgeNumbers[edge.id];
-        final prefix = trussNumber != null ? '#$trussNumber · ' : '';
-        final labelText = '$prefix${len.toString()}$pieceStr';
+        if (showMarkings) {
+          final len = layout.getEdgeLength(edge);
+          final sol = result.edgeSolutions[edge.id];
+          final pieceStr = sol != null && sol.exactFit
+              ? ' (${sol.pieces.map((p) => p.length.ticks ~/ 2).join("+")})'
+              : '';
+          final trussNumber = edgeNumbers[edge.id];
+          final prefix = trussNumber != null ? '#$trussNumber · ' : '';
+          final labelText = '$prefix${len.toString()}$pieceStr';
 
-        final midPoint = Offset((p1.dx + p2.dx) / 2, (p1.dy + p2.dy) / 2);
-        _drawText(
-          canvas,
-          midPoint,
-          labelText,
-          Colors.black87,
-          isBold: isSelected,
-        );
+          final midPoint = Offset((p1.dx + p2.dx) / 2, (p1.dy + p2.dy) / 2);
+          _drawText(
+            canvas,
+            midPoint,
+            labelText,
+            Colors.black87,
+            isBold: isSelected,
+          );
+        }
       }
     }
 
@@ -169,7 +175,7 @@ class Mandap2DPainter extends CustomPainter {
       );
       
       // Draw elevation label for structural points
-      if (node.elevation > 0) {
+      if (showMarkings && node.elevation > 0) {
         _drawText(
           canvas,
           center + const Offset(0, 12),
@@ -216,5 +222,6 @@ class Mandap2DPainter extends CustomPainter {
       result != oldDelegate.result ||
       selectedEdgeId != oldDelegate.selectedEdgeId ||
       bays != oldDelegate.bays ||
-      selectedBayId != oldDelegate.selectedBayId;
+      selectedBayId != oldDelegate.selectedBayId ||
+      showMarkings != oldDelegate.showMarkings;
 }

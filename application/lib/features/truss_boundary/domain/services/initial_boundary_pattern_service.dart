@@ -50,35 +50,88 @@ class InitialBoundaryPatternService {
     double? customSpan,
     List<double>? customSequence,
   }) {
-    final spanPattern = (customSequence != null && customSequence.isNotEmpty)
-        ? customSequence
-        : _getInitialSectionLengths(size, customSpan: customSpan);
+    final List<double> spans;
+    if (customSequence != null && customSequence.isNotEmpty) {
+      spans = customSequence;
+    } else {
+      final initSpan = customSpan != null && customSpan > 0
+          ? customSpan
+          : size.spanInFeet;
+      spans = computeOptimalSpans(totalLength, initSpan);
+    }
+
     final runs = <BoundaryTrussRun>[];
-    
     double currentPos = 0;
     int index = 0;
-    
-    while (currentPos < totalLength) {
-      double span = spanPattern[index % spanPattern.length];
-      if (currentPos + span > totalLength) {
-        span = totalLength - currentPos;
-      }
-      
+
+    for (final span in spans) {
+      if (currentPos >= totalLength - 0.05) break;
+      final effectiveSpan = (currentPos + span > totalLength)
+          ? (totalLength - currentPos)
+          : span;
+
       runs.add(
         BoundaryTrussRun(
           id: '${sideId}_run_$index',
           startNodeId: '${sideId}_node_$index',
           endNodeId: '${sideId}_node_${index + 1}',
           sideId: sideId,
-          geometricSpan: span,
+          geometricSpan: effectiveSpan,
         ),
       );
-      
-      currentPos += span;
+
+      currentPos += effectiveSpan;
       index++;
     }
 
     return BoundarySide(id: sideId, runs: runs);
+  }
+
+  /// Computes authoritative section spans based on product specifications:
+  /// - Default 30ft pattern for 100ft: [30.0, 30.0, 30.0, 10.0]
+  /// - 40ft length: [40.0] (directly 40ft, NOT 30 + 10)
+  /// - 50ft length: [40.0, 10.0]
+  /// - 60ft length: [30.0, 30.0]
+  /// - 70ft length: [30.0, 30.0, 10.0] (or [40.0, 30.0] if 40ft requested)
+  /// - 80ft length: [30.0, 30.0, 20.0] (or [40.0, 40.0] if 40ft requested)
+  static List<double> computeOptimalSpans(double totalLength, double initialSpan) {
+    if (totalLength <= 0) return const [];
+
+    final lenInt = totalLength.round();
+    if ((totalLength - lenInt).abs() < 0.1) {
+      if (lenInt == 30) return const [30.0];
+      if (lenInt == 40) return const [40.0];
+      if (lenInt == 50) return const [40.0, 10.0];
+      if (lenInt == 60) return const [30.0, 30.0];
+      if (lenInt == 70) {
+        return (initialSpan == 40.0) ? const [40.0, 30.0] : const [30.0, 30.0, 10.0];
+      }
+      if (lenInt == 80) {
+        return (initialSpan == 40.0) ? const [40.0, 40.0] : const [30.0, 30.0, 20.0];
+      }
+      if (lenInt == 90) return const [30.0, 30.0, 30.0];
+      if (lenInt == 100) {
+        return (initialSpan == 40.0) ? const [40.0, 40.0, 20.0] : const [30.0, 30.0, 30.0, 10.0];
+      }
+    }
+
+    final step = (initialSpan == 40.0) ? 40.0 : 30.0;
+    final spans = <double>[];
+    double rem = totalLength;
+
+    while (rem > 0.05) {
+      if (rem <= step) {
+        spans.add(double.parse(rem.toStringAsFixed(1)));
+        break;
+      }
+      if ((rem - 40.0).abs() < 0.1) {
+        spans.add(40.0);
+        break;
+      }
+      spans.add(step);
+      rem -= step;
+    }
+    return spans;
   }
 
   /// Returns the approved cyclic initial pattern for a given [TrussSize] or [customSpan].

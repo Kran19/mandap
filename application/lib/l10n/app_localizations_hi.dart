@@ -649,4 +649,22 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get centerCrossSupportDesc =>
       'सेंटर क्रॉस संरचना बनाने से पहले 4 सपोर्टिंग पेरीमीटर पोल आवश्यक हैं।';
+
+  @override
+  String get trussCalculationSize => 'ट्रस गणना आकार';
+
+  @override
+  String get ok => 'ठीक है';
+
+  @override
+  String get extra => 'अतिरिक्त';
+
+  @override
+  String get covered => 'कवर किया गया';
+
+  @override
+  String get plotLimit => 'प्लॉट सीमा';
+
+  @override
+  String get box => 'बॉक्स';
 }

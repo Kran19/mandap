@@ -225,5 +225,11 @@
   "totalFloorArea": "Total Floor Area",
 
   "centerCrossSupportRequired": "Center Cross Support Required",
-  "centerCrossSupportDesc": "4 supporting perimeter poles are required before creating a center cross structure."
+  "centerCrossSupportDesc": "4 supporting perimeter poles are required before creating a center cross structure.",
+  "trussCalculationSize": "TRUSS CALCULATION SIZE",
+  "ok": "OK",
+  "extra": "Extra",
+  "covered": "Covered",
+  "plotLimit": "Plot Limit",
+  "box": "Box"
 }

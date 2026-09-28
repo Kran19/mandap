@@ -231,14 +231,14 @@ class _StageCalculatorScreenContentState extends State<_StageCalculatorScreenCon
                                 ),
                               ],
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                                SizedBox(width: 6),
+                                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                                const SizedBox(width: 6),
                                 Text(
-                                  'OK',
-                                  style: TextStyle(
+                                  AppLocalizations.of(context)?.ok ?? 'OK',
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w900,
@@ -257,7 +257,7 @@ class _StageCalculatorScreenContentState extends State<_StageCalculatorScreenCon
                       Positioned(
                         left: 14,
                         bottom: 14,
-                        child: _buildBottomStatusChip(controller, result),
+                        child: _buildBottomStatusChip(context, controller, result),
                       ),
 
                     // E. Project Saved Notification Banner
@@ -621,7 +621,7 @@ class _StageCalculatorScreenContentState extends State<_StageCalculatorScreenCon
                         const Icon(Icons.table_restaurant_rounded, color: Colors.white, size: 15),
                         const SizedBox(width: 5),
                         Text(
-                          '${result.totalTables} Tables ($tWidStr×$tLenStr ft)',
+                          '${result.totalTables} ${AppLocalizations.of(context)?.tables ?? "Tables"} ($tWidStr×$tLenStr ft)',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w900,
@@ -657,7 +657,7 @@ class _StageCalculatorScreenContentState extends State<_StageCalculatorScreenCon
                     const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 12),
                     const SizedBox(width: 3),
                     Text(
-                      '$excessValStr ft Extra',
+                      '$excessValStr ft ${AppLocalizations.of(context)?.extra ?? "Extra"}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w900,
@@ -774,7 +774,7 @@ class _StageCalculatorScreenContentState extends State<_StageCalculatorScreenCon
     );
   }
 
-  Widget _buildBottomStatusChip(StageCalculatorController controller, StageCalculationResult result) {
+  Widget _buildBottomStatusChip(BuildContext context, StageCalculatorController controller, StageCalculationResult result) {
     final lenStr = result.stageLength.toStringAsFixed(0);
     final widStr = result.stageWidth.toStringAsFixed(0);
     final cLenStr = result.coveredLength.toStringAsFixed(0);
@@ -848,7 +848,7 @@ class _StageCalculatorScreenContentState extends State<_StageCalculatorScreenCon
                     const Icon(Icons.table_restaurant_rounded, color: Colors.white, size: 14),
                     const SizedBox(width: 4),
                     Text(
-                      '${result.totalTables} tables ($tWidStr×$tLenStr ft)',
+                      '${result.totalTables} ${AppLocalizations.of(context)?.tables ?? "tables"} ($tWidStr×$tLenStr ft)',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 13.5,
@@ -861,7 +861,7 @@ class _StageCalculatorScreenContentState extends State<_StageCalculatorScreenCon
               ),
               const SizedBox(width: 6),
               Text(
-                'Covered: $cLenStr × $cWidStr ft',
+                '${AppLocalizations.of(context)?.covered ?? "Covered"}: $cLenStr × $cWidStr ft',
                 style: const TextStyle(
                   color: Color(0xFF94A3B8),
                   fontSize: 11,
@@ -895,7 +895,7 @@ class _StageCalculatorScreenContentState extends State<_StageCalculatorScreenCon
                 const Icon(Icons.warning_amber_rounded, color: Color(0xFFFBBF24), size: 14),
                 const SizedBox(width: 5),
                 Text(
-                  '+$extraSqFt sq ft Extra Overhang',
+                  '+$extraSqFt sq ft ${AppLocalizations.of(context)?.extra ?? "Extra"} Overhang',
                   style: const TextStyle(
                     color: Color(0xFFFDE68A),
                     fontWeight: FontWeight.bold,

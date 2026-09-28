@@ -182,6 +182,7 @@ class _FlooringCalculatorScreenContentState extends State<_FlooringCalculatorScr
                                           result: result,
                                           controller: controller,
                                           animationProgress: _animProgress.value,
+                                          l10n: AppLocalizations.of(context),
                                         ),
                                       ),
                                     ),
@@ -230,14 +231,14 @@ class _FlooringCalculatorScreenContentState extends State<_FlooringCalculatorScr
                                 ),
                               ],
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                                SizedBox(width: 6),
+                                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                                const SizedBox(width: 6),
                                 Text(
-                                  'OK',
-                                  style: TextStyle(
+                                  AppLocalizations.of(context)?.ok ?? 'OK',
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w900,
@@ -256,7 +257,7 @@ class _FlooringCalculatorScreenContentState extends State<_FlooringCalculatorScr
                       Positioned(
                         left: 14,
                         bottom: 14,
-                        child: _buildBottomStatusChip(controller, result),
+                        child: _buildBottomStatusChip(context, controller, result),
                       ),
 
                     // E. Project Saved Notification Banner
@@ -618,7 +619,7 @@ class _FlooringCalculatorScreenContentState extends State<_FlooringCalculatorScr
                         const Icon(Icons.layers_rounded, color: Color(0xFF00E5FF), size: 15),
                         const SizedBox(width: 5),
                         Text(
-                          '${result.totalCarpets} Carpets',
+                          '${result.totalCarpets} ${AppLocalizations.of(context)?.carpets ?? "Carpets"}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w900,
@@ -654,7 +655,7 @@ class _FlooringCalculatorScreenContentState extends State<_FlooringCalculatorScr
                     const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 12),
                     const SizedBox(width: 3),
                     Text(
-                      '$excessValStr ft Extra',
+                      '$excessValStr ft ${AppLocalizations.of(context)?.extra ?? "Extra"}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w900,
@@ -768,7 +769,7 @@ class _FlooringCalculatorScreenContentState extends State<_FlooringCalculatorScr
     );
   }
 
-  Widget _buildBottomStatusChip(FlooringCalculatorController controller, dynamic result) {
+  Widget _buildBottomStatusChip(BuildContext context, FlooringCalculatorController controller, dynamic result) {
     final lenStr = result.plotLength.toStringAsFixed(0);
     final widStr = result.plotWidth.toStringAsFixed(0);
     final cLenStr = result.coveredLength.toStringAsFixed(0);
@@ -840,7 +841,7 @@ class _FlooringCalculatorScreenContentState extends State<_FlooringCalculatorScr
                     const Icon(Icons.layers_rounded, color: Color(0xFF00E5FF), size: 14),
                     const SizedBox(width: 4),
                     Text(
-                      '${result.totalCarpets} carpets',
+                      '${result.totalCarpets} ${AppLocalizations.of(context)?.carpets ?? "carpets"}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 13.5,
@@ -853,7 +854,7 @@ class _FlooringCalculatorScreenContentState extends State<_FlooringCalculatorScr
               ),
               const SizedBox(width: 6),
               Text(
-                'Covered: $cLenStr × $cWidStr ft',
+                '${AppLocalizations.of(context)?.covered ?? "Covered"}: $cLenStr × $cWidStr ft',
                 style: const TextStyle(
                   color: Color(0xFF94A3B8),
                   fontSize: 11,
@@ -887,7 +888,7 @@ class _FlooringCalculatorScreenContentState extends State<_FlooringCalculatorScr
                 const Icon(Icons.warning_amber_rounded, color: Color(0xFFFDBA74), size: 14),
                 const SizedBox(width: 6),
                 Text(
-                  '⚠ Extra: ${excessL > 0.01 ? '${excessL % 1 == 0 ? excessL.toStringAsFixed(0) : excessL.toStringAsFixed(1)} ft Length ' : ''}${excessW > 0.01 ? '${excessW % 1 == 0 ? excessW.toStringAsFixed(0) : excessW.toStringAsFixed(1)} ft Width ' : ''}($extraSqFt sq ft)',
+                  '⚠ ${AppLocalizations.of(context)?.extra ?? "Extra"}: ${excessL > 0.01 ? '${excessL % 1 == 0 ? excessL.toStringAsFixed(0) : excessL.toStringAsFixed(1)} ft Length ' : ''}${excessW > 0.01 ? '${excessW % 1 == 0 ? excessW.toStringAsFixed(0) : excessW.toStringAsFixed(1)} ft Width ' : ''}($extraSqFt sq ft)',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 11,

@@ -225,5 +225,11 @@
   "totalFloorArea": "कुल फर्श क्षेत्र",
 
   "centerCrossSupportRequired": "सेंटर क्रॉस सपोर्ट आवश्यक",
-  "centerCrossSupportDesc": "सेंटर क्रॉस संरचना बनाने से पहले 4 सपोर्टिंग पेरीमीटर पोल आवश्यक हैं।"
+  "centerCrossSupportDesc": "सेंटर क्रॉस संरचना बनाने से पहले 4 सपोर्टिंग पेरीमीटर पोल आवश्यक हैं।",
+  "trussCalculationSize": "ट्रस गणना आकार",
+  "ok": "ठीक है",
+  "extra": "अतिरिक्त",
+  "covered": "कवर किया गया",
+  "plotLimit": "प्लॉट सीमा",
+  "box": "बॉक्स"
 }

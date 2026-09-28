@@ -649,4 +649,22 @@ class AppLocalizationsGu extends AppLocalizations {
   @override
   String get centerCrossSupportDesc =>
       'સેન્ટર ક્રોસ બનાવતા પહેલા 4 સપોર્ટિંગ પોલ જરૂરી છે.';
+
+  @override
+  String get trussCalculationSize => 'ટ્રસ ગણતરી સાઇઝ';
+
+  @override
+  String get ok => 'બરાબર';
+
+  @override
+  String get extra => 'વધારાનું';
+
+  @override
+  String get covered => 'કવર કરેલ';
+
+  @override
+  String get plotLimit => 'પ્લોટ મર્યાદા';
+
+  @override
+  String get box => 'બોક્સ';
 }

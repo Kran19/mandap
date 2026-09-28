@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mandap/features/mandap/application/mandap_editor_controller.dart';
 import 'package:mandap/features/mandap/domain/entities/mandap_node.dart';
 import 'package:mandap/features/mandap/domain/services/pole_placement_engine.dart';
+import 'package:mandap/features/mandap/domain/value_objects/pole_placement.dart';
 import 'package:mandap/features/mandap/domain/services/truss_support_spacing_calculator.dart';
 import 'package:mandap/features/mandap/domain/services/truss_bay_detector.dart';
 import 'package:mandap/features/mandap/domain/generators/base_truss_architecture_generator.dart';
@@ -110,6 +111,46 @@ void main() {
         final label = '$w/$l';
         expect(label, isNotEmpty);
       }
+    });
+
+    test('6. Tapping off-axis node clamps to dominant orthogonal axis to ensure straight lines', () {
+      final controller = MandapEditorController();
+      controller.clearAll();
+
+      final startId = controller.addNodeNamed(x: 0.0, z: 75.0, type: NodeType.corner, elevation: 20.0)!;
+      final offAxisEndId = controller.addNodeNamed(x: 25.0, z: 100.0, type: NodeType.corner, elevation: 20.0)!;
+
+      // Select start node
+      controller.handleAddEdgeTap(startId);
+      // Select off-axis node (25, 100) -> dx=25, dz=25 -> snaps orthogonally along dominant X-axis to (25, 75)
+      controller.handleAddEdgeTap(offAxisEndId);
+
+      expect(controller.layout.edges.length, equals(1));
+      final edge = controller.layout.edges.values.first;      final endNode = controller.layout.getNode(edge.endNodeId)!;
+
+      // Must be strictly horizontal along X (z = 75.0, x = 25.0) - NO SLANT LINE!
+      expect(endNode.z, equals(75.0));
+      expect(endNode.x, equals(25.0));
+      expect(controller.layout.getExactGeometricLengthFeet(edge), equals(25.0));
+    });
+
+    test('7. 100ft upper horizontal truss run generates intermediate 30ft support poles', () {
+      final controller = MandapEditorController();
+      controller.clearAll();
+
+      final startId = controller.addNodeNamed(x: 0.0, z: 0.0, type: NodeType.corner, elevation: 20.0)!;
+      final endId = controller.addNodeNamed(x: 100.0, z: 0.0, type: NodeType.corner, elevation: 20.0)!;
+
+      controller.createTrussMember(startNodeId: startId, endNodeId: endId);
+
+      final poles = controller.result.poles;
+      final generatedPoles = poles.where((p) => p.reason == PoleReason.generatedMaxSpan).toList();
+
+      // 100ft run requires 3 intermediate 30ft support poles (at x=30, 60, 90)
+      expect(generatedPoles.length, equals(3));
+      expect(generatedPoles[0].x, closeTo(30.0, 1e-4));
+      expect(generatedPoles[1].x, closeTo(60.0, 1e-4));
+      expect(generatedPoles[2].x, closeTo(90.0, 1e-4));
     });
   });
 }

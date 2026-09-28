@@ -57,7 +57,7 @@ class MandapSummaryDialog extends StatelessWidget {
     }
 
     if (pieceCounts.isEmpty && layout.edges.isNotEmpty) {
-      final stdSize = controller.standardTrussPieceSize > 0 ? controller.standardTrussPieceSize : 30.0;
+      final stdSize = controller.trussCalculationUnitSize > 0 ? controller.trussCalculationUnitSize : 10.0;
       for (final edge in layout.edges.values) {
         final start = layout.getNode(edge.startNodeId);
         final end = layout.getNode(edge.endNodeId);
@@ -209,44 +209,59 @@ class MandapSummaryDialog extends StatelessWidget {
                                           children: [
                                             const Icon(Icons.view_in_ar_rounded, color: Color(0xFF059669), size: 18),
                                             const SizedBox(width: 6),
-                                            Text(
-                                              l10n?.totalTrusses ?? 'Total Trusses',
-                                              style: const TextStyle(
-                                                color: Color(0xFF065F46),
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w700,
+                                            Expanded(
+                                              child: Text(
+                                                l10n?.totalTrusses ?? 'Total Trusses',
+                                                style: const TextStyle(
+                                                  color: Color(0xFF065F46),
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
                                           ],
                                         ),
                                         const SizedBox(height: 6),
-                                        Text(
-                                          '$totalTrusses ${l10n?.truss ?? "Truss"}',
-                                          style: const TextStyle(
-                                            color: Color(0xFF064E3B),
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.w900,
+                                        FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            '$totalTrusses ${l10n?.truss ?? "Truss"}',
+                                            style: const TextStyle(
+                                              color: Color(0xFF064E3B),
+                                              fontSize: 22,
+                                              fontWeight: FontWeight.w900,
+                                            ),
                                           ),
                                         ),
                                         const SizedBox(height: 2),
-                                        Text(
-                                          '${totalFeet.toStringAsFixed(0)} ft ${l10n?.totalSpan ?? "Total Span"}',
-                                          style: const TextStyle(
-                                            color: Color(0xFF059669),
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
+                                        FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            '${totalFeet.toStringAsFixed(0)} ft ${l10n?.totalSpan ?? "Total Span"}',
+                                            style: const TextStyle(
+                                              color: Color(0xFF059669),
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                           ),
                                         ),
                                       ],
                                     ),
                                     const SizedBox(height: 8),
-                                    Center(
-                                      child: Image.asset(
-                                        'assets/images/trusssingle.png',
-                                        height: 36,
-                                        width: double.infinity,
-                                        fit: BoxFit.contain,
-                                        errorBuilder: (ctx, err, stack) => const SizedBox.shrink(),
+                                    SizedBox(
+                                      height: 65,
+                                      child: Center(
+                                        child: Image.asset(
+                                          'assets/images/trusssingle.png',
+                                          height: 48,
+                                          width: double.infinity,
+                                          fit: BoxFit.contain,
+                                          errorBuilder: (ctx, err, stack) => const SizedBox.shrink(),
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -263,30 +278,36 @@ class MandapSummaryDialog extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(color: const Color(0xFF93C5FD), width: 1.5),
                                 ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              const Icon(Icons.vertical_align_top_rounded, color: Color(0xFF2563EB), size: 18),
-                                              const SizedBox(width: 6),
-                                              Text(
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.vertical_align_top_rounded, color: Color(0xFF2563EB), size: 18),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: Text(
                                                 l10n?.supportPoles ?? 'Support Poles',
                                                 style: const TextStyle(
                                                   color: Color(0xFF1E40AF),
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.w700,
                                                 ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Text(
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
                                             '$totalPoles ${l10n?.poles ?? "Poles"}',
                                             style: const TextStyle(
                                               color: Color(0xFF1E3A8A),
@@ -294,8 +315,12 @@ class MandapSummaryDialog extends StatelessWidget {
                                               fontWeight: FontWeight.w900,
                                             ),
                                           ),
-                                          const SizedBox(height: 4),
-                                          Text(
+                                        ),
+                                        const SizedBox(height: 2),
+                                        FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
                                             '$cornerPoles ${l10n?.corner ?? "Corner"} + $intermediatePoles ${l10n?.mid ?? "Mid"}',
                                             style: const TextStyle(
                                               color: Color(0xFF2563EB),
@@ -303,16 +328,23 @@ class MandapSummaryDialog extends StatelessWidget {
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
-                                        ],
-                                      ),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(width: 6),
-                                    Image.asset(
-                                      'assets/images/straight.png',
-                                      height: 78,
-                                      width: 52,
-                                      fit: BoxFit.contain,
-                                      errorBuilder: (ctx, err, stack) => const SizedBox.shrink(),
+                                    const SizedBox(height: 8),
+                                    SizedBox(
+                                      height: 65,
+                                      child: Center(
+                                        child: Transform.scale(
+                                          scale: 1.25,
+                                          child: Image.asset(
+                                            'assets/images/truss straight.png',
+                                            height: 65,
+                                            fit: BoxFit.contain,
+                                            errorBuilder: (ctx, err, stack) => const SizedBox.shrink(),
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),

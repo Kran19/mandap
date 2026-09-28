@@ -242,6 +242,8 @@ class Truss3DPaints {
 /// Silver/aluminum dual-tone lattice chords, 4-chord vertical towers with square base plates,
 /// blueprint grid, coordinate triad, and dimension badges.
 class Mandap3DPainter extends CustomPainter {
+  static final Path _scratchPath = Path();
+
   final MandapLayout layout;
   final MandapCalculationResult result;
   final Mandap3DController controller;
@@ -315,7 +317,7 @@ class Mandap3DPainter extends CustomPainter {
       45.0 * math.pi / 180.0,
       aspect,
       1.0,
-      2500.0,
+      math.max(15000.0, controller.cameraDistance * 4.0),
     );
 
     // Precompute View-Projection Matrix ONCE per frame for 60+ FPS zero-allocation projection
@@ -371,8 +373,11 @@ class Mandap3DPainter extends CustomPainter {
     _paintHandles(canvas, project);
 
     // PASS 6: Dimension / UI Overlays
-    _paintDimensionOverlays(canvas, size, project);
-    _paintPlot3DDimensionsAndPerimeter(canvas, size, project);
+    final bool showMarkings = editorController?.showMarkings ?? true;
+    if (showMarkings) {
+      _paintDimensionOverlays(canvas, size, project);
+      _paintPlot3DDimensionsAndPerimeter(canvas, size, project);
+    }
 
     // 9. Paint CAD Coordinate Triad Gizmo (Bottom-Left - hidden for clean scene presentation)
     // _paintCoordinateGizmo(canvas, size, viewMatrix);
@@ -438,13 +443,13 @@ class Mandap3DPainter extends CustomPainter {
       final sp3 = project(v64.Vector3(bx + sRad, 0.015, bz + sRad));
       final sp4 = project(v64.Vector3(bx - sRad, 0.015, bz + sRad));
       if (sp1 != null && sp2 != null && sp3 != null && sp4 != null) {
-        final shadowPath = Path()
-          ..moveTo(sp1.dx, sp1.dy)
-          ..lineTo(sp2.dx, sp2.dy)
-          ..lineTo(sp3.dx, sp3.dy)
-          ..lineTo(sp4.dx, sp4.dy)
-          ..close();
-        canvas.drawPath(shadowPath, shadowPaint);
+        _scratchPath.reset();
+        _scratchPath.moveTo(sp1.dx, sp1.dy);
+        _scratchPath.lineTo(sp2.dx, sp2.dy);
+        _scratchPath.lineTo(sp3.dx, sp3.dy);
+        _scratchPath.lineTo(sp4.dx, sp4.dy);
+        _scratchPath.close();
+        canvas.drawPath(_scratchPath, shadowPaint);
       }
     }
   }
@@ -553,11 +558,12 @@ class Mandap3DPainter extends CustomPainter {
     final pt = projTop.cast<Offset>();
 
     void drawPoly(List<Offset> pts) {
-      final path = Path()..moveTo(pts[0].dx, pts[0].dy);
-      for (int i = 1; i < pts.length; i++) path.lineTo(pts[i].dx, pts[i].dy);
-      path.close();
-      canvas.drawPath(path, fill);
-      canvas.drawPath(path, stroke);
+      _scratchPath.reset();
+      _scratchPath.moveTo(pts[0].dx, pts[0].dy);
+      for (int i = 1; i < pts.length; i++) _scratchPath.lineTo(pts[i].dx, pts[i].dy);
+      _scratchPath.close();
+      canvas.drawPath(_scratchPath, fill);
+      canvas.drawPath(_scratchPath, stroke);
     }
 
     drawPoly(pt);
@@ -624,41 +630,46 @@ class Mandap3DPainter extends CustomPainter {
         Truss3DPaints.chordShadedBody.strokeWidth = chordW;
         Truss3DPaints.chordHighlight.strokeWidth = math.max(0.6, chordW * 0.45);
 
-        // Transverse frame ties
-        for (final tie in geom.transverseTies) {
-          if (!isFull && geom.primaryChords.isNotEmpty) {
-            final beamStart = geom.primaryChords[0].start;
-            final beamEnd = geom.primaryChords[0].end;
-            final totalDist = (beamEnd - beamStart).length;
-            if (totalDist > 0.01) {
-              final d = (tie.start - beamStart).length;
-              if (d > totalDist * beamProgress) continue;
-            }
-          }
-          final p1 = project(tie.start);
-          final p2 = project(tie.end);
-          if (p1 != null && p2 != null) {
-            canvas.drawLine(p1, p2, Truss3DPaints.tieShadow);
-            canvas.drawLine(p1, p2, Truss3DPaints.tieBody);
-          }
-        }
+        // Transverse frame ties & lattice struts (Rendered at LOD when beam is reasonably sized on screen)
+        final bool renderLattice = boxDist >= 2.2;
 
-        // 4-Face Warren lattice diagonal struts
-        for (final strut in geom.latticeStruts) {
-          if (!isFull && geom.primaryChords.isNotEmpty) {
-            final beamStart = geom.primaryChords[0].start;
-            final beamEnd = geom.primaryChords[0].end;
-            final totalDist = (beamEnd - beamStart).length;
-            if (totalDist > 0.01) {
-              final d = (strut.start - beamStart).length;
-              if (d > totalDist * beamProgress) continue;
+        if (renderLattice) {
+          // Transverse frame ties
+          for (final tie in geom.transverseTies) {
+            if (!isFull && geom.primaryChords.isNotEmpty) {
+              final beamStart = geom.primaryChords[0].start;
+              final beamEnd = geom.primaryChords[0].end;
+              final totalDist = (beamEnd - beamStart).length;
+              if (totalDist > 0.01) {
+                final d = (tie.start - beamStart).length;
+                if (d > totalDist * beamProgress) continue;
+              }
+            }
+            final p1 = project(tie.start);
+            final p2 = project(tie.end);
+            if (p1 != null && p2 != null) {
+              canvas.drawLine(p1, p2, Truss3DPaints.tieShadow);
+              canvas.drawLine(p1, p2, Truss3DPaints.tieBody);
             }
           }
-          final p1 = project(strut.start);
-          final p2 = project(strut.end);
-          if (p1 != null && p2 != null) {
-            canvas.drawLine(p1, p2, Truss3DPaints.webShadow);
-            canvas.drawLine(p1, p2, Truss3DPaints.webBody);
+
+          // 4-Face Warren lattice diagonal struts
+          for (final strut in geom.latticeStruts) {
+            if (!isFull && geom.primaryChords.isNotEmpty) {
+              final beamStart = geom.primaryChords[0].start;
+              final beamEnd = geom.primaryChords[0].end;
+              final totalDist = (beamEnd - beamStart).length;
+              if (totalDist > 0.01) {
+                final d = (strut.start - beamStart).length;
+                if (d > totalDist * beamProgress) continue;
+              }
+            }
+            final p1 = project(strut.start);
+            final p2 = project(strut.end);
+            if (p1 != null && p2 != null) {
+              canvas.drawLine(p1, p2, Truss3DPaints.webShadow);
+              canvas.drawLine(p1, p2, Truss3DPaints.webBody);
+            }
           }
         }
 
@@ -719,30 +730,34 @@ class Mandap3DPainter extends CustomPainter {
                 ? tower.verticalChords[0].end.y * towerProgress
                 : 9999.0);
 
-        // Transverse tower tie rungs
-        for (final tie in tower.transverseTies) {
-          if (!isFull && tie.start.y > currentHeight) continue;
-          final p1 = project(tie.start);
-          final p2 = project(tie.end);
-          if (p1 != null && p2 != null) {
-            canvas.drawLine(p1, p2, Truss3DPaints.tieShadow);
-            canvas.drawLine(p1, p2, Truss3DPaints.tieBody);
-          }
-        }
+        final bool renderTowerLattice = towerDist >= 2.2;
 
-        // 4-Face Warren lattice diagonal struts
-        for (final strut in tower.latticeStruts) {
-          if (!isFull && strut.start.y > currentHeight) continue;
-          final p1 = project(strut.start);
-          final strutEnd = isFull
-              ? strut.end
-              : (strut.end.y <= currentHeight
-                  ? strut.end
-                  : v64.Vector3(strut.end.x, currentHeight, strut.end.z));
-          final p2 = project(strutEnd);
-          if (p1 != null && p2 != null) {
-            canvas.drawLine(p1, p2, Truss3DPaints.webShadow);
-            canvas.drawLine(p1, p2, Truss3DPaints.webBody);
+        if (renderTowerLattice) {
+          // Transverse tower tie rungs
+          for (final tie in tower.transverseTies) {
+            if (!isFull && tie.start.y > currentHeight) continue;
+            final p1 = project(tie.start);
+            final p2 = project(tie.end);
+            if (p1 != null && p2 != null) {
+              canvas.drawLine(p1, p2, Truss3DPaints.tieShadow);
+              canvas.drawLine(p1, p2, Truss3DPaints.tieBody);
+            }
+          }
+
+          // 4-Face Warren lattice diagonal struts
+          for (final strut in tower.latticeStruts) {
+            if (!isFull && strut.start.y > currentHeight) continue;
+            final p1 = project(strut.start);
+            final strutEnd = isFull
+                ? strut.end
+                : (strut.end.y <= currentHeight
+                    ? strut.end
+                    : v64.Vector3(strut.end.x, currentHeight, strut.end.z));
+            final p2 = project(strutEnd);
+            if (p1 != null && p2 != null) {
+              canvas.drawLine(p1, p2, Truss3DPaints.webShadow);
+              canvas.drawLine(p1, p2, Truss3DPaints.webBody);
+            }
           }
         }
 
@@ -828,24 +843,24 @@ class Mandap3DPainter extends CustomPainter {
           // Side skirts
           for (int i = 0; i < 4; i++) {
             final next = (i + 1) % 4;
-            final sidePath = Path()
-              ..moveTo(b[i].dx, b[i].dy)
-              ..lineTo(b[next].dx, b[next].dy)
-              ..lineTo(t[next].dx, t[next].dy)
-              ..lineTo(t[i].dx, t[i].dy)
-              ..close();
-            canvas.drawPath(sidePath, Truss3DPaints.basePlateSlabSide);
+            _scratchPath.reset();
+            _scratchPath.moveTo(b[i].dx, b[i].dy);
+            _scratchPath.lineTo(b[next].dx, b[next].dy);
+            _scratchPath.lineTo(t[next].dx, t[next].dy);
+            _scratchPath.lineTo(t[i].dx, t[i].dy);
+            _scratchPath.close();
+            canvas.drawPath(_scratchPath, Truss3DPaints.basePlateSlabSide);
           }
 
           // Top face of base plate
-          final topPath = Path()
-            ..moveTo(t[0].dx, t[0].dy)
-            ..lineTo(t[1].dx, t[1].dy)
-            ..lineTo(t[2].dx, t[2].dy)
-            ..lineTo(t[3].dx, t[3].dy)
-            ..close();
-          canvas.drawPath(topPath, Truss3DPaints.basePlateTop);
-          canvas.drawPath(topPath, Truss3DPaints.basePlateBorder);
+          _scratchPath.reset();
+          _scratchPath.moveTo(t[0].dx, t[0].dy);
+          _scratchPath.lineTo(t[1].dx, t[1].dy);
+          _scratchPath.lineTo(t[2].dx, t[2].dy);
+          _scratchPath.lineTo(t[3].dx, t[3].dy);
+          _scratchPath.close();
+          canvas.drawPath(_scratchPath, Truss3DPaints.basePlateTop);
+          canvas.drawPath(_scratchPath, Truss3DPaints.basePlateBorder);
 
           // Raised mounting spigot collar
           final collarTopH = 0.30 * baseProgress;
@@ -868,33 +883,35 @@ class Mandap3DPainter extends CustomPainter {
 
             for (int i = 0; i < 4; i++) {
               final next = (i + 1) % 4;
-              final cSidePath = Path()
-                ..moveTo(cb[i].dx, cb[i].dy)
-                ..lineTo(cb[next].dx, cb[next].dy)
-                ..lineTo(ct[next].dx, ct[next].dy)
-                ..lineTo(ct[i].dx, ct[i].dy)
-                ..close();
-              canvas.drawPath(cSidePath, Truss3DPaints.collarSide);
+              _scratchPath.reset();
+              _scratchPath.moveTo(cb[i].dx, cb[i].dy);
+              _scratchPath.lineTo(cb[next].dx, cb[next].dy);
+              _scratchPath.lineTo(ct[next].dx, ct[next].dy);
+              _scratchPath.lineTo(ct[i].dx, ct[i].dy);
+              _scratchPath.close();
+              canvas.drawPath(_scratchPath, Truss3DPaints.collarSide);
             }
 
-            final cTopPath = Path()
-              ..moveTo(ct[0].dx, ct[0].dy)
-              ..lineTo(ct[1].dx, ct[1].dy)
-              ..lineTo(ct[2].dx, ct[2].dy)
-              ..lineTo(ct[3].dx, ct[3].dy)
-              ..close();
-            canvas.drawPath(cTopPath, Truss3DPaints.collarTop);
+            _scratchPath.reset();
+            _scratchPath.moveTo(ct[0].dx, ct[0].dy);
+            _scratchPath.lineTo(ct[1].dx, ct[1].dy);
+            _scratchPath.lineTo(ct[2].dx, ct[2].dy);
+            _scratchPath.lineTo(ct[3].dx, ct[3].dy);
+            _scratchPath.close();
+            canvas.drawPath(_scratchPath, Truss3DPaints.collarTop);
           }
 
-          // 4 corner hex mounting bolts
+          // 4 corner hex mounting bolts (only when base plate is large enough on screen)
           final plateScreenW = (t[1].dx - t[0].dx).abs();
-          final boltRadius = (plateScreenW * 0.045).clamp(0.8, 2.0);
-          final boltShadowRadius = boltRadius + 0.6;
-          for (final bolt in bp.cornerBolts) {
-            final pBolt = project(v64.Vector3(bolt.x, slabH + 0.01, bolt.z));
-            if (pBolt != null) {
-              canvas.drawCircle(pBolt, boltShadowRadius, Truss3DPaints.boltShadow);
-              canvas.drawCircle(pBolt, boltRadius, Truss3DPaints.boltPaint);
+          if (plateScreenW >= 5.5) {
+            final boltRadius = (plateScreenW * 0.045).clamp(0.8, 2.0);
+            final boltShadowRadius = boltRadius + 0.6;
+            for (final bolt in bp.cornerBolts) {
+              final pBolt = project(v64.Vector3(bolt.x, slabH + 0.01, bolt.z));
+              if (pBolt != null) {
+                canvas.drawCircle(pBolt, boltShadowRadius, Truss3DPaints.boltShadow);
+                canvas.drawCircle(pBolt, boltRadius, Truss3DPaints.boltPaint);
+              }
             }
           }
         }
@@ -922,13 +939,29 @@ class Mandap3DPainter extends CustomPainter {
 
     final b = projB.cast<Offset>();
     final t = projT.cast<Offset>();
+    final cubeScreenW = (t[1].dx - t[0].dx).abs();
+
+    // Fast LOD: For small cubes at distance, draw a simple box/quad
+    if (cubeScreenW < 3.2) {
+      final centerTop = Offset(
+        (t[0].dx + t[1].dx + t[2].dx + t[3].dx) / 4.0,
+        (t[0].dy + t[1].dy + t[2].dy + t[3].dy) / 4.0,
+      );
+      final halfW = math.max(1.2, cubeScreenW * 0.5);
+      canvas.drawRect(
+        Rect.fromCenter(center: centerTop, width: halfW * 2.0, height: halfW * 2.0),
+        Truss3DPaints.junctionFrontFace,
+      );
+      return;
+    }
 
     void drawFace(List<Offset> pts, Paint fill, Paint stroke) {
-      final path = Path()..moveTo(pts[0].dx, pts[0].dy);
-      for (int i = 1; i < pts.length; i++) path.lineTo(pts[i].dx, pts[i].dy);
-      path.close();
-      canvas.drawPath(path, fill);
-      canvas.drawPath(path, stroke);
+      _scratchPath.reset();
+      _scratchPath.moveTo(pts[0].dx, pts[0].dy);
+      for (int i = 1; i < pts.length; i++) _scratchPath.lineTo(pts[i].dx, pts[i].dy);
+      _scratchPath.close();
+      canvas.drawPath(_scratchPath, fill);
+      canvas.drawPath(_scratchPath, stroke);
     }
 
     // Bottom face
@@ -950,7 +983,6 @@ class Mandap3DPainter extends CustomPainter {
       (t[0].dx + t[1].dx + t[2].dx + t[3].dx) / 4.0,
       (t[0].dy + t[1].dy + t[2].dy + t[3].dy) / 4.0,
     );
-    final cubeScreenW = (t[1].dx - t[0].dx).abs();
     final ringRadius = (cubeScreenW * 0.28).clamp(2.0, 4.5);
     final pinRadius = (cubeScreenW * 0.12).clamp(1.0, 2.0);
     final boltRadius = (cubeScreenW * 0.06).clamp(0.6, 1.2);
@@ -975,6 +1007,8 @@ class Mandap3DPainter extends CustomPainter {
 
     final selectedEdge = selectedEdgeId != null ? layout.edges[selectedEdgeId] : null;
     final effectivePenStartNodeId = editorController?.penStartNodeId ?? pendingEdgeSourceId;
+
+    final unselectedRadius = (6.5 * (300.0 / math.max(300.0, controller.cameraDistance))).clamp(3.0, 6.5);
 
     // Red circular markers on all support poles (turn vibrant blue when selected or active in pencil tool)
     final renderedPositions = <String>{};
@@ -1002,8 +1036,8 @@ class Mandap3DPainter extends CustomPainter {
           canvas.drawCircle(pTop, 7.5, Truss3DPaints.supportPoleBorder);
         } else {
           // Unselected: standard red marker
-          canvas.drawCircle(pTop, 6.5, Truss3DPaints.supportPoleUnselected);
-          canvas.drawCircle(pTop, 6.5, Truss3DPaints.supportPoleBorder);
+          canvas.drawCircle(pTop, unselectedRadius, Truss3DPaints.supportPoleUnselected);
+          canvas.drawCircle(pTop, unselectedRadius, Truss3DPaints.supportPoleBorder);
         }
       }
     }
@@ -1026,8 +1060,8 @@ class Mandap3DPainter extends CustomPainter {
           canvas.drawCircle(pTop, 7.5, Truss3DPaints.supportPoleSelected);
           canvas.drawCircle(pTop, 7.5, Truss3DPaints.supportPoleBorder);
         } else {
-          canvas.drawCircle(pTop, 6.5, Truss3DPaints.supportPoleUnselected);
-          canvas.drawCircle(pTop, 6.5, Truss3DPaints.supportPoleBorder);
+          canvas.drawCircle(pTop, unselectedRadius, Truss3DPaints.supportPoleUnselected);
+          canvas.drawCircle(pTop, unselectedRadius, Truss3DPaints.supportPoleBorder);
         }
       }
     }
@@ -1270,24 +1304,27 @@ class Mandap3DPainter extends CustomPainter {
             }
 
             // Dimension badge above center handle with dynamic node number
-            final nodeNum = nodeNumbers[node.id];
-            final nodeNumPrefix = nodeNum != null ? '#$nodeNum · ' : '';
-            final textSpan = TextSpan(
-              text: '${nodeNumPrefix}Z: ${node.z.toStringAsFixed(1)} ft',
-              style: const TextStyle(
-                color: Color(0xFF00F0FF),
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            );
-            final tp = TextPainter(text: textSpan, textDirection: TextDirection.ltr)..layout();
-            final badgeRect = RRect.fromRectAndRadius(
-              Rect.fromLTWH(p.dx - tp.width / 2.0 - 5, p.dy - 24, tp.width + 10, tp.height + 4),
-              const Radius.circular(4),
-            );
-            canvas.drawRRect(badgeRect, Paint()..color = const Color(0xEE0F172A));
-            canvas.drawRRect(badgeRect, Paint()..color = const Color(0xFF00F0FF)..style = PaintingStyle.stroke..strokeWidth = 1.0);
-            tp.paint(canvas, Offset(p.dx - tp.width / 2.0, p.dy - 22));
+            final bool showMarkings = editorController?.showMarkings ?? true;
+            if (showMarkings) {
+              final nodeNum = nodeNumbers[node.id];
+              final nodeNumPrefix = nodeNum != null ? '#$nodeNum · ' : '';
+              final textSpan = TextSpan(
+                text: '${nodeNumPrefix}Z: ${node.z.toStringAsFixed(1)} ft',
+                style: const TextStyle(
+                  color: Color(0xFF00F0FF),
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              );
+              final tp = TextPainter(text: textSpan, textDirection: TextDirection.ltr)..layout();
+              final badgeRect = RRect.fromRectAndRadius(
+                Rect.fromLTWH(p.dx - tp.width / 2.0 - 5, p.dy - 24, tp.width + 10, tp.height + 4),
+                const Radius.circular(4),
+              );
+              canvas.drawRRect(badgeRect, Paint()..color = const Color(0xEE0F172A));
+              canvas.drawRRect(badgeRect, Paint()..color = const Color(0xFF00F0FF)..style = PaintingStyle.stroke..strokeWidth = 1.0);
+              tp.paint(canvas, Offset(p.dx - tp.width / 2.0, p.dy - 22));
+            }
           } else {
             // Unselected: Clean structural aluminum junction point without oversized orange halo
             final unselectedPaint = Paint()..color = const Color(0xFF94A3B8);
@@ -1312,11 +1349,12 @@ class Mandap3DPainter extends CustomPainter {
     Offset? Function(v64.Vector3) project,
   ) {
     if (animationProgress < 0.85) return;
-    final edgeNumbers = editorController?.displayNumbering.edgeNumbers ??
-        const TrussDisplayNumberingService().buildEdgeNumbers(layout);
-    int fallbackIndex = 1;
+    final bool showMarkings = editorController?.showMarkings ?? true;
+    if (!showMarkings) return;
+
+    final drawnBadgeEntries = <({Offset pt, bool isSelected, String label})>[];
+
     for (final edge in layout.edges.values) {
-      final trussNumber = edgeNumbers[edge.id] ?? fallbackIndex++;
       final isSelected = edge.id == selectedEdgeId;
 
       final startNode = layout.getNode(edge.startNodeId);
@@ -1326,8 +1364,13 @@ class Mandap3DPainter extends CustomPainter {
       final isTower = edge.role == TrussMemberRole.tower ||
           (startNode.x == endNode.x && startNode.z == endNode.z);
 
-      // Skip unselected vertical tower/pillar badges to avoid visual clutter at pole bases
       if (isTower && !isSelected) continue;
+
+      final p1 = project(v64.Vector3(startNode.x, startNode.elevation, startNode.z));
+      final p2 = project(v64.Vector3(endNode.x, endNode.elevation, endNode.z));
+      final screenLen = (p1 != null && p2 != null) ? (p2 - p1).distance : 0.0;
+
+      if (!isSelected && screenLen < 4.0) continue;
 
       final transform = BeamTransformCalculator.calculate(
         startNode: startNode,
@@ -1335,70 +1378,175 @@ class Mandap3DPainter extends CustomPainter {
         height: controller.mandapHeight,
       );
 
-      final midpointScreen = project(transform.center);
-      if (midpointScreen == null) continue;
-
       final displayLength = (isSelected && dragPreviewLengthFeet != null)
           ? dragPreviewLengthFeet!
           : transform.length;
       if (displayLength < 1.0) continue;
 
-      final lenStr = displayLength == displayLength.roundToDouble()
-          ? '${displayLength.toInt()} ft'
-          : '${displayLength.toStringAsFixed(1)} ft';
+      final polePoints = _getEdgePolePoints(edge, startNode, endNode);
 
-      final labelText = lenStr;
+      if (polePoints.length > 2) {
+        for (int i = 0; i < polePoints.length - 1; i++) {
+          final ptA = polePoints[i];
+          final ptB = polePoints[i + 1];
+          final spanLen = (ptB - ptA).length;
+          if (spanLen < 0.5) continue;
 
-      final textSpan = TextSpan(
-        text: labelText,
-        style: TextStyle(
-          color: isSelected ? const Color(0xFF00F0FF) : const Color(0xFFF1F5F9),
-          fontSize: isSelected ? 9.5 : 8.5,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.w700,
-          letterSpacing: 0.2,
-        ),
-      );
+          final spanMid = (ptA + ptB) * 0.5;
+          final midScreen = project(spanMid);
+          if (midScreen != null) {
+            final spanStr = spanLen == spanLen.roundToDouble()
+                ? '${spanLen.toInt()} ft'
+                : '${spanLen.toStringAsFixed(1)} ft';
+            _addDeduplicatedBadge(drawnBadgeEntries, midScreen, spanStr, isSelected: false);
+          }
+        }
+      } else {
+        final midpointScreen = project(transform.center);
+        if (midpointScreen != null) {
+          final lenStr = displayLength == displayLength.roundToDouble()
+              ? '${displayLength.toInt()} ft'
+              : '${displayLength.toStringAsFixed(1)} ft';
+          _addDeduplicatedBadge(drawnBadgeEntries, midpointScreen, lenStr, isSelected: isSelected);
+        }
+      }
 
-      final textPainter = TextPainter(
-        text: textSpan,
-        textDirection: TextDirection.ltr,
-      );
-      textPainter.layout();
-
-      final badgeWidth = textPainter.width + 10.0;
-      final badgeHeight = isSelected ? 17.0 : 15.0;
-
-      final badgeLeft = midpointScreen.dx - badgeWidth / 2.0;
-      final badgeTop = midpointScreen.dy - badgeHeight / 2.0;
-
-      final bgRect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(badgeLeft, badgeTop, badgeWidth, badgeHeight),
-        const Radius.circular(5),
-      );
-
-      canvas.drawRRect(
-        bgRect,
-        Paint()
-          ..color = (isSelected ? const Color(0xFF0F172A) : const Color(0xEE0F172A))
-              .withValues(alpha: isSelected ? 0.95 : 0.90),
-      );
-
-      canvas.drawRRect(
-        bgRect,
-        Paint()
-          ..color = isSelected ? const Color(0xFF00F0FF) : const Color(0xFF334155)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = isSelected ? 1.4 : 0.9,
-      );
-
-      textPainter.paint(
-        canvas,
-        Offset(
-          midpointScreen.dx - textPainter.width / 2.0,
-          badgeTop + (badgeHeight - textPainter.height) / 2.0,
-        ),
-      );
+      if (isSelected && polePoints.length > 2) {
+        final midpointScreen = project(transform.center);
+        if (midpointScreen != null) {
+          final lenStr = displayLength == displayLength.roundToDouble()
+              ? '${displayLength.toInt()} ft'
+              : '${displayLength.toStringAsFixed(1)} ft';
+          _addDeduplicatedBadge(drawnBadgeEntries, midpointScreen, lenStr, isSelected: true);
+        }
+      }
     }
+
+    // Render all deduplicated badges
+    for (final entry in drawnBadgeEntries) {
+      _drawBadge(canvas, entry.pt, entry.label, isSelected: entry.isSelected);
+    }
+  }
+
+  void _addDeduplicatedBadge(
+    List<({Offset pt, bool isSelected, String label})> entries,
+    Offset pt,
+    String label, {
+    required bool isSelected,
+  }) {
+    int existingIdx = -1;
+    for (int i = 0; i < entries.length; i++) {
+      if ((entries[i].pt - pt).distance < 6.0 && entries[i].label == label) {
+        existingIdx = i;
+        break;
+      }
+    }
+
+    if (existingIdx >= 0) {
+      if (isSelected && !entries[existingIdx].isSelected) {
+        entries[existingIdx] = (pt: pt, isSelected: true, label: label);
+      }
+      return;
+    }
+
+    entries.add((pt: pt, isSelected: isSelected, label: label));
+  }
+
+  List<v64.Vector3> _getEdgePolePoints(MandapEdge edge, MandapNode startNode, MandapNode endNode) {
+    final startPt = v64.Vector3(startNode.x, startNode.elevation, startNode.z);
+    final endPt = v64.Vector3(endNode.x, endNode.elevation, endNode.z);
+    final dx = endNode.x - startNode.x;
+    final dz = endNode.z - startNode.z;
+    final lenSq = dx * dx + dz * dz;
+
+    final items = <({double t, v64.Vector3 pt})>[
+      (t: 0.0, pt: startPt),
+      (t: 1.0, pt: endPt),
+    ];
+
+    if (editorController != null) {
+      for (final pole in editorController!.result.poles) {
+        final px = pole.x - startNode.x;
+        final pz = pole.z - startNode.z;
+        final dot = px * dx + pz * dz;
+        final t = dot / lenSq;
+        if (t > 0.01 && t < 0.99) {
+          final projX = startNode.x + t * dx;
+          final projZ = startNode.z + t * dz;
+          final distSq = (pole.x - projX) * (pole.x - projX) + (pole.z - projZ) * (pole.z - projZ);
+          if (distSq < 0.25) {
+            items.add((t: t, pt: v64.Vector3(pole.x, startNode.elevation, pole.z)));
+          }
+        }
+      }
+    }
+
+    items.sort((a, b) => a.t.compareTo(b.t));
+
+    final uniquePoints = <v64.Vector3>[];
+    for (final item in items) {
+      if (uniquePoints.isEmpty || (uniquePoints.last - item.pt).length > 0.5) {
+        uniquePoints.add(item.pt);
+      }
+    }
+    return uniquePoints;
+  }
+
+  void _drawBadge(
+    Canvas canvas,
+    Offset screenPt,
+    String labelText, {
+    required bool isSelected,
+  }) {
+    final textSpan = TextSpan(
+      text: labelText,
+      style: TextStyle(
+        color: isSelected ? const Color(0xFF00F0FF) : const Color(0xFFF1F5F9),
+        fontSize: isSelected ? 9.5 : 8.5,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.w700,
+        letterSpacing: 0.2,
+      ),
+    );
+
+    final textPainter = TextPainter(
+      text: textSpan,
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout();
+
+    final badgeWidth = textPainter.width + 10.0;
+    final badgeHeight = isSelected ? 17.0 : 15.0;
+
+    final badgeLeft = screenPt.dx - badgeWidth / 2.0;
+    final badgeTop = screenPt.dy - badgeHeight / 2.0;
+
+    final bgRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(badgeLeft, badgeTop, badgeWidth, badgeHeight),
+      const Radius.circular(5),
+    );
+
+    canvas.drawRRect(
+      bgRect,
+      Paint()
+        ..color = (isSelected ? const Color(0xFF0F172A) : const Color(0xEE0F172A))
+            .withValues(alpha: isSelected ? 0.95 : 0.90),
+    );
+
+    canvas.drawRRect(
+      bgRect,
+      Paint()
+        ..color = isSelected ? const Color(0xFF00F0FF) : const Color(0xFF334155)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = isSelected ? 1.4 : 0.9,
+    );
+
+    textPainter.paint(
+      canvas,
+      Offset(
+        screenPt.dx - textPainter.width / 2.0,
+        badgeTop + (badgeHeight - textPainter.height) / 2.0,
+      ),
+    );
   }
 
   void _paintCoordinateGizmo(Canvas canvas, Size size, v64.Matrix4 viewMatrix) {
@@ -1549,8 +1697,9 @@ class Mandap3DPainter extends CustomPainter {
       }
 
       // 2. Center Dimension Label (00/00 format, e.g. 30/30) for all created/detected bays
+      final bool showMarkings = editorController?.showMarkings ?? true;
       final pCenter = project(v64.Vector3(bay.centerX, 0.05, bay.centerZ));
-      if (pCenter != null) {
+      if (showMarkings && pCenter != null) {
         final w = bay.widthFt.toInt().toString().padLeft(2, '0');
         final l = bay.lengthFt.toInt().toString().padLeft(2, '0');
         final labelText = '$w/$l';
@@ -1773,6 +1922,7 @@ class Mandap3DPainter extends CustomPainter {
         oldDelegate.selectedNodeId != selectedNodeId ||
         oldDelegate.selectedBayId != selectedBayId ||
         oldDelegate.editorController?.selectedBayId != editorController?.selectedBayId ||
+        oldDelegate.editorController?.showMarkings != editorController?.showMarkings ||
         oldDelegate.pendingEdgeSourceId != pendingEdgeSourceId ||
         oldDelegate.activeHandleNodeId != activeHandleNodeId ||
         oldDelegate.dragPreviewLengthFeet != dragPreviewLengthFeet ||

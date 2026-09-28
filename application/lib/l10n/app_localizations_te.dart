@@ -655,4 +655,22 @@ class AppLocalizationsTe extends AppLocalizations {
   @override
   String get centerCrossSupportDesc =>
       'సెంటర్ క్రాస్ సృష్టించే ముందు 4 సపోర్టింగ్ పోల్స్ అవసరం.';
+
+  @override
+  String get trussCalculationSize => 'TRUSS CALCULATION SIZE';
+
+  @override
+  String get ok => 'OK';
+
+  @override
+  String get extra => 'Extra';
+
+  @override
+  String get covered => 'Covered';
+
+  @override
+  String get plotLimit => 'Plot Limit';
+
+  @override
+  String get box => 'Box';
 }

@@ -54,6 +54,7 @@ enum ViewMode { topView2D, view3D }
 class MandapEditorScreen extends StatefulWidget {
   final String projectId;
   final double? initialTrussSize;
+  final double? initialCalculationUnitSize;
   final double? initialPlotWidth;
   final double? initialPlotLength;
 
@@ -61,6 +62,7 @@ class MandapEditorScreen extends StatefulWidget {
     super.key,
     required this.projectId,
     this.initialTrussSize,
+    this.initialCalculationUnitSize,
     this.initialPlotWidth,
     this.initialPlotLength,
   });
@@ -117,6 +119,7 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
       initialWidth: effectiveW,
       initialDepth: effectiveD,
       initialTrussSize: effectiveTruss,
+      initialCalculationUnitSize: widget.initialCalculationUnitSize,
     );
     controller.setMode(EditorMode.view);
     controller3D = Mandap3DController();
@@ -294,7 +297,7 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
         } else {
           final hitEdge = _hitTestEdge(screenPos);
           if (hitEdge != null) {
-            controller.selectEdge(hitEdge);
+            controller.selectEdge(hitEdge, worldX: world.x, worldZ: world.z);
             controller.deselectBay();
           } else {
             final hitBay = _hitTestBay(world.x, world.z);
@@ -354,7 +357,7 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
               );
             }
           } else {
-            final step = controller.standardTrussPieceSize > 0 ? controller.standardTrussPieceSize : 10.0;
+            final step = controller.subGridSize > 0 ? controller.subGridSize : (controller.standardTrussPieceSize > 0 ? controller.standardTrussPieceSize : 25.0);
             final snappedX = (world.x / step).round() * step;
             final snappedZ = (world.z / step).round() * step;
 
@@ -441,7 +444,7 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
               }
             } else {
               // Empty space tap (inside or outside square): create start node snapped to standard truss step
-              final step = controller.standardTrussPieceSize > 0 ? controller.standardTrussPieceSize : 10.0;
+              final step = controller.subGridSize > 0 ? controller.subGridSize : (controller.standardTrussPieceSize > 0 ? controller.standardTrussPieceSize : 25.0);
               final snappedX = (world.x / step).round() * step;
               final snappedZ = (world.z / step).round() * step;
               final newNodeId = controller.getOrCreateNodeAt(snappedX, snappedZ, elevation: controller.mandapHeight);
@@ -496,7 +499,7 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
       case EditorMode.delete:
         final hitEdge = _hitTestEdge(screenPos);
         if (hitEdge != null) {
-          controller.deleteEdge(hitEdge);
+          controller.deleteEdge(hitEdge, worldX: world.x, worldZ: world.z);
           return;
         }
         final hitNode = _hitTestNode(screenPos);
@@ -770,27 +773,28 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
                           ),
 
                           // Top-Center In-Model Dimension Badge (Length/Breadth · Box Size)
-                          Positioned(
-                            top: 12,
-                            left: 56,
-                            right: 80,
-                            child: Center(
-                              child: InModelDimensionBadge(
-                                controller: controller,
-                                onDimensionUpdated: () {
-                                  controller3D.fitCamera(controller.layout);
-                                  controller3D.syncScene(controller.layout, controller.result);
-                                  _fitView(_canvasSize);
-                                  _updateProjectAfterDimensionChange();
-                                  if (mounted) {
-                                    setState(() {
-                                      _viewMode = ViewMode.view3D;
-                                    });
-                                  }
-                                },
+                          if (controller.showMarkings)
+                            Positioned(
+                              top: 12,
+                              left: 56,
+                              right: 80,
+                              child: Center(
+                                child: InModelDimensionBadge(
+                                  controller: controller,
+                                  onDimensionUpdated: () {
+                                    controller3D.fitCamera(controller.layout);
+                                    controller3D.syncScene(controller.layout, controller.result);
+                                    _fitView(_canvasSize);
+                                    _updateProjectAfterDimensionChange();
+                                    if (mounted) {
+                                      setState(() {
+                                        _viewMode = ViewMode.view3D;
+                                      });
+                                    }
+                                  },
+                                ),
                               ),
                             ),
-                          ),
 
                           // Floating OK Button on Top-Right (Clean, bright, highly accessible)
                           Positioned(
@@ -815,14 +819,14 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
                                       ),
                                     ],
                                   ),
-                                  child: const Row(
+                                  child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                                      SizedBox(width: 6),
+                                      const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                                      const SizedBox(width: 6),
                                       Text(
-                                        'OK',
-                                        style: TextStyle(
+                                        l10n?.ok ?? 'OK',
+                                        style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 13,
                                           fontWeight: FontWeight.w900,
@@ -1102,6 +1106,7 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
                 selectedBayId: controller.selectedBayId,
                 plotWidth: controller.plotWidth,
                 plotDepth: controller.plotDepth,
+                showMarkings: controller.showMarkings,
               ),
               size: canvasSize,
             ),

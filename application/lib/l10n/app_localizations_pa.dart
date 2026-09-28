@@ -650,4 +650,22 @@ class AppLocalizationsPa extends AppLocalizations {
   @override
   String get centerCrossSupportDesc =>
       '4 supporting perimeter poles are required before creating a center cross structure.';
+
+  @override
+  String get trussCalculationSize => 'TRUSS CALCULATION SIZE';
+
+  @override
+  String get ok => 'OK';
+
+  @override
+  String get extra => 'Extra';
+
+  @override
+  String get covered => 'Covered';
+
+  @override
+  String get plotLimit => 'Plot Limit';
+
+  @override
+  String get box => 'Box';
 }

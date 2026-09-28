@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../application/mandap_editor_controller.dart';
 import '../wizard/create_truss_dialog.dart';
 
@@ -16,11 +17,12 @@ class InModelDimensionBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final widthVal = controller.plotWidth.toInt();
-    final lenVal = controller.plotDepth.toInt();
+    final l10n = AppLocalizations.of(context);
+    final widthVal = controller.plotWidth.round();
+    final lenVal = controller.plotDepth.round();
     final lenStr = lenVal == 0 ? 100 : lenVal;
     final widthStr = widthVal == 0 ? 100 : widthVal;
-    final sizeVal = controller.standardTrussPieceSize.toInt();
+    final sizeVal = controller.standardTrussPieceSize.round();
     final sizeStr = sizeVal == 0 ? 30 : sizeVal;
 
     final lPadded = lenStr.toString().padLeft(2, '0');
@@ -36,6 +38,7 @@ class InModelDimensionBadge extends StatelessWidget {
             initialLength: lenVal > 0 ? lenVal.toDouble() : 100.0,
             initialWidth: widthVal > 0 ? widthVal.toDouble() : 100.0,
             initialTrussSize: controller.standardTrussPieceSize > 0 ? controller.standardTrussPieceSize : 30.0,
+            initialCalculationUnitSize: controller.trussCalculationUnitSize > 0 ? controller.trussCalculationUnitSize : 10.0,
           );
           if (params == null) return;
 
@@ -46,6 +49,9 @@ class InModelDimensionBadge extends StatelessWidget {
             poleHeight: 20.0,
             includeTowers: true,
           );
+          if (params.calculationUnitSize > 0) {
+            controller.setTrussCalculationUnitSize(params.calculationUnitSize);
+          }
           onDimensionUpdated();
         },
         borderRadius: BorderRadius.circular(20),
@@ -104,7 +110,7 @@ class InModelDimensionBadge extends StatelessWidget {
                     ],
                   ),
                   child: Text(
-                    'Box: $sPadded/$sPadded ft',
+                    '${l10n?.box ?? "Box"}: $sPadded/$sPadded ft',
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w900,

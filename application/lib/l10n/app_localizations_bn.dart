@@ -648,4 +648,22 @@ class AppLocalizationsBn extends AppLocalizations {
   @override
   String get centerCrossSupportDesc =>
       'সেন্টার ক্রস তৈরির আগে ৪টি সাপোর্ট পোল থাকা প্রয়োজন।';
+
+  @override
+  String get trussCalculationSize => 'TRUSS CALCULATION SIZE';
+
+  @override
+  String get ok => 'OK';
+
+  @override
+  String get extra => 'Extra';
+
+  @override
+  String get covered => 'Covered';
+
+  @override
+  String get plotLimit => 'Plot Limit';
+
+  @override
+  String get box => 'Box';
 }

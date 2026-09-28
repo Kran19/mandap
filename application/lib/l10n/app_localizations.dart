@@ -1379,6 +1379,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'4 supporting perimeter poles are required before creating a center cross structure.'**
   String get centerCrossSupportDesc;
+
+  /// No description provided for @trussCalculationSize.
+  ///
+  /// In en, this message translates to:
+  /// **'TRUSS CALCULATION SIZE'**
+  String get trussCalculationSize;
+
+  /// No description provided for @ok.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get ok;
+
+  /// No description provided for @extra.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra'**
+  String get extra;
+
+  /// No description provided for @covered.
+  ///
+  /// In en, this message translates to:
+  /// **'Covered'**
+  String get covered;
+
+  /// No description provided for @plotLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Plot Limit'**
+  String get plotLimit;
+
+  /// No description provided for @box.
+  ///
+  /// In en, this message translates to:
+  /// **'Box'**
+  String get box;
 }
 
 class _AppLocalizationsDelegate

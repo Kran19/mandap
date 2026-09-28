@@ -654,4 +654,22 @@ class AppLocalizationsTa extends AppLocalizations {
   @override
   String get centerCrossSupportDesc =>
       'மைய குறுக்கு கட்டமைப்பை உருவாக்கும் முன் 4 சுற்றளவு ஆதரவு கம்பங்கள் தேவை.';
+
+  @override
+  String get trussCalculationSize => 'TRUSS CALCULATION SIZE';
+
+  @override
+  String get ok => 'OK';
+
+  @override
+  String get extra => 'Extra';
+
+  @override
+  String get covered => 'Covered';
+
+  @override
+  String get plotLimit => 'Plot Limit';
+
+  @override
+  String get box => 'Box';
 }

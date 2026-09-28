@@ -44,16 +44,23 @@ class InspectorBomPanel extends StatefulWidget {
 class _InspectorBomPanelState extends State<InspectorBomPanel>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late TextEditingController _calculationSizeController;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _calculationSizeController = TextEditingController(
+      text: widget.controller.trussCalculationUnitSize.toStringAsFixed(
+        widget.controller.trussCalculationUnitSize.truncateToDouble() == widget.controller.trussCalculationUnitSize ? 0 : 1,
+      ),
+    );
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _calculationSizeController.dispose();
     super.dispose();
   }
 
@@ -616,6 +623,182 @@ class _InspectorBomPanelState extends State<InspectorBomPanel>
     );
   }
 
+  Widget _buildTrussCalculationSizeSection(MandapEditorController c) {
+    final currentUnit = c.trussCalculationUnitSize;
+    final presets = [10.0, 15.0, 20.0, 25.0, 30.0];
+    final totalFt = c.totalLinearTrussFt;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.5), width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.calculate_outlined, color: Color(0xFF60A5FA), size: 16),
+              SizedBox(width: 6),
+              Text(
+                'TRUSS CALCULATION SIZE',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.0,
+                  color: Color(0xFF60A5FA),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Calculate required pieces based on custom truss size:',
+            style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+          ),
+          const SizedBox(height: 10),
+
+          // Preset Chips
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: presets.map((preset) {
+              final isSelected = (preset - currentUnit).abs() < 0.01;
+              return InkWell(
+                onTap: () {
+                  _calculationSizeController.text = preset.toStringAsFixed(preset.truncateToDouble() == preset ? 0 : 1);
+                  c.setTrussCalculationUnitSize(preset);
+                },
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF1E293B),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: isSelected ? const Color(0xFF60A5FA) : const Color(0xFF334155),
+                    ),
+                  ),
+                  child: Text(
+                    '${preset.toStringAsFixed(0)} ft',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected ? Colors.white : const Color(0xFFCBD5E1),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 10),
+
+          // Custom Input Field
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 34,
+                  child: TextField(
+                    controller: _calculationSizeController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    style: const TextStyle(fontSize: 12, color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: 'Custom Size',
+                      labelStyle: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
+                      suffixText: 'ft',
+                      suffixStyle: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: const BorderSide(color: Color(0xFF334155)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: const BorderSide(color: Color(0xFF3B82F6)),
+                      ),
+                    ),
+                    onSubmitted: (val) {
+                      final parsed = double.tryParse(val);
+                      if (parsed != null && parsed > 0) {
+                        c.setTrussCalculationUnitSize(parsed);
+                      }
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 34,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
+                  onPressed: () {
+                    final parsed = double.tryParse(_calculationSizeController.text);
+                    if (parsed != null && parsed > 0) {
+                      c.setTrussCalculationUnitSize(parsed);
+                    }
+                  },
+                  child: const Text('Apply', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Dynamic Live Calculation Box
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: const Color(0xFF334155)),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Pieces (${currentUnit.toStringAsFixed(currentUnit.truncateToDouble() == currentUnit ? 0 : 1)} ft unit):',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFE2E8F0)),
+                    ),
+                    Text(
+                      '${c.totalPiecesRequired} pcs',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF38BDF8)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '(${totalFt.toStringAsFixed(1)} ft ÷ ${currentUnit.toStringAsFixed(1)} ft)',
+                      style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
+                    ),
+                    Text(
+                      'Pillar: ${c.pillarPiecesRequired} | Upper: ${c.upperPiecesRequired}',
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: Color(0xFFA7F3D0)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── BOM Tab ────────────────────────────────────────────────────────────────
   Widget _buildBomTab() {
     final c = widget.controller;
@@ -632,6 +815,9 @@ class _InspectorBomPanelState extends State<InspectorBomPanel>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Dedicated Truss Calculation Section
+          _buildTrussCalculationSizeSection(c),
+
           const Text(
             'TRUSS BOM',
             style: TextStyle(

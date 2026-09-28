@@ -212,7 +212,11 @@ class _CadHeaderBarState extends State<CadHeaderBar> {
                                   ConstrainedBox(
                                     constraints: BoxConstraints(maxWidth: isVeryCompact ? 45 : (screenWidth < 600 ? 55 : 120)),
                                     child: Text(
-                                      widget.projectName,
+                                      (widget.projectName == 'Truss' || widget.projectName == 'Truss Structure Design')
+                                          ? (AppLocalizations.of(context)?.truss ?? widget.projectName)
+                                          : (widget.projectName == 'New Project' || widget.projectName == 'Project 01')
+                                              ? (AppLocalizations.of(context)?.newProject ?? widget.projectName)
+                                              : widget.projectName,
                                       overflow: TextOverflow.ellipsis,
                                       maxLines: 1,
                                       style: const TextStyle(

@@ -229,14 +229,14 @@ class _PoleCalculatorScreenContentState extends State<_PoleCalculatorScreenConte
                                 ),
                               ],
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                                SizedBox(width: 6),
+                                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                                const SizedBox(width: 6),
                                 Text(
-                                  'OK',
-                                  style: TextStyle(
+                                  AppLocalizations.of(context)?.ok ?? 'OK',
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w900,

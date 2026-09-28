@@ -1,4 +1,6 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../domain/entities/boundary_pole.dart';
 import '../domain/entities/truss_size.dart';
 import '../application/truss_boundary_controller.dart';
 import 'widgets/truss_boundary_2d_painter.dart';
@@ -450,24 +452,212 @@ class _TrussBoundaryPlannerScreenState extends State<TrussBoundaryPlannerScreen>
   }
 
   void _handleCanvasTap(TapUpDetails details) {
-    // Check if tapping center light target
     final renderBox = context.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
 
     final localPos = details.localPosition;
     final size = renderBox.size;
-    const margin = 32.0;
+    const margin = 40.0;
     final availWidth = size.width - margin * 2;
     final availHeight = size.height - margin * 2;
     if (availWidth <= 0 || availHeight <= 0) return;
 
-    final centerCanvasX = margin + (availWidth / 2);
-    final centerCanvasZ = margin + (availHeight / 2);
+    final scaleX = availWidth / _controller.plotWidth;
+    final scaleZ = availHeight / _controller.plotDepth;
+    final scale = math.min(scaleX, scaleZ);
 
-    final distToCenter = (Offset(localPos.dx, localPos.dy) - Offset(centerCanvasX, centerCanvasZ)).distance;
-    if (distToCenter <= 30.0) {
-      _controller.handleCenterLightTap();
+    final offsetX = margin + (availWidth - _controller.plotWidth * scale) / 2;
+    final offsetZ = margin + (availHeight - _controller.plotDepth * scale) / 2;
+
+    Offset toCanvas(double x, double z) {
+      return Offset(offsetX + x * scale, offsetZ + z * scale);
     }
+
+    // 1. Center Light target tap
+    final centerPole = _controller.uniquePoles.firstWhere(
+      (p) => p.connectedSideIds.contains('center'),
+      orElse: () => BoundaryPole(
+        id: 'fallback_center',
+        x: _controller.plotWidth / 2.0,
+        z: _controller.plotDepth / 2.0,
+        isCorner: false,
+        isSupportPole: true,
+      ),
+    );
+    final centerPt = toCanvas(centerPole.x, centerPole.z);
+    if ((localPos - centerPt).distance <= 30.0) {
+      _controller.handleCenterLightTap();
+      return;
+    }
+
+    // 2. Eraser Tool: Tap intermediate joint pole to merge adjacent runs, or tap center run
+    if (_controller.activeTool == EditingTool.eraser) {
+      // Check center runs
+      for (final run in _controller.centerRuns) {
+        final p1Pole = _controller.uniquePoles.firstWhere((p) => p.id == run.startNodeId, orElse: () => centerPole);
+        final p2Pole = _controller.uniquePoles.firstWhere((p) => p.id == run.endNodeId, orElse: () => centerPole);
+        final pt1 = toCanvas(p1Pole.x, p1Pole.z);
+        final pt2 = toCanvas(p2Pole.x, p2Pole.z);
+        if (_distanceToSegment(localPos, pt1, pt2) <= 20.0) {
+          _controller.handleEraserCenterRunTap(run.id);
+          return;
+        }
+      }
+
+      // Check perimeter joint poles OR direct run segment taps to merge adjacent runs (e.g. 30 ft + 10 ft -> 40 ft)
+      for (final entry in _controller.fourSides.entries) {
+        final sideId = entry.key;
+        final side = entry.value;
+        if (side.runs.length < 2) continue;
+
+        // A. Check joint poles
+        double accumulated = 0.0;
+        for (int i = 0; i < side.runs.length - 1; i++) {
+          final runA = side.runs[i];
+          final runB = side.runs[i + 1];
+          accumulated += runA.geometricSpan;
+
+          double poleX = 0, poleZ = 0;
+          switch (sideId) {
+            case 'north':
+              poleX = accumulated;
+              poleZ = 0;
+              break;
+            case 'east':
+              poleX = _controller.plotWidth;
+              poleZ = accumulated;
+              break;
+            case 'south':
+              poleX = accumulated;
+              poleZ = _controller.plotDepth;
+              break;
+            case 'west':
+              poleX = 0;
+              poleZ = accumulated;
+              break;
+          }
+
+          final jointPt = toCanvas(poleX, poleZ);
+          if ((localPos - jointPt).distance <= 32.0) {
+            _controller.handleEraserTap(
+              sideId: sideId,
+              runIdA: runA.id,
+              runIdB: runB.id,
+            );
+            return;
+          }
+        }
+
+        // B. Check direct taps on truss run segments with Eraser
+        accumulated = 0.0;
+        for (int i = 0; i < side.runs.length; i++) {
+          final run = side.runs[i];
+          final startDist = accumulated;
+          final endDist = accumulated + run.geometricSpan;
+          accumulated += run.geometricSpan;
+
+          Offset pt1, pt2;
+          switch (sideId) {
+            case 'north':
+              pt1 = toCanvas(startDist, 0);
+              pt2 = toCanvas(endDist, 0);
+              break;
+            case 'east':
+              pt1 = toCanvas(_controller.plotWidth, startDist);
+              pt2 = toCanvas(_controller.plotWidth, endDist);
+              break;
+            case 'south':
+              pt1 = toCanvas(startDist, _controller.plotDepth);
+              pt2 = toCanvas(endDist, _controller.plotDepth);
+              break;
+            case 'west':
+              pt1 = toCanvas(0, startDist);
+              pt2 = toCanvas(0, endDist);
+              break;
+            default:
+              pt1 = Offset.zero;
+              pt2 = Offset.zero;
+          }
+
+          if (_distanceToSegment(localPos, pt1, pt2) <= 24.0) {
+            final runA = i > 0 ? side.runs[i - 1] : side.runs[0];
+            final runB = i > 0 ? side.runs[i] : side.runs[1];
+            _controller.handleEraserTap(
+              sideId: sideId,
+              runIdA: runA.id,
+              runIdB: runB.id,
+            );
+            return;
+          }
+        }
+      }
+    }
+
+    // 3. Pencil Tool: Tap perimeter truss run to split it into two sections
+    if (_controller.activeTool == EditingTool.pencil) {
+      for (final entry in _controller.fourSides.entries) {
+        final sideId = entry.key;
+        final side = entry.value;
+
+        double accumulated = 0.0;
+        for (final run in side.runs) {
+          final startDist = accumulated;
+          final endDist = accumulated + run.geometricSpan;
+          accumulated += run.geometricSpan;
+
+          Offset pt1, pt2;
+          switch (sideId) {
+            case 'north':
+              pt1 = toCanvas(startDist, 0);
+              pt2 = toCanvas(endDist, 0);
+              break;
+            case 'east':
+              pt1 = toCanvas(_controller.plotWidth, startDist);
+              pt2 = toCanvas(_controller.plotWidth, endDist);
+              break;
+            case 'south':
+              pt1 = toCanvas(startDist, _controller.plotDepth);
+              pt2 = toCanvas(endDist, _controller.plotDepth);
+              break;
+            case 'west':
+              pt1 = toCanvas(0, startDist);
+              pt2 = toCanvas(0, endDist);
+              break;
+            default:
+              pt1 = Offset.zero;
+              pt2 = Offset.zero;
+          }
+
+          final distToLine = _distanceToSegment(localPos, pt1, pt2);
+          if (distToLine <= 22.0) {
+            double tapRatio = 0.5;
+            final lineVec = pt2 - pt1;
+            final lineLenSq = lineVec.dx * lineVec.dx + lineVec.dy * lineVec.dy;
+            if (lineLenSq > 0) {
+              final tapVec = localPos - pt1;
+              tapRatio = ((tapVec.dx * lineVec.dx + tapVec.dy * lineVec.dy) / lineLenSq).clamp(0.1, 0.9);
+            }
+            final splitOffset = (run.geometricSpan * tapRatio).roundToDouble();
+            if (splitOffset > 0 && splitOffset < run.geometricSpan) {
+              _controller.handlePencilTap(
+                sideId: sideId,
+                targetRunId: run.id,
+                splitOffset: splitOffset,
+              );
+              return;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  double _distanceToSegment(Offset p, Offset a, Offset b) {
+    final l2 = (b - a).distanceSquared;
+    if (l2 == 0) return (p - a).distance;
+    final t = (((p.dx - a.dx) * (b.dx - a.dx) + (p.dy - a.dy) * (b.dy - a.dy)) / l2).clamp(0.0, 1.0);
+    final projection = Offset(a.dx + t * (b.dx - a.dx), a.dy + t * (b.dy - a.dy));
+    return (p - projection).distance;
   }
 
   /// Modal Bottom Sheet showing the full Support Pole Logic Table, Project Summary, Legend & BOM

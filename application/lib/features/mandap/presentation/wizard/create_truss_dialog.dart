@@ -8,11 +8,13 @@ class TrussConfigurationParams {
   final double plotLength;
   final double plotWidth;
   final double trussSize;
+  final double calculationUnitSize;
 
   const TrussConfigurationParams({
     required this.plotLength,
     required this.plotWidth,
     required this.trussSize,
+    this.calculationUnitSize = 10.0,
   });
 }
 
@@ -20,17 +22,20 @@ class TrussConfigurationParams {
 typedef CreateTrussConfig = TrussConfigurationParams;
 
 /// Single configuration popup dialog for creating or re-specifying Truss architecture.
-/// Features quick preset chips (10, 20, 25, 30, 40, 50 ft, Custom) and a direct custom value input box.
+/// Features quick preset chips (10, 20, 25, 30, 40, 50 ft, Custom) and a direct custom value input box,
+/// plus a dedicated Truss Calculation Size section for piece requirements.
 class CreateTrussDialog extends StatefulWidget {
   final double initialLength;
   final double initialWidth;
   final double initialTrussSize;
+  final double initialCalculationUnitSize;
 
   const CreateTrussDialog({
     super.key,
     this.initialLength = 100.0,
     this.initialWidth = 100.0,
     this.initialTrussSize = 30.0,
+    this.initialCalculationUnitSize = 10.0,
   });
 
   /// Static helper to display the dialog and return the user-entered configuration.
@@ -39,6 +44,7 @@ class CreateTrussDialog extends StatefulWidget {
     double initialLength = 100.0,
     double initialWidth = 100.0,
     double initialTrussSize = 30.0,
+    double initialCalculationUnitSize = 10.0,
   }) {
     return showDialog<CreateTrussConfig>(
       context: context,
@@ -47,6 +53,7 @@ class CreateTrussDialog extends StatefulWidget {
         initialLength: initialLength,
         initialWidth: initialWidth,
         initialTrussSize: initialTrussSize,
+        initialCalculationUnitSize: initialCalculationUnitSize,
       ),
     );
   }
@@ -58,7 +65,9 @@ class CreateTrussDialog extends StatefulWidget {
 class _CreateTrussDialogState extends State<CreateTrussDialog> {
   late TextEditingController _plotSizeController;
   late TextEditingController _trussSizeController;
+  late TextEditingController _calcSizeController;
   final FocusNode _trussFocusNode = FocusNode();
+  final FocusNode _calcFocusNode = FocusNode();
 
   static const List<double> _standardTrussOptions = [10.0, 20.0, 25.0, 30.0, 40.0, 50.0];
   bool _isCustomSelected = false;
@@ -76,23 +85,15 @@ class _CreateTrussDialogState extends State<CreateTrussDialog> {
         : widget.initialTrussSize.toStringAsFixed(1);
     _trussSizeController = TextEditingController(text: tsStr);
 
+    final calcStr = widget.initialCalculationUnitSize % 1 == 0
+        ? widget.initialCalculationUnitSize.toInt().toString()
+        : widget.initialCalculationUnitSize.toStringAsFixed(1);
+    _calcSizeController = TextEditingController(text: calcStr);
+
     _isCustomSelected = !_standardTrussOptions.any((opt) => (opt - widget.initialTrussSize).abs() < 0.01);
 
-    _trussSizeController.addListener(_onTrussSizeChanged);
     if (widget.initialLength == 100.0 && widget.initialWidth == 100.0 && widget.initialTrussSize == 30.0) {
       _loadSavedPreferences();
-    }
-  }
-
-  void _onTrussSizeChanged() {
-    final val = double.tryParse(_trussSizeController.text.trim());
-    if (val != null) {
-      final isStd = _standardTrussOptions.any((opt) => (opt - val).abs() < 0.01);
-      if (mounted && _isCustomSelected == isStd) {
-        setState(() {
-          _isCustomSelected = !isStd;
-        });
-      }
     }
   }
 
@@ -102,6 +103,7 @@ class _CreateTrussDialogState extends State<CreateTrussDialog> {
       final savedLength = prefs.getDouble('truss_last_length');
       final savedWidth = prefs.getDouble('truss_last_width');
       final savedTrussSize = prefs.getDouble('truss_last_size');
+      final savedCalcSize = prefs.getDouble('truss_last_calc_size');
 
       if (savedLength != null && savedWidth != null && savedLength > 0 && savedWidth > 0 && mounted) {
         final lenStr = savedLength.toStringAsFixed(0);
@@ -113,6 +115,10 @@ class _CreateTrussDialogState extends State<CreateTrussDialog> {
           _plotSizeController.text = '$lenStr / $widthStr';
           _trussSizeController.text = tsStr;
           _isCustomSelected = !_standardTrussOptions.any((opt) => (opt - sizeVal).abs() < 0.01);
+          if (savedCalcSize != null && savedCalcSize > 0) {
+            final calcStr = savedCalcSize % 1 == 0 ? savedCalcSize.toInt().toString() : savedCalcSize.toStringAsFixed(1);
+            _calcSizeController.text = calcStr;
+          }
         });
       }
     } catch (_) {}
@@ -121,9 +127,10 @@ class _CreateTrussDialogState extends State<CreateTrussDialog> {
   @override
   void dispose() {
     _plotSizeController.dispose();
-    _trussSizeController.removeListener(_onTrussSizeChanged);
     _trussSizeController.dispose();
+    _calcSizeController.dispose();
     _trussFocusNode.dispose();
+    _calcFocusNode.dispose();
     super.dispose();
   }
 
@@ -161,13 +168,15 @@ class _CreateTrussDialogState extends State<CreateTrussDialog> {
       _isCustomSelected = true;
       _errorMessage = null;
     });
-    _trussFocusNode.requestFocus();
+    Future.microtask(() => _trussFocusNode.requestFocus());
   }
 
   void _handleGenerate() {
     final plotSize = _parsePlotSize(_plotSizeController.text);
     final sizeText = _trussSizeController.text.trim();
     final trussSize = double.tryParse(sizeText);
+    final calcSizeText = _calcSizeController.text.trim();
+    final calcSize = double.tryParse(calcSizeText) ?? 10.0;
 
     if (plotSize == null) {
       setState(() => _errorMessage = 'Please enter a valid Plot Size (e.g. 100 / 100 or 100 x 100).');
@@ -176,6 +185,11 @@ class _CreateTrussDialogState extends State<CreateTrussDialog> {
 
     if (trussSize == null || !trussSize.isFinite || trussSize <= 0) {
       setState(() => _errorMessage = 'Please enter a valid positive Truss Size (e.g. 10, 15, 30 ft).');
+      return;
+    }
+
+    if (calcSize <= 0 || !calcSize.isFinite) {
+      setState(() => _errorMessage = 'Please enter a valid positive Truss Calculation Size (e.g. 10, 12, 15 ft).');
       return;
     }
 
@@ -192,6 +206,7 @@ class _CreateTrussDialogState extends State<CreateTrussDialog> {
         prefs.setDouble('truss_last_length', plotSize.length);
         prefs.setDouble('truss_last_width', plotSize.width);
         prefs.setDouble('truss_last_size', trussSize);
+        prefs.setDouble('truss_last_calc_size', calcSize);
       });
     } catch (_) {}
 
@@ -200,6 +215,7 @@ class _CreateTrussDialogState extends State<CreateTrussDialog> {
         plotLength: plotSize.length,
         plotWidth: plotSize.width,
         trussSize: trussSize,
+        calculationUnitSize: calcSize,
       ),
     );
   }
@@ -332,14 +348,7 @@ class _CreateTrussDialogState extends State<CreateTrussDialog> {
                       );
                     }),
                     ChoiceChip(
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.edit_note_rounded, size: 14),
-                          const SizedBox(width: 4),
-                          Text(l10n?.custom ?? 'Custom'),
-                        ],
-                      ),
+                      label: Text(l10n?.custom ?? 'Custom'),
                       selected: _isCustomSelected,
                       selectedColor: const Color(0xFF0284C7),
                       backgroundColor: AppColors.inputBackground,
@@ -357,17 +366,28 @@ class _CreateTrussDialogState extends State<CreateTrussDialog> {
                   ],
                 ),
 
-                const SizedBox(height: 12),
+                // Editable Truss Size Box (only opened when Custom is selected)
+                if (_isCustomSelected) ...[
+                  const SizedBox(height: 12),
+                  _buildInputField(
+                    label: l10n?.customTrussSizeWrite ?? 'CUSTOM TRUSS SIZE (Write your value)',
+                    hint: 'e.g. 10, 15, 25, 30, 35 ft',
+                    controller: _trussSizeController,
+                    focusNode: _trussFocusNode,
+                    icon: Icons.straighten_rounded,
+                    suffix: 'ft',
+                  ),
+                ],
 
-                // Editable Truss Size Box (allows writing ANY custom size)
+                const SizedBox(height: 18),
+
+                // Section 3: TRUSS CALCULATION SIZE (Direct Input)
                 _buildInputField(
-                  label: _isCustomSelected 
-                      ? (l10n?.customTrussSizeWrite ?? 'CUSTOM TRUSS SIZE (Write your value)') 
-                      : (l10n?.trussSizeLabel ?? 'TRUSS SIZE'),
-                  hint: 'e.g. 10, 15, 25, 30, 35 ft',
-                  controller: _trussSizeController,
-                  focusNode: _trussFocusNode,
-                  icon: Icons.straighten_rounded,
+                  label: l10n?.trussCalculationSize ?? 'TRUSS CALCULATION SIZE',
+                  hint: 'e.g. 10, 12, 15, 20 ft',
+                  controller: _calcSizeController,
+                  focusNode: _calcFocusNode,
+                  icon: Icons.calculate_outlined,
                   suffix: 'ft',
                 ),
 
@@ -487,4 +507,3 @@ class _CreateTrussDialogState extends State<CreateTrussDialog> {
     );
   }
 }
-

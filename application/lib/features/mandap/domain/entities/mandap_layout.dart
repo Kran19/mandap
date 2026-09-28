@@ -19,6 +19,18 @@ class MandapLayout {
     this.zones = const [],
   });
 
+  MandapLayout copyWith({
+    Map<NodeId, MandapNode>? nodes,
+    Map<EdgeId, MandapEdge>? edges,
+    List<MandapZone>? zones,
+  }) {
+    return MandapLayout(
+      nodes: nodes ?? this.nodes,
+      edges: edges ?? this.edges,
+      zones: zones ?? this.zones,
+    );
+  }
+
   /// Factory constructor for a standard rectangular Mandap preset.
   ///
   /// N1(0,0) ─────────── N2(width,0)

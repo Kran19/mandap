@@ -7,6 +7,8 @@ import 'environment_geometry_cache.dart';
 ///
 /// Guaranteed: Camera movement (orbit, pan, zoom) causes ZERO environment rebuilds.
 class FestivalWorldEnvironment {
+  static final Path _reusablePath = Path();
+
   static void paint({
     required Canvas canvas,
     required Size size,
@@ -32,15 +34,15 @@ class FestivalWorldEnvironment {
       final p4 = project(q.v4);
       if (p1 == null || p2 == null || p3 == null || p4 == null) continue;
 
-      final path = Path()
-        ..moveTo(p1.dx, p1.dy)
-        ..lineTo(p2.dx, p2.dy)
-        ..lineTo(p3.dx, p3.dy)
-        ..lineTo(p4.dx, p4.dy)
-        ..close();
+      _reusablePath.reset();
+      _reusablePath.moveTo(p1.dx, p1.dy);
+      _reusablePath.lineTo(p2.dx, p2.dy);
+      _reusablePath.lineTo(p3.dx, p3.dy);
+      _reusablePath.lineTo(p4.dx, p4.dy);
+      _reusablePath.close();
 
-      canvas.drawPath(path, q.fill);
-      if (q.stroke != null) canvas.drawPath(path, q.stroke!);
+      canvas.drawPath(_reusablePath, q.fill);
+      if (q.stroke != null) canvas.drawPath(_reusablePath, q.stroke!);
     }
 
     // 2. Boxes (Stage Platform, Entrance Pylons, Arch Header, Campers, Tables, FOH Booth)
@@ -53,13 +55,14 @@ class FestivalWorldEnvironment {
       final pt = projTop.cast<Offset>();
 
       void drawPoly(List<Offset> pts) {
-        final path = Path()..moveTo(pts[0].dx, pts[0].dy);
+        _reusablePath.reset();
+        _reusablePath.moveTo(pts[0].dx, pts[0].dy);
         for (int i = 1; i < pts.length; i++) {
-          path.lineTo(pts[i].dx, pts[i].dy);
+          _reusablePath.lineTo(pts[i].dx, pts[i].dy);
         }
-        path.close();
-        canvas.drawPath(path, b.fill);
-        canvas.drawPath(path, b.stroke);
+        _reusablePath.close();
+        canvas.drawPath(_reusablePath, b.fill);
+        canvas.drawPath(_reusablePath, b.stroke);
       }
 
       drawPoly(pt);
@@ -78,14 +81,15 @@ class FestivalWorldEnvironment {
       if (pts.any((p) => p == null)) continue;
 
       final offsets = pts.cast<Offset>();
-      final path = Path()..moveTo(offsets[0].dx, offsets[0].dy);
+      _reusablePath.reset();
+      _reusablePath.moveTo(offsets[0].dx, offsets[0].dy);
       for (int i = 1; i < offsets.length; i++) {
-        path.lineTo(offsets[i].dx, offsets[i].dy);
+        _reusablePath.lineTo(offsets[i].dx, offsets[i].dy);
       }
-      path.close();
+      _reusablePath.close();
 
-      canvas.drawPath(path, poly.fill);
-      if (poly.stroke != null) canvas.drawPath(path, poly.stroke!);
+      canvas.drawPath(_reusablePath, poly.fill);
+      if (poly.stroke != null) canvas.drawPath(_reusablePath, poly.stroke!);
     }
 
     // 4. Lines (Rails, Posts, Speaker Arrays, Festoon Cables, Floodlight Masts)

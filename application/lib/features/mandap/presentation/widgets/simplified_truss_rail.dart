@@ -162,6 +162,26 @@ class SimplifiedTrussRail extends StatelessWidget {
                 iconColor: canRedo ? const Color(0xFFE2E8F0) : const Color(0xFF475569),
                 onTap: canRedo ? controller.redo : () {},
               ),
+
+              const SizedBox(height: 5),
+
+              // 6. TOGGLE SIZE MARKINGS (Show/Hide Dimensions) Button
+              _buildToolButton(
+                icon: controller.showMarkings
+                    ? Icons.visibility_rounded
+                    : Icons.visibility_off_rounded,
+                tooltip: controller.showMarkings
+                    ? 'Hide Size Markings'
+                    : 'Show Size Markings',
+                isActive: controller.showMarkings,
+                isEnabled: true,
+                activeBg: const Color(0xFF0D9488),
+                activeBorder: const Color(0xFF14B8A6),
+                iconColor: controller.showMarkings
+                    ? const Color(0xFF5EEAD4)
+                    : const Color(0xFF64748B),
+                onTap: controller.toggleShowMarkings,
+              ),
             ],
           ),
         );

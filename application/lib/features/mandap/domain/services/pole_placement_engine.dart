@@ -31,13 +31,16 @@ class FixedIntervalPoleStrategy implements PolePlacementStrategy {
     final dz = endNode.z - startNode.z;
     final lengthFeet = math.sqrt(dx * dx + dz * dz);
 
-    if (lengthFeet <= maxSpanFeet) {
+    // Edges <= 40 ft (e.g. 40ft truss) require no intermediate support poles
+    if (lengthFeet <= 40.0 + 0.05) {
       return const [];
     }
 
+    // Long runs (> 40 ft) place support poles at 30-ft intervals by default
+    final interval = (maxSpanFeet > 0 && maxSpanFeet < 40.0) ? maxSpanFeet : 30.0;
     final positions = const TrussSupportSpacingCalculator().calculateSupportPositions(
       lengthFeet,
-      interval: maxSpanFeet,
+      interval: interval,
     );
 
     final poles = <PolePlacement>[];
@@ -63,7 +66,7 @@ class FixedIntervalPoleStrategy implements PolePlacementStrategy {
   }
 }
 
-/// Strategy that distributes intermediate support poles evenly across long edges (> maxSpanFeet).
+/// Strategy that distributes intermediate support poles evenly across long edges (> 40 ft).
 class EvenSpacingPoleStrategy implements PolePlacementStrategy {
   const EvenSpacingPoleStrategy();
 
@@ -78,11 +81,12 @@ class EvenSpacingPoleStrategy implements PolePlacementStrategy {
     final dz = endNode.z - startNode.z;
     final lengthFeet = math.sqrt(dx * dx + dz * dz);
 
-    if (lengthFeet <= maxSpanFeet) {
+    if (lengthFeet <= 40.0 + 0.05) {
       return const [];
     }
 
-    final int numSpans = (lengthFeet / maxSpanFeet).ceil();
+    final interval = (maxSpanFeet > 0 && maxSpanFeet < 40.0) ? maxSpanFeet : 30.0;
+    final int numSpans = (lengthFeet / interval).ceil();
     final int numIntermediatePoles = numSpans - 1;
     final poles = <PolePlacement>[];
 
@@ -110,12 +114,12 @@ class EvenSpacingPoleStrategy implements PolePlacementStrategy {
 class PolePlacementEngine {
   final PolePlacementStrategy strategy;
 
-  /// Default max unsupported span rule = 30 ft.
+  /// Default max unsupported span rule = 40.0 ft (up to 40ft allowed without intermediate poles).
   final double maxSpanFeet;
 
   const PolePlacementEngine({
     this.strategy = const FixedIntervalPoleStrategy(),
-    this.maxSpanFeet = 30.0,
+    this.maxSpanFeet = 40.0,
   });
 
   /// Computes all corner poles and generated intermediate poles for [layout].
@@ -149,11 +153,8 @@ class PolePlacementEngine {
           continue;
         }
 
-        // Modular box-truss upper runs and elevated horizontal roof spans do NOT receive
-        // automatic intermediate poles in the middle of bays.
-        // The master specification mandates: "No unrequested internal poles ... are generated inside bays."
-        final isElevatedHorizontal = (startNode.elevation > 0.1 && endNode.elevation > 0.1 && (startNode.elevation - endNode.elevation).abs() < 0.5);
-        if (edge.role == TrussMemberRole.upper || isElevatedHorizontal) {
+        // Vertical pillar members (same X and Z) do not receive horizontal intermediate poles
+        if ((startNode.x - endNode.x).abs() < 0.01 && (startNode.z - endNode.z).abs() < 0.01) {
           continue;
         }
 

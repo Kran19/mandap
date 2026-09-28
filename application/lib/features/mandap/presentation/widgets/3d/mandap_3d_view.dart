@@ -320,7 +320,8 @@ class _Mandap3DViewState extends State<Mandap3DView> with SingleTickerProviderSt
         } else if (hitEdgeId != null) {
           final edge = widget.controller.layout.getEdge(hitEdgeId);
           if (edge != null) {
-            widget.controller.selectEdge(hitEdgeId);
+            final hitPt = planeIntersection ?? groundIntersection;
+            widget.controller.selectEdge(hitEdgeId, worldX: hitPt?.x, worldZ: hitPt?.z);
             widget.controller.deselectBay();
           }
         } else {
@@ -354,7 +355,8 @@ class _Mandap3DViewState extends State<Mandap3DView> with SingleTickerProviderSt
           widget.controller.deleteNode(pickedNodeId);
           widget.controller.clearSelection();
         } else if (hitEdgeId != null) {
-          widget.controller.deleteEdge(hitEdgeId);
+          final hitPt = planeIntersection ?? groundIntersection;
+          widget.controller.deleteEdge(hitEdgeId, worldX: hitPt?.x, worldZ: hitPt?.z);
           widget.controller.clearSelection();
         }
         _lastPointerPos = null;
@@ -526,7 +528,6 @@ class _Mandap3DViewState extends State<Mandap3DView> with SingleTickerProviderSt
       }
       _lastPanMidpoint = currentMidpoint;
       _lastPointerPos = null;
-      setState(() {});
       return;
     } else {
       _lastPinchDistance = null;

@@ -10,7 +10,7 @@ import 'package:mandap/features/mandap/domain/value_objects/pole_placement.dart'
 
 void main() {
   group('PolePlacementEngine Boundary & Invariant Tests', () {
-    const engine = PolePlacementEngine(maxSpanFeet: 30.0);
+    const engine = PolePlacementEngine(strategy: EvenSpacingPoleStrategy(), maxSpanFeet: 30.0);
 
     MandapLayout createSingleEdgeLayout(double lengthFeet) {
       final n1 = const NodeId('n1');

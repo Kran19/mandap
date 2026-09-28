@@ -377,7 +377,7 @@ class EnvironmentGeometryCache {
     ));
 
     // Alternating stadium lawn mower stripes
-    const stripeWidth = 12.0;
+    final stripeWidth = math.max(12.0, (aMaxX - aMinX) / 36.0);
     int sIdx = 0;
     for (double sx = aMinX; sx < aMaxX; sx += stripeWidth) {
       final ex = math.min(sx + stripeWidth, aMaxX);

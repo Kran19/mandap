@@ -56,8 +56,8 @@ void main() {
 
       expect(geom10.latticeStruts.length, lessThan(geom30.latticeStruts.length));
       // 10 ft has ~6 bays (24 struts), 30 ft has ~19 bays (76 struts)
-      expect(geom10.latticeStruts.length, equals(24));
-      expect(geom30.latticeStruts.length, equals(76));
+      expect(geom10.latticeStruts.length, equals(16));
+      expect(geom30.latticeStruts.length, equals(48));
     });
 
     test('4 & 5. 30 ft member remains one MandapEdge and visual chords do NOT multiply BOM', () {

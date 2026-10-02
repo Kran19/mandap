@@ -94,38 +94,51 @@ class BoundaryPoleGenerator {
       );
     }
 
-    // Deduplicate shared nodes (especially corner poles)
-    final uniquePoles = <String, BoundaryPole>{};
+    // Deduplicate shared nodes (especially corner poles) within 0.5 ft proximity
+    final uniquePoles = <BoundaryPole>[];
 
     for (final raw in rawPoles) {
-      final key = '${raw.x.toStringAsFixed(2)}_${raw.z.toStringAsFixed(2)}';
-      if (uniquePoles.containsKey(key)) {
-        final existing = uniquePoles[key]!;
-        final updatedSides = {...existing.connectedSideIds, raw.sideId}.toList();
-        final isCorner = existing.isCorner || raw.isCorner;
-        final isSupportPole = existing.isSupportPole || raw.isSupportPole || isCorner;
+      BoundaryPole? existingMatch;
+      int matchIndex = -1;
+      for (int i = 0; i < uniquePoles.length; i++) {
+        final p = uniquePoles[i];
+        final dx = p.x - raw.x;
+        final dz = p.z - raw.z;
+        if (dx * dx + dz * dz < 0.25) { // 0.5 ft threshold
+          existingMatch = p;
+          matchIndex = i;
+          break;
+        }
+      }
 
-        uniquePoles[key] = BoundaryPole(
-          id: existing.id,
-          x: existing.x,
-          z: existing.z,
+      if (existingMatch != null) {
+        final updatedSides = {...existingMatch.connectedSideIds, raw.sideId}.toList();
+        final isCorner = existingMatch.isCorner || raw.isCorner;
+        final isSupportPole = existingMatch.isSupportPole || raw.isSupportPole || isCorner;
+
+        uniquePoles[matchIndex] = BoundaryPole(
+          id: existingMatch.id,
+          x: existingMatch.x,
+          z: existingMatch.z,
           isCorner: isCorner,
           isSupportPole: isSupportPole,
           connectedSideIds: updatedSides,
         );
       } else {
-        uniquePoles[key] = BoundaryPole(
-          id: 'pole_${raw.x.round()}_${raw.z.round()}',
-          x: raw.x,
-          z: raw.z,
-          isCorner: raw.isCorner,
-          isSupportPole: raw.isSupportPole || raw.isCorner,
-          connectedSideIds: [raw.sideId],
+        uniquePoles.add(
+          BoundaryPole(
+            id: 'pole_${raw.x.round()}_${raw.z.round()}',
+            x: raw.x,
+            z: raw.z,
+            isCorner: raw.isCorner,
+            isSupportPole: raw.isSupportPole || raw.isCorner,
+            connectedSideIds: [raw.sideId],
+          ),
         );
       }
     }
 
-    return List.unmodifiable(uniquePoles.values.toList());
+    return List.unmodifiable(uniquePoles);
   }
 
   /// Calculates positions along one side from 0 to sideDimension based on run accumulation.

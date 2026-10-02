@@ -47,22 +47,43 @@ class _Mandap2DCanvasState extends State<Mandap2DCanvas> {
     
     final worldPos = _screenToWorld(details.localPosition);
     
-    // Hit test: check nodes first
+    // Hit test: check nodes first (hit radius 3.0 feet in world space = 9.0 squared)
+    MandapNode? bestNode;
+    double minDistance = double.infinity;
     for (final node in widget.controller.layout.nodes.values) {
       final dx = node.x - worldPos.dx;
       final dz = node.z - worldPos.dy;
       final distance = (dx * dx + dz * dz);
-      // Hit radius: roughly 0.5 feet
-      if (distance < 0.25) {
-        if (widget.controller.mode == EditorMode.select || widget.controller.mode == EditorMode.move) {
-          widget.controller.selectNode(node.id);
-          _draggingNodeId = node.id;
-          return;
-        } else if (widget.controller.mode == EditorMode.addEdge) {
-          widget.controller.handleAddEdgeTap(node.id);
-          return;
+      if (distance < 9.0 && distance < minDistance) {
+        minDistance = distance;
+        bestNode = node;
+      }
+    }
+
+    if (bestNode != null) {
+      if (bestNode.type == NodeType.controlPoint ||
+          bestNode.isControlPoint ||
+          bestNode.id.value.contains('center')) {
+        if (!widget.controller.hasCenterCross) {
+          widget.controller.toggleCenterCross();
         }
       }
+      if (widget.controller.mode == EditorMode.select || widget.controller.mode == EditorMode.move) {
+        widget.controller.selectNode(bestNode.id);
+        _draggingNodeId = bestNode.id;
+        return;
+      } else if (widget.controller.mode == EditorMode.addEdge) {
+        widget.controller.handleAddEdgeTap(bestNode.id);
+        return;
+      }
+    }
+
+    final centerPos = Offset(widget.controller.plotWidth / 2.0, widget.controller.plotDepth / 2.0);
+    final distToCenterSq = (worldPos.dx - centerPos.dx) * (worldPos.dx - centerPos.dx) +
+        (worldPos.dy - centerPos.dy) * (worldPos.dy - centerPos.dy);
+    if (distToCenterSq < 25.0 && !widget.controller.hasCenterCross) {
+      widget.controller.toggleCenterCross();
+      return;
     }
     
     // Hit test edges if in select mode
@@ -78,7 +99,7 @@ class _Mandap2DCanvasState extends State<Mandap2DCanvas> {
           end.x, end.z,
         );
         
-        if (hit < 0.3) { // 0.3 feet tolerance
+        if (hit < 0.5) { // 0.5 feet tolerance
           widget.controller.selectEdge(edge.id, worldX: worldPos.dx, worldZ: worldPos.dy);
           widget.controller.deselectBay();
           return;
@@ -110,13 +131,23 @@ class _Mandap2DCanvasState extends State<Mandap2DCanvas> {
     final snappedX = _snap(worldPos.dx, widget.controller.baseGridSize, widget.controller.subGridSize);
     final snappedZ = _snap(worldPos.dy, widget.controller.baseGridSize, widget.controller.subGridSize);
 
-    // If edge is selected and user drags a node, stretch the edge
-    // But currently, dragging just moves the node directly.
-    widget.controller.moveNode(
-      nodeId: _draggingNodeId!,
-      newX: snappedX,
-      newZ: snappedZ,
-    );
+    final draggedNode = widget.controller.layout.nodes[_draggingNodeId];
+    if (draggedNode != null &&
+        (draggedNode.isControlPoint ||
+         draggedNode.type == NodeType.controlPoint ||
+         draggedNode.id.value.contains('center'))) {
+      // Dynamic center cross relocation: moves whole center structure together
+      widget.controller.adjustCenterPosition(
+        newX: snappedX,
+        newZ: snappedZ,
+      );
+    } else {
+      widget.controller.moveNode(
+        nodeId: _draggingNodeId!,
+        newX: snappedX,
+        newZ: snappedZ,
+      );
+    }
   }
 
   void _handlePanEnd(DragEndDetails details) {

@@ -593,8 +593,9 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
       final maxX = controller.plotWidth > 10.0 ? controller.plotWidth - 5.0 : 95.0;
       final minZ = 5.0;
       final maxZ = controller.plotDepth > 10.0 ? controller.plotDepth - 5.0 : 95.0;
-      final clampedX = (world.x / controller.subGridSize).round() * controller.subGridSize;
-      final clampedZ = (world.z / controller.subGridSize).round() * controller.subGridSize;
+      final step = (controller.subGridSize > 0 && controller.subGridSize <= 1.0) ? controller.subGridSize : 0.5;
+      final clampedX = (world.x / step).round() * step;
+      final clampedZ = (world.z / step).round() * step;
       final finalX = clampedX.clamp(minX, maxX);
       final finalZ = clampedZ.clamp(minZ, maxZ);
 
@@ -741,7 +742,7 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
                           // Primary Tool Rail (PENCIL, ERASER, and CONFIG)
                           Positioned(
                             left: 12,
-                            top: 12,
+                            top: 52,
                             child: SimplifiedTrussRail(
                               controller: controller,
                               onPencilTap: () {
@@ -773,28 +774,27 @@ class MandapEditorScreenState extends State<MandapEditorScreen> {
                           ),
 
                           // Top-Center In-Model Dimension Badge (Length/Breadth · Box Size)
-                          if (controller.showMarkings)
-                            Positioned(
-                              top: 12,
-                              left: 56,
-                              right: 80,
-                              child: Center(
-                                child: InModelDimensionBadge(
-                                  controller: controller,
-                                  onDimensionUpdated: () {
-                                    controller3D.fitCamera(controller.layout);
-                                    controller3D.syncScene(controller.layout, controller.result);
-                                    _fitView(_canvasSize);
-                                    _updateProjectAfterDimensionChange();
-                                    if (mounted) {
-                                      setState(() {
-                                        _viewMode = ViewMode.view3D;
-                                      });
-                                    }
-                                  },
-                                ),
+                          Positioned(
+                            top: 12,
+                            left: 56,
+                            right: 80,
+                            child: Center(
+                              child: InModelDimensionBadge(
+                                controller: controller,
+                                onDimensionUpdated: () {
+                                  controller3D.fitCamera(controller.layout);
+                                  controller3D.syncScene(controller.layout, controller.result);
+                                  _fitView(_canvasSize);
+                                  _updateProjectAfterDimensionChange();
+                                  if (mounted) {
+                                    setState(() {
+                                      _viewMode = ViewMode.view3D;
+                                    });
+                                  }
+                                },
                               ),
                             ),
+                          ),
 
                           // Floating OK Button on Top-Right (Clean, bright, highly accessible)
                           Positioned(

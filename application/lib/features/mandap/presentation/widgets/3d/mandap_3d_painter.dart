@@ -1502,20 +1502,22 @@ class Mandap3DPainter extends CustomPainter {
       text: labelText,
       style: TextStyle(
         color: isSelected ? const Color(0xFF00F0FF) : const Color(0xFFF1F5F9),
-        fontSize: isSelected ? 9.5 : 8.5,
+        fontSize: isSelected ? 9.0 : 8.0,
         fontWeight: isSelected ? FontWeight.bold : FontWeight.w700,
         letterSpacing: 0.2,
+        height: 1.0,
       ),
     );
 
     final textPainter = TextPainter(
       text: textSpan,
+      textAlign: TextAlign.center,
       textDirection: TextDirection.ltr,
     );
     textPainter.layout();
 
-    final badgeWidth = textPainter.width + 10.0;
-    final badgeHeight = isSelected ? 17.0 : 15.0;
+    final badgeWidth = math.max(textPainter.width + 8.0, 20.0);
+    final badgeHeight = math.max(textPainter.height + 4.0, 16.0);
 
     final badgeLeft = screenPt.dx - badgeWidth / 2.0;
     final badgeTop = screenPt.dy - badgeHeight / 2.0;
@@ -1702,7 +1704,7 @@ class Mandap3DPainter extends CustomPainter {
       if (showMarkings && pCenter != null) {
         final w = bay.widthFt.toInt().toString().padLeft(2, '0');
         final l = bay.lengthFt.toInt().toString().padLeft(2, '0');
-        final labelText = '$w/$l';
+        final labelText = '$w × $l ft';
         final textPainter = TextPainter(
           text: TextSpan(
             text: labelText,
@@ -1846,68 +1848,39 @@ class Mandap3DPainter extends CustomPainter {
       tp.paint(canvas, Offset(mid.dx - tp.width / 2.0, mid.dy - tp.height / 2.0));
     }
 
-    // 1. Plot Perimeter Ground Box (Cyan luminous outline)
-    final pNW = project(v64.Vector3(minX, 0.05, minZ));
-    final pNE = project(v64.Vector3(maxX, 0.05, minZ));
-    final pSE = project(v64.Vector3(maxX, 0.05, maxZ));
-    final pSW = project(v64.Vector3(minX, 0.05, maxZ));
+    // 1. Plot Perimeter Ground Box outline removed per user request (retaining 3D measurement lines below)
 
-    if (pNW != null && pNE != null && pSE != null && pSW != null) {
-      final groundPath = Path()
-        ..moveTo(pNW.dx, pNW.dy)
-        ..lineTo(pNE.dx, pNE.dy)
-        ..lineTo(pSE.dx, pSE.dy)
-        ..lineTo(pSW.dx, pSW.dy)
-        ..close();
-
-      // Cyan glow halo
-      canvas.drawPath(
-        groundPath,
-        Paint()
-          ..color = const Color(0x3300E5FF)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 4.5,
-      );
-      canvas.drawPath(
-        groundPath,
-        Paint()
-          ..color = const Color(0xFF00E5FF)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.8,
-      );
-    }
-
-    // 2. Width CAD 3D Dimension Line (along X axis at Z = minZ - 3.5)
+    // 2. Width CAD 3D Dimension Line (along X axis at Z = minZ - 9.0)
     final extPaint = Paint()
       ..color = const Color(0x6600E5FF)
       ..strokeWidth = 1.0;
 
     final extW0Start = project(v64.Vector3(minX, 0.05, minZ));
-    final extW0End = project(v64.Vector3(minX, 0.05, minZ - 3.5));
+    final extW0End = project(v64.Vector3(minX, 0.05, minZ - 9.0));
     final extW1Start = project(v64.Vector3(maxX, 0.05, minZ));
-    final extW1End = project(v64.Vector3(maxX, 0.05, minZ - 3.5));
+    final extW1End = project(v64.Vector3(maxX, 0.05, minZ - 9.0));
     if (extW0Start != null && extW0End != null) canvas.drawLine(extW0Start, extW0End, extPaint);
     if (extW1Start != null && extW1End != null) canvas.drawLine(extW1Start, extW1End, extPaint);
 
     draw3DDimensionLine(
-      startWorld: v64.Vector3(minX, 0.05, minZ - 3.5),
-      endWorld: v64.Vector3(maxX, 0.05, minZ - 3.5),
+      startWorld: v64.Vector3(minX, 0.05, minZ - 9.0),
+      endWorld: v64.Vector3(maxX, 0.05, minZ - 9.0),
       text: '${pw.toInt()} ft',
       lineColor: const Color(0xFF00E5FF),
       badgeBorder: const Color(0xFF00E5FF),
     );
 
-    // 3. Depth CAD 3D Dimension Line (along Z axis at X = minX - 3.5)
+    // 3. Depth CAD 3D Dimension Line (along Z axis at X = minX - 9.0)
     final extD0Start = project(v64.Vector3(minX, 0.05, minZ));
-    final extD0End = project(v64.Vector3(minX - 3.5, 0.05, minZ));
+    final extD0End = project(v64.Vector3(minX - 9.0, 0.05, minZ));
     final extD1Start = project(v64.Vector3(minX, 0.05, maxZ));
-    final extD1End = project(v64.Vector3(minX - 3.5, 0.05, maxZ));
+    final extD1End = project(v64.Vector3(minX - 9.0, 0.05, maxZ));
     if (extD0Start != null && extD0End != null) canvas.drawLine(extD0Start, extD0End, extPaint);
     if (extD1Start != null && extD1End != null) canvas.drawLine(extD1Start, extD1End, extPaint);
 
     draw3DDimensionLine(
-      startWorld: v64.Vector3(minX - 3.5, 0.05, minZ),
-      endWorld: v64.Vector3(minX - 3.5, 0.05, maxZ),
+      startWorld: v64.Vector3(minX - 9.0, 0.05, minZ),
+      endWorld: v64.Vector3(minX - 9.0, 0.05, maxZ),
       text: '${pd.toInt()} ft',
       lineColor: const Color(0xFF00E5FF),
       badgeBorder: const Color(0xFF00E5FF),

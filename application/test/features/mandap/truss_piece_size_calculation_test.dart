@@ -35,18 +35,45 @@ void main() {
         initialWidth: 60.0,
         initialDepth: 60.0,
         initialTrussSize: 30.0,
+        initialCalculationUnitSize: 30.0,
       );
 
       // Initially 30 ft
       expect(controller.catalog.pieceTypes.any((p) => (p.length.feet - 30.0).abs() < 0.1), isTrue);
 
       // Change to 10 ft
+      controller.setTrussCalculationUnitSize(10.0);
       controller.setStandardTrussPieceSize(10.0);
       expect(controller.standardTrussPieceSize, equals(10.0));
       expect(controller.catalog.pieceTypes.every((p) => p.length.feet <= 10.0), isTrue);
 
       for (final piece in controller.result.requiredTrussBySize.keys) {
         expect(piece.length.feet, lessThanOrEqualTo(10.0));
+      }
+    });
+
+    test('Creating center cross on 50x50 plot with 25ft box creates exact 25x25 sub-bays and node at (25, 25)', () {
+      final controller = MandapEditorController(
+        initialWidth: 50.0,
+        initialDepth: 50.0,
+        initialTrussSize: 25.0,
+      );
+
+      controller.toggleCenterCross();
+
+      final centerNode = controller.centerControlNode;
+      expect(centerNode, isNotNull);
+      expect((centerNode!.x - 25.0).abs(), lessThan(0.1));
+      expect((centerNode.z - 25.0).abs(), lessThan(0.1));
+
+      final bays = controller.bays;
+      expect(bays.length, equals(4));
+
+      for (final bay in bays) {
+        expect((bay.widthFt - 25.0).abs(), lessThan(0.1),
+            reason: 'Bay width should be exact 25 ft, got ${bay.widthFt}');
+        expect((bay.lengthFt - 25.0).abs(), lessThan(0.1),
+            reason: 'Bay length should be exact 25 ft, got ${bay.lengthFt}');
       }
     });
   });

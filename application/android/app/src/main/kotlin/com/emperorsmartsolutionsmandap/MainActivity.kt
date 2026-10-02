@@ -1,4 +1,4 @@
-package com.mandap.app.mandap
+package com.emperorsmartsolutionsmandap
 
 import io.flutter.embedding.android.FlutterActivity
 

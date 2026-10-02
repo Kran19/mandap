@@ -44,62 +44,123 @@ class AdjustCenterPositionCommand implements MandapCommand {
     final updatedNodes = Map<NodeId, MandapNode>.from(currentLayout.nodes);
     final updatedEdges = Map<EdgeId, MandapEdge>.from(currentLayout.edges);
 
+    final perimCandidates = updatedNodes.values.where((n) => (n.type == NodeType.corner || n.type == NodeType.perimeterPole) && n.elevation > 0);
+    final targetElevation = perimCandidates.isNotEmpty ? perimCandidates.first.elevation : (centerNode.elevation > 0 ? centerNode.elevation : 20.0);
+
     // 1. Move center junction node in all directions (X and Z)
     updatedNodes[centerNodeId] = centerNode.copyWith(
       x: newX,
       z: newZ,
+      elevation: targetElevation,
+      height: targetElevation,
       support: NodeSupport.pole,
       type: NodeType.junction,
     );
 
-    // 2. Resolve boundary midpoint nodes connected to center
-    final (nId, sId, wId, eId, minX, maxX, minZ, maxZ) = _findBoundaryNodes(currentLayout);
-
-    final resolvedNorth = northMidNodeId ?? nId;
-    final resolvedSouth = southMidNodeId ?? sId;
-    final resolvedWest = westMidNodeId ?? wId;
-    final resolvedEast = eastMidNodeId ?? eId;
-
-    // North & South midpoints strictly track newX along their respective walls (Z fixed at boundary)
-    if (resolvedNorth != null) {
-      final northNode = currentLayout.getNode(resolvedNorth);
-      if (northNode != null && northNode.type != NodeType.corner) {
-        updatedNodes[resolvedNorth] = northNode.copyWith(x: newX, z: minZ);
+    // 2. Find static perimeter plot bounds (minX, maxX, minZ, maxZ)
+    double minX = double.infinity, maxX = -double.infinity;
+    double minZ = double.infinity, maxZ = -double.infinity;
+    for (final n in updatedNodes.values) {
+      if (n.id == centerNodeId || n.isControlPoint || n.type == NodeType.stage || n.type == NodeType.carpet || n.id.value.contains('sub')) continue;
+      if (n.type == NodeType.corner || n.type == NodeType.perimeterPole || n.type == NodeType.pole) {
+        if (n.x < minX) minX = n.x;
+        if (n.x > maxX) maxX = n.x;
+        if (n.z < minZ) minZ = n.z;
+        if (n.z > maxZ) maxZ = n.z;
       }
     }
 
-    if (resolvedSouth != null) {
-      final southNode = currentLayout.getNode(resolvedSouth);
-      if (southNode != null && southNode.type != NodeType.corner) {
-        updatedNodes[resolvedSouth] = southNode.copyWith(x: newX, z: maxZ);
-      }
+    if (!minX.isFinite) minX = 0.0;
+    if (!maxX.isFinite) maxX = 100.0;
+    if (!minZ.isFinite) minZ = 0.0;
+    if (!maxZ.isFinite) maxZ = 100.0;
+
+    final double midX = (minX + maxX) / 2.0;
+    final double midZ = (minZ + maxZ) / 2.0;
+
+    // Clamp drag position strictly inside plot boundaries
+    double safeCrossX = newX.clamp(minX + 2.0, maxX - 2.0);
+    double safeCrossZ = newZ.clamp(minZ + 2.0, maxZ - 2.0);
+
+    // Snap to exact plot midpoint when near center to maintain symmetry
+    if ((safeCrossX - midX).abs() <= 3.0) safeCrossX = midX;
+    if ((safeCrossZ - midZ).abs() <= 3.0) safeCrossZ = midZ;
+
+    bool isBoundaryPole(MandapNode n) =>
+        !n.isControlPoint &&
+        n.id != centerNodeId &&
+        n.type != NodeType.stage &&
+        n.type != NodeType.carpet &&
+        (n.support == NodeSupport.pole || n.type == NodeType.corner || n.type == NodeType.perimeterPole || n.type == NodeType.pole || n.type == NodeType.junction);
+
+    final northCandidates = updatedNodes.values.where((n) => isBoundaryPole(n) && (n.z - minZ).abs() <= 1.5).toList();
+    final southCandidates = updatedNodes.values.where((n) => isBoundaryPole(n) && (n.z - maxZ).abs() <= 1.5).toList();
+    final westCandidates = updatedNodes.values.where((n) => isBoundaryPole(n) && (n.x - minX).abs() <= 1.5).toList();
+    final eastCandidates = updatedNodes.values.where((n) => isBoundaryPole(n) && (n.x - maxX).abs() <= 1.5).toList();
+
+    MandapNode? findClosest(List<MandapNode> candidates, double targetVal, bool isX) {
+      if (candidates.isEmpty) return null;
+      final sorted = List<MandapNode>.from(candidates);
+      sorted.sort((a, b) {
+        final dA = isX ? (a.x - targetVal).abs() : (a.z - targetVal).abs();
+        final dB = isX ? (b.x - targetVal).abs() : (b.z - targetVal).abs();
+        return dA.compareTo(dB);
+      });
+      return sorted.first;
     }
 
-    // West & East midpoints strictly track newZ along their respective walls (X fixed at boundary)
-    if (resolvedWest != null) {
-      final westNode = currentLayout.getNode(resolvedWest);
-      if (westNode != null && westNode.type != NodeType.corner) {
-        updatedNodes[resolvedWest] = westNode.copyWith(x: minX, z: newZ);
-      }
-    }
+    // 1. Move center junction node smoothly to continuous drag position (safeCrossX, safeCrossZ) inside plot
+    updatedNodes[centerNodeId] = centerNode.copyWith(
+      x: safeCrossX,
+      z: safeCrossZ,
+      elevation: targetElevation,
+      height: targetElevation,
+      support: NodeSupport.pole,
+      type: NodeType.junction,
+    );
 
-    if (resolvedEast != null) {
-      final eastNode = currentLayout.getNode(resolvedEast);
-      if (eastNode != null && eastNode.type != NodeType.corner) {
-        updatedNodes[resolvedEast] = eastNode.copyWith(x: maxX, z: newZ);
-      }
-    }
-
-    // 3. Remove previous cross edges and intermediate cross sub-nodes
-    updatedNodes.removeWhere((id, n) => id.value.contains('sub_cross') || id.value.contains('n_sub_'));
+    // 2. Remove previous cross edges and intermediate cross sub-nodes
+    updatedNodes.removeWhere((id, n) => id.value.contains('sub_cross') || id.value.contains('n_sub_') || id.value.contains('n_bound_') || id.value.contains('n_cross_'));
     updatedEdges.removeWhere((id, e) => id.value.contains('cross'));
 
-    // 4. Subdivide cross arms and place support poles when distance > 40 ft
+    // 3. Connect straight arms to exact orthogonal boundary points on all 4 walls, reusing existing poles
+    NodeId getBoundaryNode(double x, double z, String tag, List<MandapNode> wallCandidates, bool isXAxis) {
+      final closest = findClosest(wallCandidates, isXAxis ? x : z, isXAxis);
+      if (closest != null) {
+        final dist = isXAxis ? (closest.x - x).abs() : (closest.z - z).abs();
+        if (dist <= 3.5) {
+          return closest.id;
+        }
+      }
+      for (final n in wallCandidates) {
+        if (updatedNodes.containsKey(n.id) && (n.x - x).abs() < 1.5 && (n.z - z).abs() < 1.5) {
+          return n.id;
+        }
+      }
+      final id = NodeId('n_cross_$tag');
+      updatedNodes[id] = MandapNode(
+        id: id,
+        x: x,
+        z: z,
+        elevation: targetElevation,
+        height: targetElevation,
+        type: NodeType.pole,
+        support: NodeSupport.pole,
+        structureId: 'main',
+      );
+      return id;
+    }
+
+    final northBoundId = getBoundaryNode(safeCrossX, minZ, 'north', northCandidates, true);
+    final southBoundId = getBoundaryNode(safeCrossX, maxZ, 'south', southCandidates, true);
+    final westBoundId = getBoundaryNode(minX, safeCrossZ, 'west', westCandidates, false);
+    final eastBoundId = getBoundaryNode(maxX, safeCrossZ, 'east', eastCandidates, false);
+
     final armDefinitions = [
-      if (resolvedNorth != null && updatedNodes.containsKey(resolvedNorth)) (boundaryId: resolvedNorth, tag: 'cross_north'),
-      if (resolvedEast != null && updatedNodes.containsKey(resolvedEast)) (boundaryId: resolvedEast, tag: 'cross_east'),
-      if (resolvedSouth != null && updatedNodes.containsKey(resolvedSouth)) (boundaryId: resolvedSouth, tag: 'cross_south'),
-      if (resolvedWest != null && updatedNodes.containsKey(resolvedWest)) (boundaryId: resolvedWest, tag: 'cross_west'),
+      (boundaryId: northBoundId, tag: 'cross_north'),
+      (boundaryId: eastBoundId, tag: 'cross_east'),
+      (boundaryId: southBoundId, tag: 'cross_south'),
+      (boundaryId: westBoundId, tag: 'cross_west'),
     ];
 
     for (final arm in armDefinitions) {
@@ -118,17 +179,34 @@ class AdjustCenterPositionCommand implements MandapCommand {
         final subX = loc.x;
         final subZ = loc.z;
 
-        final subId = NodeId('n_sub_${arm.tag}_${subX.toInt()}_${subZ.toInt()}');
-        updatedNodes[subId] = MandapNode(
-          id: subId,
-          x: subX,
-          z: subZ,
-          elevation: centerNode.elevation,
-          height: centerNode.height,
-          type: NodeType.pole,
-          support: NodeSupport.pole,
-          structureId: 'main',
-        );
+        NodeId? existingSubId;
+        for (final n in updatedNodes.values) {
+          final dx = n.x - subX;
+          final dz = n.z - subZ;
+          if ((dx * dx + dz * dz) <= 1.0 && n.id != centerNodeId) {
+            existingSubId = n.id;
+            updatedNodes[n.id] = n.copyWith(
+              support: NodeSupport.pole,
+              type: n.type == NodeType.corner ? NodeType.corner : NodeType.pole,
+            );
+            break;
+          }
+        }
+
+        final subId = existingSubId ?? () {
+          final id = NodeId('n_sub_${arm.tag}_${subX.toInt()}_${subZ.toInt()}');
+          updatedNodes[id] = MandapNode(
+            id: id,
+            x: subX,
+            z: subZ,
+            elevation: targetElevation,
+            height: targetElevation,
+            type: NodeType.pole,
+            support: NodeSupport.pole,
+            structureId: 'main',
+          );
+          return id;
+        }();
 
         chain.add(subId);
       }
@@ -152,6 +230,103 @@ class AdjustCenterPositionCommand implements MandapCommand {
       edges: Map.unmodifiable(updatedEdges),
       zones: currentLayout.zones,
     );
+  }
+
+  void _resortPerimeterEdges({
+    required Map<NodeId, MandapNode> nodes,
+    required Map<EdgeId, MandapEdge> edges,
+    required double minX,
+    required double maxX,
+    required double minZ,
+    required double maxZ,
+    required double targetElevation,
+  }) {
+    // 1. North Wall (z ≈ minZ)
+    _reorderWallNodesAndEdges(
+      nodes: nodes,
+      edges: edges,
+      isOnWall: (n) => (n.z - minZ).abs() <= 1.0 && n.type != NodeType.stage && n.type != NodeType.carpet,
+      clampToWall: (n) => n.copyWith(z: minZ, elevation: targetElevation, height: targetElevation),
+      compare: (a, b) => a.x.compareTo(b.x),
+    );
+
+    // 2. South Wall (z ≈ maxZ)
+    _reorderWallNodesAndEdges(
+      nodes: nodes,
+      edges: edges,
+      isOnWall: (n) => (n.z - maxZ).abs() <= 1.0 && n.type != NodeType.stage && n.type != NodeType.carpet,
+      clampToWall: (n) => n.copyWith(z: maxZ, elevation: targetElevation, height: targetElevation),
+      compare: (a, b) => a.x.compareTo(b.x),
+    );
+
+    // 3. West Wall (x ≈ minX)
+    _reorderWallNodesAndEdges(
+      nodes: nodes,
+      edges: edges,
+      isOnWall: (n) => (n.x - minX).abs() <= 1.0 && n.type != NodeType.stage && n.type != NodeType.carpet,
+      clampToWall: (n) => n.copyWith(x: minX, elevation: targetElevation, height: targetElevation),
+      compare: (a, b) => a.z.compareTo(b.z),
+    );
+
+    // 4. East Wall (x ≈ maxX)
+    _reorderWallNodesAndEdges(
+      nodes: nodes,
+      edges: edges,
+      isOnWall: (n) => (n.x - maxX).abs() <= 1.0 && n.type != NodeType.stage && n.type != NodeType.carpet,
+      clampToWall: (n) => n.copyWith(x: maxX, elevation: targetElevation, height: targetElevation),
+      compare: (a, b) => a.z.compareTo(b.z),
+    );
+  }
+
+  void _reorderWallNodesAndEdges({
+    required Map<NodeId, MandapNode> nodes,
+    required Map<EdgeId, MandapEdge> edges,
+    required bool Function(MandapNode n) isOnWall,
+    required MandapNode Function(MandapNode n) clampToWall,
+    required int Function(MandapNode a, MandapNode b) compare,
+  }) {
+    final wallNodes = <MandapNode>[];
+    for (final entry in nodes.entries) {
+      if (isOnWall(entry.value)) {
+        final clamped = clampToWall(entry.value);
+        nodes[entry.key] = clamped;
+        wallNodes.add(clamped);
+      }
+    }
+
+    if (wallNodes.length < 2) return;
+
+    wallNodes.sort(compare);
+
+    final wallNodeIds = wallNodes.map((n) => n.id).toSet();
+    final wallEdgeKeys = <EdgeId>[];
+    for (final entry in edges.entries) {
+      if (wallNodeIds.contains(entry.value.startNodeId) &&
+          wallNodeIds.contains(entry.value.endNodeId)) {
+        wallEdgeKeys.add(entry.key);
+      }
+    }
+
+    if (wallEdgeKeys.length == wallNodes.length - 1) {
+      for (int i = 0; i < wallNodes.length - 1; i++) {
+        final edgeId = wallEdgeKeys[i];
+        final existingEdge = edges[edgeId]!;
+        edges[edgeId] = existingEdge.copyWith(
+          startNodeId: wallNodes[i].id,
+          endNodeId: wallNodes[i + 1].id,
+        );
+      }
+    } else if (wallEdgeKeys.isNotEmpty) {
+      // If edge count differs, re-assign available wall edges to consecutive pairs
+      for (int i = 0; i < math.min(wallEdgeKeys.length, wallNodes.length - 1); i++) {
+        final edgeId = wallEdgeKeys[i];
+        final existingEdge = edges[edgeId]!;
+        edges[edgeId] = existingEdge.copyWith(
+          startNodeId: wallNodes[i].id,
+          endNodeId: wallNodes[i + 1].id,
+        );
+      }
+    }
   }
 
   @override

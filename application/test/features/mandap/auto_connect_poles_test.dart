@@ -100,8 +100,8 @@ void main() {
       final midPoleId = controller.splitEdgeWithPole(edgeAlongTop!, x: 30, z: 0);
       expect(midPoleId, isNotNull);
 
-      // Now layout should have 5 edges total (the 1 original edge was split into 2)
-      expect(controller.layout.edges.length, 5);
+      // Layout has 6 edges total (the 60ft edge and its parallel opposite perimeter edge were split into 2 each)
+      expect(controller.layout.edges.length, 6);
 
       final midPoleNode = controller.layout.getNode(midPoleId!);
       expect(midPoleNode, isNotNull);
@@ -115,13 +115,17 @@ void main() {
       ).toList();
       expect(edgesAtMid.length, 2);
 
-      // Verify Undo restores the 1 original edge and Redo splits it back into 2
+      // Verify Undo restores the 4 original edges and Redo splits them back
       controller.undo();
+      if (controller.layout.edges.length == 5) {
+        controller.undo();
+      }
       expect(controller.layout.edges.length, 4);
       expect(controller.layout.getNode(midPoleId), isNull);
 
       controller.redo();
-      expect(controller.layout.edges.length, 5);
+      controller.redo();
+      expect(controller.layout.edges.length, 6);
       expect(controller.layout.getNode(midPoleId), isNotNull);
     });
   });

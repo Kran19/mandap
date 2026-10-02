@@ -7,6 +7,7 @@ import '../../../truss_boundary/domain/entities/boundary_truss_run.dart';
 import '../../../truss_boundary/domain/entities/truss_size.dart';
 import '../../../truss_boundary/domain/services/initial_boundary_pattern_service.dart';
 import '../../../truss_boundary/domain/services/truss_pole_requirement_service.dart';
+import '../../application/commands/create_center_cross_command.dart';
 
 /// Specification inputs for base truss generation.
 class BaseTrussGenerationParams {
@@ -26,7 +27,7 @@ class BaseTrussGenerationParams {
     required this.plotDepth,
     this.preferredPoleSpacing = 30.0,
     this.poleHeight = 20.0,
-    this.includeCenterControlPoint = false,
+    this.includeCenterControlPoint = true,
     this.availableTrussSizes = const [10.0, 30.0, 50.0],
     this.includeTowerEdges = false,
     this.generateModularBayGrid = false,
@@ -36,7 +37,8 @@ class BaseTrussGenerationParams {
 
 /// Parametric generator that creates the authoritative structural architecture.
 /// 
-/// Initial generation creates ONLY the four perimeter boundary walls (North, East, South, West).
+/// Initial generation creates ONLY the four perimeter boundary walls (North, East, South, West)
+/// along with a center control point dot. Tapping the dot creates the + sign cross structure.
 class BaseTrussArchitectureGenerator {
   const BaseTrussArchitectureGenerator();
 
@@ -210,7 +212,7 @@ class BaseTrussArchitectureGenerator {
         elevation: h,
         height: h,
         type: NodeType.controlPoint,
-        support: NodeSupport.none,
+        support: NodeSupport.pole,
         structureId: 'main',
       );
     }

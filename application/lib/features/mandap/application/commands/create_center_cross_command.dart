@@ -19,7 +19,7 @@ class CreateCenterCrossCommand implements MandapCommand {
   CreateCenterCrossCommand({
     required this.plotWidth,
     required this.plotDepth,
-    this.elevation = 20.0,
+    this.elevation = 30.0,
     this.preferredPoleSpacing = 30.0,
   });
 
@@ -92,132 +92,97 @@ class CreateCenterCrossCommand implements MandapCommand {
       return pool.first;
     }
 
-    final northPole = findBestPole(northPoles, targetX, true);
-    final southPole = findBestPole(southPoles, targetX, true);
-    final westPole = findBestPole(westPoles, targetZ, false);
-    final eastPole = findBestPole(eastPoles, targetZ, false);
+    // Find shared X coordinates on North and South boundary walls
+    final northXSet = northPoles.map((n) => double.parse(n.x.toStringAsFixed(1))).toSet();
+    final sharedXs = southPoles
+        .map((n) => double.parse(n.x.toStringAsFixed(1)))
+        .where((x) => northXSet.contains(x))
+        .toList()
+      ..sort((a, b) => (a - targetX).abs().compareTo((b - targetX).abs()));
 
-    // Center X is aligned with North/South pole X (or closest to targetX)
-    final double crossX;
-    if ((northPole.x - southPole.x).abs() < 1.0) {
-      crossX = northPole.x;
-    } else {
-      final distN = (northPole.x - targetX).abs();
-      final distS = (southPole.x - targetX).abs();
-      crossX = distN <= distS ? northPole.x : southPole.x;
+    double rawCrossX = sharedXs.isNotEmpty
+        ? sharedXs.first
+        : findBestPole(northPoles, targetX, true).x;
+    if ((rawCrossX - targetX).abs() <= 1.5) {
+      rawCrossX = targetX;
     }
+    final double crossX = rawCrossX;
 
-    // Center Z is aligned with West/East pole Z (or closest to targetZ)
-    final double crossZ;
-    if ((westPole.z - eastPole.z).abs() < 1.0) {
-      crossZ = westPole.z;
-    } else {
-      final distW = (westPole.z - targetZ).abs();
-      final distE = (eastPole.z - targetZ).abs();
-      crossZ = distW <= distE ? westPole.z : eastPole.z;
+    // Find shared Z coordinates on West and East boundary walls
+    final westZSet = westPoles.map((n) => double.parse(n.z.toStringAsFixed(1))).toSet();
+    final sharedZs = eastPoles
+        .map((n) => double.parse(n.z.toStringAsFixed(1)))
+        .where((z) => westZSet.contains(z))
+        .toList()
+      ..sort((a, b) => (a - targetZ).abs().compareTo((b - targetZ).abs()));
+
+    double rawCrossZ = sharedZs.isNotEmpty
+        ? sharedZs.first
+        : findBestPole(westPoles, targetZ, false).z;
+    if ((rawCrossZ - targetZ).abs() <= 1.5) {
+      rawCrossZ = targetZ;
+    }
+    final double crossZ = rawCrossZ;
+
+    var northPole = northPoles.firstWhere(
+      (n) => (n.x - crossX).abs() < 1.5,
+      orElse: () => findBestPole(northPoles, crossX, true),
+    );
+    var southPole = southPoles.firstWhere(
+      (n) => (n.x - crossX).abs() < 1.5,
+      orElse: () => findBestPole(southPoles, crossX, true),
+    );
+    var westPole = westPoles.firstWhere(
+      (n) => (n.z - crossZ).abs() < 1.5,
+      orElse: () => findBestPole(westPoles, crossZ, false),
+    );
+    var eastPole = eastPoles.firstWhere(
+      (n) => (n.z - crossZ).abs() < 1.5,
+      orElse: () => findBestPole(eastPoles, crossZ, false),
+    );
+
+    // Precise alignment of perimeter poles to cross axes
+    if ((northPole.x - crossX).abs() <= 1.5) {
+      northPole = northPole.copyWith(x: crossX);
+      nodes[northPole.id] = northPole;
+    }
+    if ((southPole.x - crossX).abs() <= 1.5) {
+      southPole = southPole.copyWith(x: crossX);
+      nodes[southPole.id] = southPole;
+    }
+    if ((westPole.z - crossZ).abs() <= 1.5) {
+      westPole = westPole.copyWith(z: crossZ);
+      nodes[westPole.id] = westPole;
+    }
+    if ((eastPole.z - crossZ).abs() <= 1.5) {
+      eastPole = eastPole.copyWith(z: crossZ);
+      nodes[eastPole.id] = eastPole;
     }
 
     // Remove any 2D-only un-elevated control point center dot if present
     nodes.removeWhere((id, n) => (n.x - targetX).abs() < 0.1 && (n.z - targetZ).abs() < 0.1 && n.type == NodeType.controlPoint);
+
+    final perimCandidates = nodes.values.where((n) => (n.type == NodeType.corner || n.type == NodeType.perimeterPole) && n.elevation > 0);
+    final effectiveElevation = perimCandidates.isNotEmpty ? perimCandidates.first.elevation : (elevation > 0 ? elevation : 20.0);
 
     final centerId = NodeId('n_center_${crossX.toInt()}_${crossZ.toInt()}');
     nodes[centerId] = MandapNode(
       id: centerId,
       x: crossX,
       z: crossZ,
-      elevation: elevation,
-      height: elevation,
+      elevation: effectiveElevation,
+      height: effectiveElevation,
       type: NodeType.junction,
       support: NodeSupport.pole,
       structureId: 'main',
     );
 
-    // Helper to find exact node at straight orthogonal intersection or create boundary node
-    NodeId getOrCreateStraightBoundaryNode(double targetX, double targetZ, String sideLabel) {
-      for (final n in nodes.values) {
-        if ((n.x - targetX).abs() < 0.2 && (n.z - targetZ).abs() < 0.2 && n.id != centerId) {
-          return n.id;
-        }
-      }
-
-      // Check if an existing edge can be split at (targetX, targetZ)
-      EdgeId? edgeToSplit;
-      MandapNode? splitStart;
-      MandapNode? splitEnd;
-
-      for (final edge in edges.values) {
-        final sn = nodes[edge.startNodeId];
-        final en = nodes[edge.endNodeId];
-        if (sn == null || en == null) continue;
-
-        final minX = math.min(sn.x, en.x) - 0.2;
-        final maxX = math.max(sn.x, en.x) + 0.2;
-        final minZ = math.min(sn.z, en.z) - 0.2;
-        final maxZ = math.max(sn.z, en.z) + 0.2;
-
-        if (targetX >= minX && targetX <= maxX &&
-            targetZ >= minZ && targetZ <= maxZ) {
-          final dx = en.x - sn.x;
-          final dz = en.z - sn.z;
-          final lenSq = dx * dx + dz * dz;
-          if (lenSq > 0.001) {
-            final lineDist = ((dz * targetX - dx * targetZ + en.x * sn.z - en.z * sn.x).abs()) / math.sqrt(lenSq);
-            if (lineDist < 0.2) {
-              edgeToSplit = edge.id;
-              splitStart = sn;
-              splitEnd = en;
-              break;
-            }
-          }
-        }
-      }
-
-      final midId = NodeId('n_mid_${sideLabel}_${targetX.toInt()}_${targetZ.toInt()}');
-      nodes[midId] = MandapNode(
-        id: midId,
-        x: targetX,
-        z: targetZ,
-        elevation: elevation,
-        height: elevation,
-        type: NodeType.junction,
-        support: NodeSupport.none,
-        structureId: 'main',
-      );
-
-      if (edgeToSplit != null && splitStart != null && splitEnd != null) {
-        edges.remove(edgeToSplit);
-        final e1 = EdgeId('e_split_${edgeToSplit.value}_1');
-        final e2 = EdgeId('e_split_${edgeToSplit.value}_2');
-        edges[e1] = MandapEdge(
-          id: e1,
-          startNodeId: splitStart.id,
-          endNodeId: midId,
-          profile: EdgeProfile.box,
-          role: TrussMemberRole.upper,
-        );
-        edges[e2] = MandapEdge(
-          id: e2,
-          startNodeId: midId,
-          endNodeId: splitEnd.id,
-          profile: EdgeProfile.box,
-          role: TrussMemberRole.upper,
-        );
-      }
-
-      return midId;
-    }
-
-    // Connect strictly straight orthogonal North, South, West, East arms
-    final northNodeId = getOrCreateStraightBoundaryNode(crossX, 0.0, 'north');
-    final southNodeId = getOrCreateStraightBoundaryNode(crossX, plotDepth, 'south');
-    final westNodeId = getOrCreateStraightBoundaryNode(0.0, crossZ, 'west');
-    final eastNodeId = getOrCreateStraightBoundaryNode(plotWidth, crossZ, 'east');
-
+    // Connect straight arms directly to existing boundary poles on all 4 sides without creating new wall poles
     final armDefinitions = [
-      (boundaryId: northNodeId, tag: 'cross_north'),
-      (boundaryId: eastNodeId, tag: 'cross_east'),
-      (boundaryId: southNodeId, tag: 'cross_south'),
-      (boundaryId: westNodeId, tag: 'cross_west'),
+      (boundaryId: northPole.id, tag: 'cross_north'),
+      (boundaryId: eastPole.id, tag: 'cross_east'),
+      (boundaryId: southPole.id, tag: 'cross_south'),
+      (boundaryId: westPole.id, tag: 'cross_west'),
     ];
 
     final spacing = preferredPoleSpacing > 0 ? preferredPoleSpacing : 30.0;
@@ -241,7 +206,9 @@ class CreateCenterCrossCommand implements MandapCommand {
         // Find existing node or create one
         NodeId? existingSubId;
         for (final n in nodes.values) {
-          if ((n.x - subX).abs() < 0.2 && (n.z - subZ).abs() < 0.2 && n.id != centerId) {
+          final dx = n.x - subX;
+          final dz = n.z - subZ;
+          if ((dx * dx + dz * dz) <= 1.0 && n.id != centerId) {
             existingSubId = n.id;
             nodes[n.id] = n.copyWith(
               support: NodeSupport.pole,
@@ -257,8 +224,8 @@ class CreateCenterCrossCommand implements MandapCommand {
             id: id,
             x: subX,
             z: subZ,
-            elevation: elevation,
-            height: elevation,
+            elevation: effectiveElevation,
+            height: effectiveElevation,
             type: NodeType.pole,
             support: NodeSupport.pole,
             structureId: 'main',

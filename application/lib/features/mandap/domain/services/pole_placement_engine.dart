@@ -126,23 +126,55 @@ class PolePlacementEngine {
   List<PolePlacement> calculatePoles(MandapLayout layout) {
     final result = <PolePlacement>[];
 
-    // 1. Structural nodes receive poles only if node.hasPole is true
-    for (final node in layout.nodes.values) {
-      if (node.type == NodeType.stage || node.type == NodeType.carpet || !node.hasPole) {
-        continue;
+    bool isCoordTaken(double x, double z) {
+      for (final existing in result) {
+        final dx = existing.x - x;
+        final dz = existing.z - z;
+        if ((dx * dx + dz * dz) < 1.0) { // 1.0 ft threshold to join existing poles
+          return true;
+        }
       }
-      result.add(
-        PolePlacement(
-          id: 'pole_node_${node.id.value}',
-          x: node.x,
-          z: node.z,
-          reason: node.type == NodeType.pole ? PoleReason.manual : PoleReason.corner,
-          sourceNodeId: node.id,
-        ),
-      );
+      return false;
     }
 
-    // 2. Long horizontal edges receive intermediate support poles
+    // 1. Structural nodes receive poles if node.hasPole is true or node is a structural pole/corner/junction/perimeterPole
+    for (final node in layout.nodes.values) {
+      if (node.type == NodeType.stage || node.type == NodeType.carpet || node.isControlPoint) {
+        continue;
+      }
+      final isPole = node.support == NodeSupport.pole ||
+          ((node.support != NodeSupport.none) &&
+              (node.type == NodeType.corner ||
+                  node.type == NodeType.pole ||
+                  node.type == NodeType.perimeterPole ||
+                  node.type == NodeType.junction));
+      if (!isPole) {
+        continue;
+      }
+
+      if (!isCoordTaken(node.x, node.z)) {
+        final PoleReason reason;
+        if (node.type == NodeType.corner) {
+          reason = PoleReason.corner;
+        } else if (node.type == NodeType.pole) {
+          reason = PoleReason.manual;
+        } else {
+          reason = PoleReason.generatedMaxSpan;
+        }
+
+        result.add(
+          PolePlacement(
+            id: 'pole_node_${node.id.value}',
+            x: node.x,
+            z: node.z,
+            reason: reason,
+            sourceNodeId: node.id,
+          ),
+        );
+      }
+    }
+
+    // 2. Long horizontal edges receive intermediate support poles (deduplicated)
     for (final edge in layout.edges.values) {
       final startNode = layout.getNode(edge.startNodeId);
       final endNode = layout.getNode(edge.endNodeId);
@@ -164,7 +196,12 @@ class PolePlacementEngine {
           endNode: endNode,
           maxSpanFeet: maxSpanFeet,
         );
-        result.addAll(generated);
+
+        for (final p in generated) {
+          if (!isCoordTaken(p.x, p.z)) {
+            result.add(p);
+          }
+        }
       }
     }
 

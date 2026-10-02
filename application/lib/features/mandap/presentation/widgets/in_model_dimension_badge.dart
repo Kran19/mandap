@@ -81,9 +81,9 @@ class InModelDimensionBadge extends StatelessWidget {
               children: [
                 const Icon(Icons.aspect_ratio_rounded, color: Color(0xFF00E5FF), size: 15),
                 const SizedBox(width: 7),
-                // Length / Breadth (00/00 ft)
+                // Width × Length (00 × 00 ft)
                 Text(
-                  '$lPadded/$wPadded ft',
+                  '$wPadded × $lPadded ft',
                   style: const TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.bold,
@@ -110,7 +110,7 @@ class InModelDimensionBadge extends StatelessWidget {
                     ],
                   ),
                   child: Text(
-                    '${l10n?.box ?? "Box"}: $sPadded/$sPadded ft',
+                    '${l10n?.box ?? "Box"}: $sPadded × $sPadded ft',
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w900,

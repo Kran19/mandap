@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -193,7 +194,8 @@ class _CreateTrussDialogState extends State<CreateTrussDialog> {
       return;
     }
 
-    if (trussSize > plotSize.length || trussSize > plotSize.width) {
+    final maxPlotDim = math.max(plotSize.length, plotSize.width);
+    if (trussSize > maxPlotDim) {
       setState(() => _errorMessage = 'Truss Size cannot exceed Plot dimensions.');
       return;
     }

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -135,7 +136,8 @@ class _CreatePoleDialogState extends State<CreatePoleDialog> {
       return;
     }
 
-    if (pipeSize > plotSize.length || pipeSize > plotSize.width) {
+    final maxPlotDim = math.max(plotSize.length, plotSize.width);
+    if (pipeSize > maxPlotDim) {
       setState(() => _errorMessage = 'Pipe Size cannot exceed Plot dimensions.');
       return;
     }

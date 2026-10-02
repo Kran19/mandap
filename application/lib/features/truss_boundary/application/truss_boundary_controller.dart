@@ -322,7 +322,7 @@ class TrussBoundaryController extends ChangeNotifier {
         }
       }
 
-      final hasCenterPole = allPoles.any((p) => (p.x - centerX).abs() < 0.1 && (p.z - centerZ).abs() < 0.1);
+      final hasCenterPole = allPoles.any((p) => (p.x - centerX).abs() < 0.5 && (p.z - centerZ).abs() < 0.5);
       if (!hasCenterPole) {
         allPoles.add(
           BoundaryPole(

@@ -97,35 +97,32 @@ class InitialBoundaryPatternService {
   static List<double> computeOptimalSpans(double totalLength, double initialSpan) {
     if (totalLength <= 0) return const [];
 
-    final lenInt = totalLength.round();
-    if ((totalLength - lenInt).abs() < 0.1) {
-      if (lenInt == 30) return const [30.0];
-      if (lenInt == 40) return const [40.0];
-      if (lenInt == 50) return const [40.0, 10.0];
-      if (lenInt == 60) return const [30.0, 30.0];
-      if (lenInt == 70) {
-        return (initialSpan == 40.0) ? const [40.0, 30.0] : const [30.0, 30.0, 10.0];
-      }
-      if (lenInt == 80) {
-        return (initialSpan == 40.0) ? const [40.0, 40.0] : const [30.0, 30.0, 20.0];
-      }
-      if (lenInt == 90) return const [30.0, 30.0, 30.0];
-      if (lenInt == 100) {
-        return (initialSpan == 40.0) ? const [40.0, 40.0, 20.0] : const [30.0, 30.0, 30.0, 10.0];
-      }
+    final step = (initialSpan > 0) ? initialSpan : 30.0;
+
+    // If total length is <= step, return a single run of totalLength
+    if (totalLength <= step + 0.05) {
+      return [double.parse(totalLength.toStringAsFixed(1))];
     }
 
-    final step = (initialSpan == 40.0) ? 40.0 : 30.0;
+    // If initialSpan divides totalLength evenly or with remainder
+    final count = (totalLength / step).floor();
+    final remainder = double.parse((totalLength - (count * step)).toStringAsFixed(1));
+
+    if (count > 0 && (remainder == 0 || remainder > 0.05)) {
+      final list = List<double>.filled(count, step, growable: true);
+      if (remainder > 0.05) {
+        list.add(remainder);
+      }
+      return list;
+    }
+
+    // Fallback step-wise breakdown
     final spans = <double>[];
     double rem = totalLength;
 
     while (rem > 0.05) {
       if (rem <= step) {
         spans.add(double.parse(rem.toStringAsFixed(1)));
-        break;
-      }
-      if ((rem - 40.0).abs() < 0.1) {
-        spans.add(40.0);
         break;
       }
       spans.add(step);

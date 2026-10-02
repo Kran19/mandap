@@ -370,31 +370,7 @@ class Mandap2DInteractivePainter extends CustomPainter {
   }
 
   void _drawPlotBoundaryBox(Canvas canvas) {
-    final p0 = transform.worldToScreen(0, 0);
-    final p1 = transform.worldToScreen(plotWidth, plotDepth);
-    final plotRect = Rect.fromPoints(p0, p1);
-
-    // Cyan glow halo
-    canvas.drawRect(
-      plotRect,
-      Paint()
-        ..color = const Color(0xFF00E5FF).withValues(alpha: 0.35)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 4.0
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round,
-    );
-
-    // Crisp cyan line
-    canvas.drawRect(
-      plotRect,
-      Paint()
-        ..color = const Color(0xFF00E5FF)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.8
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round,
-    );
+    // Plot boundary box blue outline removed per user request
   }
 
   void _drawStageTypeDimensionLines(Canvas canvas) {
@@ -472,8 +448,16 @@ class Mandap2DInteractivePainter extends CustomPainter {
     final p1 = transform.worldToScreen(plotWidth, plotDepth);
     final plotRect = Rect.fromPoints(p0, p1);
 
-    // 1. Overall Width Dimension Line along Top
-    final topY = plotRect.top - 20.0;
+    final extPaint = Paint()
+      ..color = const Color(0x6600E5FF)
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+
+    // 1. Overall Width Dimension Line along Top (with 50px gap + extension lines)
+    final topY = plotRect.top - 50.0;
+    canvas.drawLine(Offset(plotRect.left, plotRect.top - 8.0), Offset(plotRect.left, topY - 6.0), extPaint);
+    canvas.drawLine(Offset(plotRect.right, plotRect.top - 8.0), Offset(plotRect.right, topY - 6.0), extPaint);
+
     draw2DDimensionLine(
       pStart: Offset(plotRect.left, topY),
       pEnd: Offset(plotRect.right, topY),
@@ -481,8 +465,11 @@ class Mandap2DInteractivePainter extends CustomPainter {
       fontSize: 9.5,
     );
 
-    // 2. Overall Depth Dimension Line along Right
-    final rightX = plotRect.right + 20.0;
+    // 2. Overall Depth Dimension Line along Right (with 50px gap + extension lines)
+    final rightX = plotRect.right + 50.0;
+    canvas.drawLine(Offset(plotRect.right + 8.0, plotRect.top), Offset(rightX + 6.0, plotRect.top), extPaint);
+    canvas.drawLine(Offset(plotRect.right + 8.0, plotRect.bottom), Offset(rightX + 6.0, plotRect.bottom), extPaint);
+
     draw2DDimensionLine(
       pStart: Offset(rightX, plotRect.top),
       pEnd: Offset(rightX, plotRect.bottom),
@@ -504,7 +491,9 @@ class Mandap2DInteractivePainter extends CustomPainter {
       final screenDist = (pEnd - pStart).distance;
 
       if (screenDist > 20.0 && spanFeet > 1.0) {
-        final text = spanFeet % 1 == 0 ? '${spanFeet.toInt()} ft' : '${spanFeet.toStringAsFixed(1)} ft';
+        final isWhole = spanFeet % 1 == 0;
+        final valStr = isWhole ? '${spanFeet.round()}' : spanFeet.toStringAsFixed(1);
+        final text = '$valStr ft';
         final mid = (pStart + pEnd) / 2.0;
 
         final isSelected = edge.id == selectedEdgeId;
@@ -513,18 +502,20 @@ class Mandap2DInteractivePainter extends CustomPainter {
             text: text,
             style: TextStyle(
               color: isSelected ? const Color(0xFF00E5FF) : Colors.white,
-              fontSize: 8.5,
+              fontSize: 8.0,
               fontWeight: FontWeight.bold,
+              height: 1.0,
             ),
           ),
+          textAlign: TextAlign.center,
           textDirection: TextDirection.ltr,
         )..layout();
 
-        final badgeW = tp.width + 8.0;
-        final badgeH = tp.height + 4.0;
+        final badgeW = math.max(tp.width + 8.0, 20.0);
+        final badgeH = math.max(tp.height + 4.0, 16.0);
         final badgeRect = RRect.fromRectAndRadius(
           Rect.fromCenter(center: mid, width: badgeW, height: badgeH),
-          const Radius.circular(4),
+          const Radius.circular(5),
         );
 
         canvas.drawRRect(badgeRect, Paint()..color = const Color(0xEE0F172A));
@@ -549,7 +540,7 @@ class Mandap2DInteractivePainter extends CustomPainter {
 
       final w = bay.widthFt % 1 == 0 ? bay.widthFt.toInt().toString() : bay.widthFt.toStringAsFixed(1);
       final l = bay.lengthFt % 1 == 0 ? bay.lengthFt.toInt().toString() : bay.lengthFt.toStringAsFixed(1);
-      final text = '$w/$l';
+      final text = '$w × $l ft';
 
       final tp = TextPainter(
         text: TextSpan(

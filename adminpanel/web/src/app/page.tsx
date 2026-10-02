@@ -173,8 +173,19 @@ export default function PrivacyPolicyPage() {
               5. Your Rights & Data Deletion
             </h3>
             <p className="text-slate-300 text-sm leading-relaxed">
-              You have the right to access, edit, or delete your account information and stored projects at any time. If you wish to permanently delete your user account and all associated project data, you may submit a request by contacting us at <a href="mailto:support@emperorsmartsolutions.com" className="text-amber-400 hover:underline">support@emperorsmartsolutions.com</a>.
+              You have the right to access, edit, or delete your account information and stored projects at any time. If you wish to permanently delete your user account and all associated project data, you may submit a request using our online deletion portal or by contacting us via email.
             </p>
+            <div className="pt-2">
+              <Link
+                href="/delete-account"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 font-semibold text-xs hover:bg-rose-500/20 transition-all"
+              >
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                  <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" />
+                </svg>
+                Request Account Deletion (https://mandapbuilder.vardaansmartsolutions.com/delete-account)
+              </Link>
+            </div>
           </section>
 
           {/* Section 6: Children's Privacy */}
@@ -223,6 +234,7 @@ export default function PrivacyPolicyPage() {
           <p>© 2026 Emperor Smart Solutions. All rights reserved.</p>
           <div className="flex items-center gap-6">
             <Link href="/" className="hover:text-amber-400 transition-colors">Privacy Policy</Link>
+            <Link href="/delete-account" className="hover:text-amber-400 transition-colors">Delete Account</Link>
             <a
               href="https://play.google.com/store/apps/details?id=com.emperorsmartsolutionsmandap"
               target="_blank"

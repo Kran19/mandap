@@ -12,9 +12,11 @@ export default function PrivacyPolicyPage() {
       <header className="border-b border-slate-800/80 bg-slate-900/90 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 via-rose-600 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-900/20 ring-1 ring-amber-400/30">
-              <span className="font-black text-xl text-white tracking-tighter">M</span>
-            </div>
+            <img
+              src="/logo.png"
+              alt="Mandap Builder Logo"
+              className="w-10 h-10 object-contain rounded-xl bg-slate-950 p-1 ring-1 ring-amber-400/30 shadow-md shadow-amber-900/20"
+            />
             <div>
               <span className="font-bold text-lg text-slate-100 tracking-tight block leading-none">MANDAP BUILDER</span>
               <span className="text-[10px] text-amber-400/90 font-medium tracking-wider uppercase">3D Event Structure Planner</span>
@@ -26,19 +28,13 @@ export default function PrivacyPolicyPage() {
               href="https://play.google.com/store/apps/details?id=com.emperorsmartsolutionsmandap"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-semibold text-xs tracking-wide shadow-md shadow-amber-500/20 transition-all transform hover:-translate-y-0.5"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-semibold text-xs tracking-wide shadow-md shadow-amber-500/20 transition-all transform hover:-translate-y-0.5"
             >
               <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                 <path d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.6 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.5,12.92 20.16,13.19L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z" />
               </svg>
               Get on Google Play
             </a>
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-slate-200 text-xs font-semibold tracking-wide transition-all"
-            >
-              Admin Portal
-            </Link>
           </div>
         </div>
       </header>
@@ -235,7 +231,6 @@ export default function PrivacyPolicyPage() {
             >
               Google Play Store
             </a>
-            <Link href="/login" className="hover:text-amber-400 transition-colors">Admin Login</Link>
           </div>
         </div>
       </footer>

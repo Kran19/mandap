@@ -32,9 +32,9 @@ export declare class AuthController {
     logout(dto: RefreshDto): Promise<void>;
     getMe(reqUser: User): Promise<{
         id: string;
-        email: string | null;
-        firstName: string | null;
-        lastName: string | null;
+        email: string;
+        firstName: string;
+        lastName: string;
         status: import("@prisma/client").$Enums.UserStatus;
         emailVerified: boolean;
         mobileVerified: boolean;

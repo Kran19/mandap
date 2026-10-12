@@ -62,7 +62,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     final authRepo = context.read<AuthRepository>();
 
-    final parts = _nameController.text.trim().split(' ');
+    final name = _nameController.text.trim();
+    final parts = name.isNotEmpty ? name.split(RegExp(r'\s+')) : <String>[];
     final firstName = parts.isNotEmpty ? parts[0] : null;
     final lastName = parts.length > 1 ? parts.sublist(1).join(' ') : null;
 

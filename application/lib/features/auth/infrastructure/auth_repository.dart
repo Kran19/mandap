@@ -196,12 +196,12 @@ class AuthRepository implements AuthTokenProvider {
         'phone': phone,
         'password': password,
         if (email != null && email.isNotEmpty) 'email': email,
-        if (firstName != null) 'firstName': firstName,
-        if (lastName != null) 'lastName': lastName,
-        if (gender != null) 'gender': gender,
-        if (aadhaarNumber != null) 'aadhaarNumber': aadhaarNumber,
-        if (aadhaarFrontUrl != null) 'aadhaarFrontUrl': aadhaarFrontUrl,
-        if (aadhaarBackUrl != null) 'aadhaarBackUrl': aadhaarBackUrl,
+        if (firstName != null && firstName.isNotEmpty) 'firstName': firstName,
+        if (lastName != null && lastName.isNotEmpty) 'lastName': lastName,
+        if (gender != null && gender.isNotEmpty) 'gender': gender,
+        if (aadhaarNumber != null && aadhaarNumber.isNotEmpty) 'aadhaarNumber': aadhaarNumber,
+        if (aadhaarFrontUrl != null && aadhaarFrontUrl.isNotEmpty) 'aadhaarFrontUrl': aadhaarFrontUrl,
+        if (aadhaarBackUrl != null && aadhaarBackUrl.isNotEmpty) 'aadhaarBackUrl': aadhaarBackUrl,
       };
 
       final response = await http.post(

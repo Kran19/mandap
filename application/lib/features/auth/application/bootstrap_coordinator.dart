@@ -67,7 +67,7 @@ class BootstrapCoordinator extends ChangeNotifier {
     }
 
     // 3. Evaluate Verification State
-    if (!user.emailVerified) {
+    if (user.email.isNotEmpty && !user.emailVerified) {
       _current = BootstrapResult(
         authState: AppAuthState.authenticated,
         onboardingState: OnboardingState.emailVerificationRequired,

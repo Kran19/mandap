@@ -23,7 +23,9 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
-    let email = dto.email?.trim().toLowerCase();
+    const email = dto.email?.trim() ? dto.email.trim().toLowerCase() : undefined;
+    const firstName = dto.firstName?.trim() ? dto.firstName.trim() : undefined;
+    const lastName = dto.lastName?.trim() ? dto.lastName.trim() : undefined;
     const phone = normalizePhone(dto.phone!);
 
     if (email) {
@@ -45,8 +47,8 @@ export class AuthService {
         data: {
           email,
           passwordHash,
-          firstName: dto.firstName,
-          lastName: dto.lastName,
+          firstName,
+          lastName,
           phone,
           gender: dto.gender,
           aadhaarNumber: dto.aadhaarNumber,

@@ -113,6 +113,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     if (error == null) {
       final coordinator = context.read<BootstrapCoordinator>();
       await coordinator.bootstrap();
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     } else {
       setState(() {
         _isLoading = false;

@@ -7,20 +7,28 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-import { Injectable } from '@nestjs/common';
+var PrismaService_1;
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-let PrismaService = class PrismaService extends PrismaClient {
+let PrismaService = PrismaService_1 = class PrismaService extends PrismaClient {
+    logger = new Logger(PrismaService_1.name);
     constructor() {
         super();
     }
     async onModuleInit() {
         await this.$connect();
+        try {
+            await this.$executeRawUnsafe(`ALTER TABLE "User" ALTER COLUMN "email" DROP NOT NULL;`);
+        }
+        catch (e) {
+            this.logger.warn(`Schema self-healing note: ${e.message}`);
+        }
     }
     async onModuleDestroy() {
         await this.$disconnect();
     }
 };
-PrismaService = __decorate([
+PrismaService = PrismaService_1 = __decorate([
     Injectable(),
     __metadata("design:paramtypes", [])
 ], PrismaService);

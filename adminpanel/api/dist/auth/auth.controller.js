@@ -55,11 +55,11 @@ let AuthController = class AuthController {
             return null;
         return {
             id: user.id,
-            email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
+            email: user.email ?? '',
+            firstName: user.firstName ?? '',
+            lastName: user.lastName ?? '',
             status: user.status,
-            emailVerified: user.emailVerifiedAt != null,
+            emailVerified: user.email ? (user.emailVerifiedAt != null) : true,
             mobileVerified: user.mobileVerifiedAt != null,
             identityVerified: user.identityVerifiedAt != null,
             organizationId: user.organizations.length > 0 ? user.organizations[0].organizationId : null,

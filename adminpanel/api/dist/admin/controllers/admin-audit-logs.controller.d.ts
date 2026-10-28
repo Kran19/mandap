@@ -6,12 +6,12 @@ export declare class AdminAuditLogsController {
     findAll(query: AdminAuditLogQueryDto): Promise<{
         data: {
             id: string;
+            metadata: import("@prisma/client/runtime/library").JsonValue | null;
             createdAt: Date;
             ipAddress: string | null;
             userAgent: string | null;
             organizationId: string | null;
             action: string;
-            metadata: import("@prisma/client/runtime/library").JsonValue | null;
             adminId: string | null;
             actorUserId: string | null;
             resourceType: string;
@@ -27,12 +27,12 @@ export declare class AdminAuditLogsController {
     }>;
     findOne(id: string): Promise<{
         id: string;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         createdAt: Date;
         ipAddress: string | null;
         userAgent: string | null;
         organizationId: string | null;
         action: string;
-        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         adminId: string | null;
         actorUserId: string | null;
         resourceType: string;

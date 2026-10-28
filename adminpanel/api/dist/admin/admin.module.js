@@ -19,6 +19,7 @@ import { AdminFeatureFlagsService } from './services/admin-feature-flags.service
 import { AdminUsageService } from './services/admin-usage.service.js';
 import { AdminAuditLogsService } from './services/admin-audit-logs.service.js';
 import { AdminBillingService } from './services/admin-billing.service.js';
+import { AdminVerificationLogsService } from './services/admin-verification-logs.service.js';
 import { AdminUsersController } from './controllers/admin-users.controller.js';
 import { AdminOrganizationsController } from './controllers/admin-organizations.controller.js';
 import { AdminMembershipsController } from './controllers/admin-memberships.controller.js';
@@ -29,6 +30,7 @@ import { AdminProjectsController } from './controllers/admin-projects.controller
 import { AdminFeatureFlagsController } from './controllers/admin-feature-flags.controller.js';
 import { AdminUsageController } from './controllers/admin-usage.controller.js';
 import { AdminAuditLogsController } from './controllers/admin-audit-logs.controller.js';
+import { AdminVerificationLogsController } from './controllers/admin-verification-logs.controller.js';
 import { AdminController } from './controllers/admin.controller.js';
 import { AdminBillingController } from './controllers/admin-billing.controller.js';
 let AdminModule = class AdminModule {
@@ -47,6 +49,7 @@ AdminModule = __decorate([
             AdminFeatureFlagsController,
             AdminUsageController,
             AdminAuditLogsController,
+            AdminVerificationLogsController,
             AdminController,
             AdminBillingController,
         ],
@@ -61,6 +64,7 @@ AdminModule = __decorate([
             AdminFeatureFlagsService,
             AdminUsageService,
             AdminAuditLogsService,
+            AdminVerificationLogsService,
             AdminBillingService,
         ]
     })

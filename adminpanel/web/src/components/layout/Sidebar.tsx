@@ -18,7 +18,8 @@ import {
   Repeat,
   ShoppingCart,
   Banknote,
-  Undo
+  Undo,
+  MessageSquareCode
 } from 'lucide-react';
 import { CurrentAdminUser } from '@/types';
 import { hasPermission, AdminPermissions } from '@/lib/permissions/helpers';
@@ -44,6 +45,7 @@ export default function Sidebar({ user, open, setOpen }: SidebarProps) {
       items: [
         { name: 'Users', href: '/admin/users', icon: Users, permission: AdminPermissions.USERS_READ },
         { name: 'Organizations', href: '/admin/organizations', icon: Building2, permission: AdminPermissions.ORGANIZATIONS_READ },
+        { name: 'OTP & Email Codes', href: '/admin/verification-logs', icon: MessageSquareCode, permission: AdminPermissions.USERS_READ },
       ],
     },
     {

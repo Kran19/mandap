@@ -78,6 +78,24 @@ enum MembershipRole {
   VIEWER
 }
 
+enum VerificationChannel {
+  SMS
+  EMAIL
+}
+
+enum VerificationPurpose {
+  REGISTRATION
+  LOGIN
+  PASSWORD_RESET
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  FAILED
+  EXPIRED
+}
+
 // ------------------------------------------------------
 // Models
 // ------------------------------------------------------
@@ -108,6 +126,7 @@ model User {
   order           Order[]
   trialSetups     TrialSetup[]
   trialClaims     TrialClaim[]
+  verificationLogs VerificationLog[]
 }
 
 model Organization {
@@ -542,4 +561,28 @@ model TrialClaim {
   @@index([userId])
   @@index([organizationId])
   @@index([status])
+}
+
+model VerificationLog {
+  id             String               @id @default(uuid())
+  userId         String?
+  identifier     String               // Phone number (+91...) or Email
+  channel        VerificationChannel
+  purpose        VerificationPurpose  @default(REGISTRATION)
+  codeHash       String
+  status         VerificationStatus   @default(PENDING)
+  attempts       Int                  @default(0)
+  gatewayMsgId   String?
+  gatewayStatus  String?
+  metadata       Json?
+  expiresAt      DateTime
+  verifiedAt     DateTime?
+  createdAt      DateTime             @default(now())
+
+  user           User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([identifier])
+  @@index([userId])
+  @@index([channel, status])
+  @@index([createdAt])
 }

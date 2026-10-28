@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +12,7 @@ import '../../../core/localization/locale_notifier.dart';
 import '../../../l10n/app_localizations.dart';
 import 'widgets/premium_auth_textfield.dart';
 import 'widgets/premium_auth_button.dart';
+import 'widgets/six_digit_otp_input.dart';
 
 /// Login screen implementing the V2 phone + password → OTP flow.
 ///
@@ -37,6 +39,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   bool _otpStep = false;
   String? _challengeId;
 
+  // 60-second resend timer
+  Timer? _resendTimer;
+  int _resendCountdown = 60;
+  bool _isResending = false;
+
   late final AnimationController _fadeController;
   late final Animation<double> _fadeAnim;
 
@@ -50,11 +57,62 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   @override
   void dispose() {
+    _resendTimer?.cancel();
     _phoneController.dispose();
     _passwordController.dispose();
     _otpController.dispose();
     _fadeController.dispose();
     super.dispose();
+  }
+
+  void _startResendTimer() {
+    _resendTimer?.cancel();
+    setState(() => _resendCountdown = 60);
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_resendCountdown > 1) {
+        setState(() => _resendCountdown--);
+      } else {
+        timer.cancel();
+        setState(() => _resendCountdown = 0);
+      }
+    });
+  }
+
+  Future<void> _handleResendOtp() async {
+    if (_isResending) return;
+    setState(() {
+      _isResending = true;
+      _errorMessage = null;
+    });
+
+    final phone = _phoneController.text.trim();
+    final authRepo = context.read<AuthRepository>();
+    final result = await authRepo.login(phone, _passwordController.text);
+
+    if (!mounted) return;
+
+    setState(() => _isResending = false);
+
+    if (result.otpRequired) {
+      setState(() {
+        _challengeId = result.challengeId;
+        _otpController.clear();
+      });
+      _startResendTimer();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('A new 6-digit OTP has been sent to $phone'),
+          backgroundColor: const Color(0xFF16A34A),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } else {
+      setState(() => _errorMessage = result.errorMessage ?? 'Failed to resend OTP.');
+    }
   }
 
   Future<void> _handleLogin() async {
@@ -81,6 +139,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         _otpStep = true;
         _challengeId = result.challengeId;
       });
+      _startResendTimer();
       _fadeController.forward();
     } else if (result.success) {
       final coordinator = context.read<BootstrapCoordinator>();
@@ -111,6 +170,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     if (!mounted) return;
 
     if (error == null) {
+      _resendTimer?.cancel();
       final coordinator = context.read<BootstrapCoordinator>();
       await coordinator.bootstrap();
       if (mounted) {
@@ -125,12 +185,14 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   void _goBackToLogin() {
+    _resendTimer?.cancel();
     _fadeController.reset();
     setState(() {
       _otpStep = false;
       _challengeId = null;
       _otpController.clear();
       _errorMessage = null;
+      _resendCountdown = 60;
     });
     _fadeController.forward();
   }
@@ -145,6 +207,15 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             child: Image.asset(
               'assets/images/bg1.png',
               fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF1E0A0D), Color(0xFF0F172A), Color(0xFF020617)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+              ),
             ),
           ),
           // Interactive Form Layer
@@ -523,23 +594,63 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
         if (_errorMessage != null) _buildErrorBox(_errorMessage!),
 
-        PremiumAuthTextField(
-          controller: _otpController,
-          labelText: l10n?.otpLabel ?? '6-Digit OTP',
-          prefixIcon: Icons.pin_outlined,
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          fillColor: Colors.white,
-          borderRadius: 16,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 3),
-            ),
+        SixDigitOtpInput(
+          initialValue: _otpController.text,
+          onChanged: (val) {
+            setState(() {
+              _otpController.text = val;
+              _errorMessage = null;
+            });
+          },
+          onCompleted: (val) {
+            _otpController.text = val;
+            _handleVerifyOtp();
+          },
+        ),
+        const SizedBox(height: 18),
+
+        // 60-Second Resend Countdown Timer
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (_resendCountdown > 0) ...[
+              const Icon(Icons.timer_outlined, size: 16, color: Color(0xFF64748B)),
+              const SizedBox(width: 6),
+              Text(
+                'Resend code in 00:${_resendCountdown.toString().padLeft(2, '0')}',
+                style: const TextStyle(
+                  color: Color(0xFF475569),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ] else ...[
+              const Text(
+                "Didn't receive code? ",
+                style: TextStyle(
+                  color: Color(0xFF475569),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              InkWell(
+                onTap: _isResending ? null : _handleResendOtp,
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Text(
+                    _isResending ? 'Sending...' : 'Resend OTP',
+                    style: const TextStyle(
+                      color: Color(0xFF2563EB),
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         ),
         const SizedBox(height: 18),
         PremiumAuthButton(

@@ -6,8 +6,8 @@ export declare class ProjectVersionsService {
     constructor(prisma: PrismaService);
     createVersion(actorId: string, orgId: string, projectId: string, dto: CreateProjectVersionDto, idempotencyKey?: string): Promise<string | number | true | Prisma.JsonObject | Prisma.JsonArray | {
         id: string;
-        createdAt: Date;
         metadata: Prisma.JsonValue | null;
+        createdAt: Date;
         createdBy: string | null;
         versionNumber: number;
         projectId: string;
@@ -15,8 +15,8 @@ export declare class ProjectVersionsService {
     }>;
     restoreVersion(actorId: string, orgId: string, projectId: string, versionIdToRestore: string): Promise<{
         id: string;
-        createdAt: Date;
         metadata: Prisma.JsonValue | null;
+        createdAt: Date;
         createdBy: string | null;
         versionNumber: number;
         projectId: string;
@@ -25,8 +25,8 @@ export declare class ProjectVersionsService {
     findHistory(orgId: string, projectId: string, page?: number, limit?: number): Promise<{
         data: {
             id: string;
-            createdAt: Date;
             metadata: Prisma.JsonValue;
+            createdAt: Date;
             createdBy: string | null;
             versionNumber: number;
             projectId: string;
@@ -39,8 +39,8 @@ export declare class ProjectVersionsService {
     }>;
     findOne(orgId: string, projectId: string, versionId: string): Promise<{
         id: string;
-        createdAt: Date;
         metadata: Prisma.JsonValue | null;
+        createdAt: Date;
         createdBy: string | null;
         versionNumber: number;
         projectId: string;

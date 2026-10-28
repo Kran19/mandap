@@ -68,8 +68,10 @@ describe('AuthService', () => {
       expect(result).toEqual({
         otpRequired: true,
         challengeId: 'challenge_123',
+        phone: '+14155552671',
+        email: null,
       });
-      expect(otpService.generateAndSendOtp).toHaveBeenCalledWith('u1', '+14155552671');
+      expect(otpService.generateAndSendOtp).toHaveBeenCalledWith('u1', '+14155552671', 'Candidate', 'LOGIN');
     });
 
     it('should give generic UnauthorizedException for wrong password', async () => {

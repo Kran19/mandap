@@ -14,6 +14,7 @@ export declare class AuthService {
     constructor(prisma: PrismaService, jwtService: JwtService, otpService: OtpService);
     register(dto: RegisterDto): Promise<{
         success: boolean;
+        challengeId: string | undefined;
         message: string;
     }>;
     login(dto: LoginDto): Promise<{
@@ -22,6 +23,8 @@ export declare class AuthService {
     } | {
         otpRequired: boolean;
         challengeId: string;
+        phone: string;
+        email: string | null;
     }>;
     verifyLoginOtp(challengeId: string, otp: string): Promise<{
         accessToken: string;
@@ -36,13 +39,21 @@ export declare class AuthService {
     private hashString;
     verifyEmail(userId: string, token: string): Promise<{
         success: boolean;
+        message: string;
+    }>;
+    sendEmailVerificationCode(userId: string): Promise<{
+        success: boolean;
+        message: string;
+        challengeId: string;
     }>;
     sendOtp(userId: string, phone: string): Promise<{
         success: boolean;
         message: string;
+        challengeId: string;
     }>;
     verifyOtp(userId: string, phone: string, code: string): Promise<{
         success: boolean;
+        message: string;
     }>;
     verifyIdentity(userId: string, identityReference: string): Promise<{
         success: boolean;

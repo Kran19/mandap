@@ -42,8 +42,8 @@ export declare class AdminProjectsService {
         };
         versions: {
             id: string;
-            createdAt: Date;
             metadata: import("@prisma/client/runtime/library").JsonValue | null;
+            createdAt: Date;
             createdBy: string | null;
             versionNumber: number;
             projectId: string;
@@ -63,8 +63,8 @@ export declare class AdminProjectsService {
     }>;
     findVersion(actorId: string, projectId: string, versionId: string): Promise<{
         id: string;
-        createdAt: Date;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
+        createdAt: Date;
         createdBy: string | null;
         versionNumber: number;
         projectId: string;

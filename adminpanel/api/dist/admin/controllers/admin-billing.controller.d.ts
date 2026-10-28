@@ -74,11 +74,11 @@ export declare class AdminBillingController {
         };
         events: {
             id: string;
+            metadata: import("@prisma/client/runtime/library").JsonValue | null;
             createdAt: Date;
             eventType: string;
             previousStatus: string | null;
             newStatus: string | null;
-            metadata: import("@prisma/client/runtime/library").JsonValue | null;
             subscriptionId: string;
         }[];
     } & {
@@ -109,13 +109,13 @@ export declare class AdminBillingController {
                 aadhaarFrontUrl: string | null;
                 aadhaarBackUrl: string | null;
                 id: string;
-                passwordHash: string;
                 status: import("@prisma/client").$Enums.UserStatus;
+                createdAt: Date;
+                passwordHash: string;
                 emailVerifiedAt: Date | null;
                 mobileVerifiedAt: Date | null;
                 identityVerifiedAt: Date | null;
                 lastLoginAt: Date | null;
-                createdAt: Date;
                 updatedAt: Date;
             } | null;
             organization: {
@@ -130,8 +130,8 @@ export declare class AdminBillingController {
             id: string;
             status: import("@prisma/client").$Enums.OrderStatus;
             createdAt: Date;
-            updatedAt: Date;
             userId: string | null;
+            updatedAt: Date;
             organizationId: string;
             currency: string;
             provider: string | null;
@@ -159,13 +159,13 @@ export declare class AdminBillingController {
             aadhaarFrontUrl: string | null;
             aadhaarBackUrl: string | null;
             id: string;
-            passwordHash: string;
             status: import("@prisma/client").$Enums.UserStatus;
+            createdAt: Date;
+            passwordHash: string;
             emailVerifiedAt: Date | null;
             mobileVerifiedAt: Date | null;
             identityVerifiedAt: Date | null;
             lastLoginAt: Date | null;
-            createdAt: Date;
             updatedAt: Date;
         } | null;
         organization: {
@@ -195,9 +195,9 @@ export declare class AdminBillingController {
         }[];
         items: {
             id: string;
+            metadata: import("@prisma/client/runtime/library").JsonValue | null;
             description: string;
             orderId: string;
-            metadata: import("@prisma/client/runtime/library").JsonValue | null;
             totalAmount: import("@prisma/client/runtime/library").Decimal;
             quantity: number;
             unitAmount: import("@prisma/client/runtime/library").Decimal;
@@ -206,8 +206,8 @@ export declare class AdminBillingController {
         id: string;
         status: import("@prisma/client").$Enums.OrderStatus;
         createdAt: Date;
-        updatedAt: Date;
         userId: string | null;
+        updatedAt: Date;
         organizationId: string;
         currency: string;
         provider: string | null;
@@ -232,8 +232,8 @@ export declare class AdminBillingController {
                 id: string;
                 status: import("@prisma/client").$Enums.OrderStatus;
                 createdAt: Date;
-                updatedAt: Date;
                 userId: string | null;
+                updatedAt: Date;
                 organizationId: string;
                 currency: string;
                 provider: string | null;
@@ -280,8 +280,8 @@ export declare class AdminBillingController {
             id: string;
             status: import("@prisma/client").$Enums.OrderStatus;
             createdAt: Date;
-            updatedAt: Date;
             userId: string | null;
+            updatedAt: Date;
             organizationId: string;
             currency: string;
             provider: string | null;

@@ -149,3 +149,51 @@ export interface CurrentAdminUser {
   status: UserStatus;
   roles: AdminRoleModel[];
 }
+
+export type VerificationChannel = 'SMS' | 'EMAIL';
+export type VerificationPurpose = 'REGISTRATION' | 'LOGIN' | 'PASSWORD_RESET';
+export type VerificationStatus = 'PENDING' | 'VERIFIED' | 'FAILED' | 'EXPIRED';
+
+export interface VerificationLog {
+  id: string;
+  userId: string | null;
+  identifier: string;
+  channel: VerificationChannel;
+  purpose: VerificationPurpose;
+  status: VerificationStatus;
+  attempts: number;
+  gatewayMsgId: string | null;
+  gatewayStatus: string | null;
+  metadata: any | null;
+  expiresAt: string;
+  verifiedAt: string | null;
+  createdAt: string;
+  user?: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    phone: string | null;
+    email: string | null;
+    status: UserStatus;
+  };
+}
+
+export interface VerificationLogsStats {
+  totalAll: number;
+  totalSms: number;
+  totalEmail: number;
+  totalVerified: number;
+  totalPending: number;
+  totalFailed: number;
+  verificationRate: number;
+}
+
+export interface VerificationLogsResponse {
+  data: VerificationLog[];
+  stats: VerificationLogsStats;
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+  };
+}

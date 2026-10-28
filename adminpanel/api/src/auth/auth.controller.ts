@@ -78,6 +78,12 @@ export class AuthController {
     };
   }
 
+  @Post('email/send-code')
+  @UseGuards(JwtAuthGuard)
+  sendEmailCode(@CurrentUser() user: User) {
+    return this.authService.sendEmailVerificationCode(user.id);
+  }
+
   @Post('email/verify')
   @UseGuards(JwtAuthGuard)
   verifyEmail(@CurrentUser() user: User, @Body() dto: VerifyEmailDto) {

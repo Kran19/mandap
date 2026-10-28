@@ -6,7 +6,7 @@ import { LoginDto } from './dto/login.dto.js';
 import { RefreshDto } from './dto/refresh.dto.js';
 import * as argon2 from 'argon2';
 import * as crypto from 'crypto';
-import { UserStatus } from '@prisma/client';
+import { UserStatus, VerificationPurpose } from '@prisma/client';
 import { normalizePhone } from '../utils/phone.util.js';
 import { OtpService } from './otp.service.js';
 
@@ -76,7 +76,22 @@ export class AuthService {
       return u;
     });
 
-    return { success: true, message: 'User registered successfully. Please login to verify phone.' };
+    // Dispatch verification codes on registration
+    let challengeId: string | undefined;
+    try {
+      if (user.phone) {
+        challengeId = await this.otpService.generateAndSendOtp(user.id, user.phone, user.firstName || 'Candidate', VerificationPurpose.REGISTRATION);
+      }
+      if (user.email) {
+        await this.otpService.generateAndSendEmailCode(user.id, user.email, user.firstName || 'Candidate', VerificationPurpose.REGISTRATION);
+      }
+    } catch (_) {}
+
+    return { 
+      success: true, 
+      challengeId,
+      message: 'User registered successfully. Verification codes have been sent to your mobile number and email address.' 
+    };
   }
 
   async login(dto: LoginDto) {
@@ -103,11 +118,32 @@ export class AuthService {
     }
 
     if (user.phone) {
-      // New phone flow
-      const challengeId = await this.otpService.generateAndSendOtp(user.id, user.phone);
-      return { otpRequired: true, challengeId };
+      // Phone OTP challenge via DLT
+      const challengeId = await this.otpService.generateAndSendOtp(
+        user.id,
+        user.phone,
+        user.firstName || 'Candidate',
+        VerificationPurpose.LOGIN,
+      );
+
+      // If user also has email, send login notification/verification code
+      if (user.email) {
+        await this.otpService.generateAndSendEmailCode(
+          user.id,
+          user.email,
+          user.firstName || 'Candidate',
+          VerificationPurpose.LOGIN,
+        ).catch(() => {});
+      }
+
+      return { 
+        otpRequired: true, 
+        challengeId,
+        phone: user.phone,
+        email: user.email ?? null,
+      };
     } else {
-      // Existing email-only users can still login, but should be prompted by frontend to migrate
+      // Existing email-only users
       await this.prisma.user.update({
         where: { id: user.id },
         data: { lastLoginAt: new Date() },
@@ -230,39 +266,63 @@ export class AuthService {
     return crypto.createHash('sha256').update(data).digest('hex');
   }
 
-  // --- Verification Stubs ---
+  // --- Verification Services ---
 
   async verifyEmail(userId: string, token: string) {
-    // In a real app, verify the token against a database record.
-    // For now, we just mark the user's email as verified.
+    await this.otpService.verifyEmailCode(userId, token);
     await this.prisma.user.update({
       where: { id: userId },
       data: { emailVerifiedAt: new Date() },
     });
-    return { success: true };
+    return { success: true, message: 'Email verified successfully.' };
+  }
+
+  async sendEmailVerificationCode(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.email) {
+      throw new BadRequestException('User does not have an email registered.');
+    }
+    const challengeId = await this.otpService.generateAndSendEmailCode(
+      user.id,
+      user.email,
+      user.firstName || 'Candidate',
+      VerificationPurpose.REGISTRATION,
+    );
+    return { success: true, message: 'Verification code sent to email.', challengeId };
   }
 
   async sendOtp(userId: string, phone: string) {
-    // In a real app, integrate with an SMS provider (e.g., Twilio, AWS SNS)
-    // For now, just save the phone number to the user and return success.
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { phone },
-    });
-    return { success: true, message: 'OTP sent to mobile (mock)' };
+    const cleanPhone = normalizePhone(phone);
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException('User not found.');
+
+    // Update phone if different
+    if (user.phone !== cleanPhone) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { phone: cleanPhone },
+      });
+    }
+
+    const challengeId = await this.otpService.generateAndSendOtp(
+      user.id,
+      cleanPhone,
+      user.firstName || 'Candidate',
+      VerificationPurpose.REGISTRATION,
+    );
+
+    return { success: true, message: 'OTP sent to mobile successfully via DLT.', challengeId };
   }
 
   async verifyOtp(userId: string, phone: string, code: string) {
-    // In a real app, verify the code. Here we just accept '123456'.
-    if (code !== '123456') {
-      throw new BadRequestException('Invalid OTP');
-    }
-    // Set mobileVerifiedAt
+    const cleanPhone = normalizePhone(phone);
+    await this.otpService.verifyMobileCode(userId, cleanPhone, code);
+
     await this.prisma.user.update({
       where: { id: userId },
       data: { mobileVerifiedAt: new Date() },
     });
-    return { success: true };
+    return { success: true, message: 'Mobile verified successfully.' };
   }
 
   async verifyIdentity(userId: string, identityReference: string) {

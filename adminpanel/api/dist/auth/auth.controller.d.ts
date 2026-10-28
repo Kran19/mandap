@@ -12,6 +12,7 @@ export declare class AuthController {
     constructor(authService: AuthService, prisma: PrismaService);
     register(dto: RegisterDto): Promise<{
         success: boolean;
+        challengeId: string | undefined;
         message: string;
     }>;
     login(dto: LoginDto): Promise<{
@@ -20,6 +21,8 @@ export declare class AuthController {
     } | {
         otpRequired: boolean;
         challengeId: string;
+        phone: string;
+        email: string | null;
     }>;
     verifyLoginOtp(dto: VerifyLoginOtpDto): Promise<{
         accessToken: string;
@@ -41,15 +44,23 @@ export declare class AuthController {
         identityVerified: boolean;
         organizationId: string | null;
     } | null>;
+    sendEmailCode(user: User): Promise<{
+        success: boolean;
+        message: string;
+        challengeId: string;
+    }>;
     verifyEmail(user: User, dto: VerifyEmailDto): Promise<{
         success: boolean;
+        message: string;
     }>;
     sendOtp(user: User, dto: SendOtpDto): Promise<{
         success: boolean;
         message: string;
+        challengeId: string;
     }>;
     verifyOtp(user: User, dto: VerifyOtpDto): Promise<{
         success: boolean;
+        message: string;
     }>;
     verifyIdentity(user: User, dto: VerifyIdentityDto): Promise<{
         success: boolean;

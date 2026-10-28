@@ -35,6 +35,24 @@ class LoginResult {
       LoginResult._(errorMessage: message);
 }
 
+class RegisterResult {
+  final bool success;
+  final String? challengeId;
+  final String? errorMessage;
+
+  const RegisterResult({
+    this.success = false,
+    this.challengeId,
+    this.errorMessage,
+  });
+
+  factory RegisterResult.ok({String? challengeId}) =>
+      RegisterResult(success: true, challengeId: challengeId);
+
+  factory RegisterResult.error(String message) =>
+      RegisterResult(errorMessage: message);
+}
+
 abstract class AuthTokenProvider {
   Future<String?> getAccessToken();
   Future<void> clearTokens();
@@ -180,7 +198,7 @@ class AuthRepository implements AuthTokenProvider {
     }
   }
 
-  Future<String?> register({
+  Future<RegisterResult> register({
     required String phone,
     required String password,
     String? email,
@@ -211,15 +229,17 @@ class AuthRepository implements AuthTokenProvider {
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return null; // null means success, user should now login
+        final data = jsonDecode(response.body);
+        return RegisterResult.ok(challengeId: data['challengeId'] as String?);
       } else {
         final errorData = jsonDecode(response.body);
-        return errorData['message'] is List
+        final msg = errorData['message'] is List
             ? (errorData['message'] as List).join(', ')
             : errorData['message'] ?? 'Registration failed';
+        return RegisterResult.error(msg as String);
       }
     } catch (e) {
-      return 'Network error. Please try again.';
+      return RegisterResult.error('Network error. Please try again.');
     }
   }
 
@@ -239,6 +259,20 @@ class AuthRepository implements AuthTokenProvider {
       return null;
     }
     return null;
+  }
+
+  Future<bool> sendEmailVerificationCode() async {
+    final access = await getAccessToken();
+    if (access == null) return false;
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/email/send-code'),
+        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $access'},
+      );
+      return response.statusCode == 200 || response.statusCode == 201;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<bool> verifyEmail(String token) async {

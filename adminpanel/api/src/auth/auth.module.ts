@@ -4,7 +4,8 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { OtpService } from './otp.service.js';
-import { DevelopmentSmsProvider } from './sms/development-sms.provider.js';
+import { DltSmsProvider } from './sms/dlt-sms.provider.js';
+import { EmailVerificationProvider } from './email/email-verification.provider.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { OrgRoleGuard } from './guards/org-role.guard.js';
@@ -22,15 +23,17 @@ import { PrismaModule } from '../prisma.module.js';
   providers: [
     AuthService,
     OtpService,
+    EmailVerificationProvider,
+    DltSmsProvider,
     {
       provide: 'SMS_PROVIDER',
-      useClass: process.env.NODE_ENV === 'production' ? DevelopmentSmsProvider : DevelopmentSmsProvider, // TODO: ProductionSmsProvider
+      useClass: DltSmsProvider,
     },
     JwtStrategy,
     JwtAuthGuard,
     OrgRoleGuard,
     AdminPermissionGuard,
   ],
-  exports: [AuthService, OtpService, JwtStrategy, PassportModule, JwtAuthGuard, OrgRoleGuard, AdminPermissionGuard],
+  exports: [AuthService, OtpService, EmailVerificationProvider, DltSmsProvider, JwtStrategy, PassportModule, JwtAuthGuard, OrgRoleGuard, AdminPermissionGuard],
 })
 export class AuthModule {}

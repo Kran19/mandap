@@ -5,8 +5,8 @@ export declare class ProjectVersionsController {
     constructor(projectVersionsService: ProjectVersionsService);
     create(user: any, orgId: string, projectId: string, dto: CreateProjectVersionDto, idempotencyKey?: string): Promise<string | number | true | import("@prisma/client/runtime/library").JsonObject | import("@prisma/client/runtime/library").JsonArray | {
         id: string;
-        createdAt: Date;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
+        createdAt: Date;
         createdBy: string | null;
         versionNumber: number;
         projectId: string;
@@ -14,8 +14,8 @@ export declare class ProjectVersionsController {
     }>;
     restore(user: any, orgId: string, projectId: string, versionId: string): Promise<{
         id: string;
-        createdAt: Date;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
+        createdAt: Date;
         createdBy: string | null;
         versionNumber: number;
         projectId: string;
@@ -24,8 +24,8 @@ export declare class ProjectVersionsController {
     findAll(orgId: string, projectId: string, page?: string, limit?: string): Promise<{
         data: {
             id: string;
-            createdAt: Date;
             metadata: import("@prisma/client/runtime/library").JsonValue;
+            createdAt: Date;
             createdBy: string | null;
             versionNumber: number;
             projectId: string;
@@ -38,8 +38,8 @@ export declare class ProjectVersionsController {
     }>;
     findOne(orgId: string, projectId: string, versionId: string): Promise<{
         id: string;
-        createdAt: Date;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
+        createdAt: Date;
         createdBy: string | null;
         versionNumber: number;
         projectId: string;

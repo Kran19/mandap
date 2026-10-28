@@ -29,6 +29,8 @@ android {
             keyPassword = keystoreProperties["keyPassword"] as String? ?: "MandapReleaseKey2026!"
             storeFile = keystoreProperties["storeFile"]?.let { file(it) } ?: file("upload-keystore.jks")
             storePassword = keystoreProperties["storePassword"] as String? ?: "MandapReleaseKey2026!"
+            enableV1Signing = true
+            enableV2Signing = true
         }
     }
 
@@ -39,8 +41,8 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = 3
-        versionName = "3.0.0"
+        versionCode = 4
+        versionName = "3.0.1"
     }
 
     buildTypes {
@@ -54,7 +56,7 @@ android {
 
     packaging {
         jniLibs {
-            keepDebugSymbols.add("**/*.so")
+            useLegacyPackaging = true
         }
     }
 }

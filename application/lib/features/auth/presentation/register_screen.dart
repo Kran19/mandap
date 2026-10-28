@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,10 +12,11 @@ import '../../../core/localization/locale_notifier.dart';
 import '../../../l10n/app_localizations.dart';
 import 'widgets/premium_auth_textfield.dart';
 import 'widgets/premium_auth_button.dart';
+import 'widgets/six_digit_otp_input.dart';
 
 /// Register screen for V2 phone-first authentication.
 /// Step 1: Phone + Password + optional name/email → POST /auth/register
-/// Step 2: User logs in to verify phone via OTP (flows to LoginScreen).
+/// Step 2: 6-Box OTP verification directly on screen → verify & auto sign-in.
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -27,19 +29,112 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _otpController = TextEditingController();
 
   String _selectedGender = 'Male';
   bool _isLoading = false;
   String? _errorMessage;
   bool _registrationComplete = false;
 
+  // OTP Step State
+  bool _otpStep = false;
+  String? _challengeId;
+  Timer? _resendTimer;
+  int _resendCountdown = 60;
+  bool _isResending = false;
+
   @override
   void dispose() {
+    _resendTimer?.cancel();
     _nameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _otpController.dispose();
     super.dispose();
+  }
+
+  void _startResendTimer() {
+    _resendTimer?.cancel();
+    setState(() => _resendCountdown = 60);
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_resendCountdown > 1) {
+        setState(() => _resendCountdown--);
+      } else {
+        timer.cancel();
+        setState(() => _resendCountdown = 0);
+      }
+    });
+  }
+
+  Future<void> _handleResendRegistrationOtp() async {
+    if (_isResending) return;
+    setState(() {
+      _isResending = true;
+      _errorMessage = null;
+    });
+
+    final phone = _phoneController.text.trim();
+    final password = _passwordController.text;
+    final authRepo = context.read<AuthRepository>();
+    final result = await authRepo.login(phone, password);
+
+    if (!mounted) return;
+
+    setState(() => _isResending = false);
+
+    if (result.otpRequired) {
+      setState(() {
+        _challengeId = result.challengeId;
+        _otpController.clear();
+      });
+      _startResendTimer();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('A new 6-digit OTP has been sent to $phone'),
+          backgroundColor: const Color(0xFF16A34A),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } else {
+      setState(() => _errorMessage = result.errorMessage ?? 'Failed to resend OTP.');
+    }
+  }
+
+  Future<void> _handleVerifyRegistrationOtp() async {
+    final otp = _otpController.text.trim();
+    if (otp.length != 6) {
+      setState(() => _errorMessage = 'Please enter the 6-digit OTP.');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final authRepo = context.read<AuthRepository>();
+    final error = await authRepo.verifyLoginOtp(_challengeId!, otp);
+
+    if (!mounted) return;
+
+    if (error == null) {
+      _resendTimer?.cancel();
+      final coordinator = context.read<BootstrapCoordinator>();
+      await coordinator.bootstrap();
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    } else {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = error;
+      });
+    }
   }
 
   Future<void> _handleRegister() async {
@@ -73,7 +168,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       normalizedPhone = '+91$phone';
     }
 
-    final errorMessage = await authRepo.register(
+    final result = await authRepo.register(
       phone: normalizedPhone,
       password: password,
       email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
@@ -84,15 +179,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (!mounted) return;
 
-    if (errorMessage == null) {
-      setState(() {
-        _isLoading = false;
-        _registrationComplete = true;
-      });
+    if (result.success) {
+      if (result.challengeId != null) {
+        setState(() {
+          _isLoading = false;
+          _otpStep = true;
+          _challengeId = result.challengeId;
+        });
+        _startResendTimer();
+      } else {
+        setState(() {
+          _isLoading = false;
+          _registrationComplete = true;
+        });
+      }
     } else {
       setState(() {
         _isLoading = false;
-        _errorMessage = errorMessage;
+        _errorMessage = result.errorMessage;
       });
     }
   }
@@ -107,6 +211,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Image.asset(
               'assets/images/bg1.png',
               fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF1E0A0D), Color(0xFF0F172A), Color(0xFF020617)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+              ),
             ),
           ),
           // Interactive Form Layer
@@ -161,9 +274,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      _registrationComplete
-                          ? _buildSuccessState(context)
-                          : _buildFormState(context),
+                      if (_otpStep)
+                        _buildOtpStep(context)
+                      else if (_registrationComplete)
+                        _buildSuccessState(context)
+                      else
+                        _buildFormState(context),
                     ],
                   ),
                 ),
@@ -172,6 +288,162 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildOtpStep(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.9),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.mark_email_read_outlined, size: 36, color: Color(0xFF2563EB)),
+          ),
+        ),
+        const SizedBox(height: 18),
+        Text(
+          l10n?.verifyPhone ?? 'Verify Your Account',
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w800,
+            color: const Color(0xFF0F172A),
+            letterSpacing: -0.5,
+            shadows: [
+              Shadow(
+                color: Colors.white.withValues(alpha: 0.9),
+                blurRadius: 10,
+              ),
+            ],
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'We sent a 6-digit verification code to\n${_phoneController.text}${_emailController.text.isNotEmpty ? ' and ${_emailController.text}' : ''}',
+          style: TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF334155),
+            shadows: [
+              Shadow(
+                color: Colors.white.withValues(alpha: 0.9),
+                blurRadius: 6,
+              ),
+            ],
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 24),
+
+        if (_errorMessage != null) _buildErrorBox(_errorMessage!),
+
+        SixDigitOtpInput(
+          initialValue: _otpController.text,
+          onChanged: (val) {
+            setState(() {
+              _otpController.text = val;
+              _errorMessage = null;
+            });
+          },
+          onCompleted: (val) {
+            _otpController.text = val;
+            _handleVerifyRegistrationOtp();
+          },
+        ),
+        const SizedBox(height: 18),
+
+        // 60-Second Resend Countdown Timer
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (_resendCountdown > 0) ...[
+              const Icon(Icons.timer_outlined, size: 16, color: Color(0xFF64748B)),
+              const SizedBox(width: 6),
+              Text(
+                'Resend code in 00:${_resendCountdown.toString().padLeft(2, '0')}',
+                style: const TextStyle(
+                  color: Color(0xFF475569),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ] else ...[
+              const Text(
+                "Didn't receive code? ",
+                style: TextStyle(
+                  color: Color(0xFF475569),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              InkWell(
+                onTap: _isResending ? null : _handleResendRegistrationOtp,
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Text(
+                    _isResending ? 'Sending...' : 'Resend OTP',
+                    style: const TextStyle(
+                      color: Color(0xFF2563EB),
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 20),
+        PremiumAuthButton(
+          text: 'Verify & Complete Registration',
+          isLoading: _isLoading,
+          onPressed: _handleVerifyRegistrationOtp,
+          borderRadius: 14,
+          verticalPadding: 15,
+          gradientColors: const [
+            Color(0xFF3B82F6),
+            Color(0xFF2563EB),
+          ],
+        ),
+        const SizedBox(height: 16),
+        TextButton.icon(
+          onPressed: () {
+            _resendTimer?.cancel();
+            setState(() {
+              _otpStep = false;
+              _challengeId = null;
+              _otpController.clear();
+              _errorMessage = null;
+              _resendCountdown = 60;
+            });
+          },
+          icon: const Icon(Icons.arrow_back_rounded, size: 16, color: Color(0xFF334155)),
+          label: const Text(
+            'Edit registration details',
+            style: TextStyle(
+              color: Color(0xFF334155),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     );
   }
 

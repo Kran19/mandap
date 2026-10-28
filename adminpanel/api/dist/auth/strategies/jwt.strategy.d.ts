@@ -17,13 +17,13 @@ export declare class JwtStrategy extends JwtStrategy_base {
         aadhaarFrontUrl: string | null;
         aadhaarBackUrl: string | null;
         id: string;
-        passwordHash: string;
         status: import("@prisma/client").$Enums.UserStatus;
+        createdAt: Date;
+        passwordHash: string;
         emailVerifiedAt: Date | null;
         mobileVerifiedAt: Date | null;
         identityVerifiedAt: Date | null;
         lastLoginAt: Date | null;
-        createdAt: Date;
         updatedAt: Date;
     }>;
 }

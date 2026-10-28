@@ -65,6 +65,9 @@ let AuthController = class AuthController {
             organizationId: user.organizations.length > 0 ? user.organizations[0].organizationId : null,
         };
     }
+    sendEmailCode(user) {
+        return this.authService.sendEmailVerificationCode(user.id);
+    }
     verifyEmail(user, dto) {
         return this.authService.verifyEmail(user.id, dto.token);
     }
@@ -128,6 +131,14 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "getMe", null);
+__decorate([
+    Post('email/send-code'),
+    UseGuards(JwtAuthGuard),
+    __param(0, CurrentUser()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "sendEmailCode", null);
 __decorate([
     Post('email/verify'),
     UseGuards(JwtAuthGuard),

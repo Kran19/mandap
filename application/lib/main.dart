@@ -12,8 +12,18 @@ import 'features/projects/infrastructure/projects_repository.dart';
 import 'core/network/api_client.dart';
 import 'features/projects/infrastructure/project_version_repository.dart';
 
-// Production API URL
-const String _kApiBaseUrl = 'http://187.127.158.24:5000/api/v1';
+import 'package:flutter/foundation.dart';
+
+// API URL - Automatically points to localhost:3001 when running in Chrome Web, and remote server on mobile
+String get apiBaseUrl {
+  if (kIsWeb) {
+    return 'http://localhost:3001/api/v1';
+  }
+  return const String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://187.127.158.24:5000/api/v1',
+  );
+}
 
 void main() {
   runApp(const MandapApp());
@@ -27,23 +37,23 @@ class MandapApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider<AuthRepository>(
-          create: (_) => AuthRepository(baseUrl: _kApiBaseUrl),
+          create: (_) => AuthRepository(baseUrl: apiBaseUrl),
         ),
         ProxyProvider<AuthRepository, BillingRepository>(
           update: (_, auth, __) => BillingRepository(
-            baseUrl: _kApiBaseUrl,
+            baseUrl: apiBaseUrl,
             tokenProvider: auth,
           ),
         ),
         ProxyProvider<AuthRepository, ProjectsRepository>(
           update: (_, auth, __) => ProjectsRepository(
-            baseUrl: _kApiBaseUrl,
+            baseUrl: apiBaseUrl,
             tokenProvider: auth,
           ),
         ),
         ProxyProvider<AuthRepository, ApiClient>(
           update: (_, auth, __) => ApiClient(
-            baseUrl: _kApiBaseUrl,
+            baseUrl: apiBaseUrl,
             tokenProvider: auth,
           ),
         ),

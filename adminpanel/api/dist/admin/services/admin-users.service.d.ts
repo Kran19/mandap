@@ -26,8 +26,8 @@ export declare class AdminUsersService {
         lastName: string | null;
         id: string;
         status: import("@prisma/client").$Enums.UserStatus;
-        lastLoginAt: Date | null;
         createdAt: Date;
+        lastLoginAt: Date | null;
     }>;
     updateUser(actorId: string, id: string, dto: AdminUpdateUserDto): Promise<{
         email: string | null;

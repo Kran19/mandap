@@ -12,7 +12,7 @@ import { PrismaService } from '../prisma.service.js';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import * as crypto from 'crypto';
-import { UserStatus } from '@prisma/client';
+import { UserStatus, VerificationPurpose } from '@prisma/client';
 import { normalizePhone } from '../utils/phone.util.js';
 import { OtpService } from './otp.service.js';
 let AuthService = class AuthService {
@@ -70,7 +70,21 @@ let AuthService = class AuthService {
             });
             return u;
         });
-        return { success: true, message: 'User registered successfully. Please login to verify phone.' };
+        let challengeId;
+        try {
+            if (user.phone) {
+                challengeId = await this.otpService.generateAndSendOtp(user.id, user.phone, user.firstName || 'Candidate', VerificationPurpose.REGISTRATION);
+            }
+            if (user.email) {
+                await this.otpService.generateAndSendEmailCode(user.id, user.email, user.firstName || 'Candidate', VerificationPurpose.REGISTRATION);
+            }
+        }
+        catch (_) { }
+        return {
+            success: true,
+            challengeId,
+            message: 'User registered successfully. Verification codes have been sent to your mobile number and email address.'
+        };
     }
     async login(dto) {
         let user;
@@ -93,8 +107,16 @@ let AuthService = class AuthService {
             throw new UnauthorizedException('Invalid credentials.');
         }
         if (user.phone) {
-            const challengeId = await this.otpService.generateAndSendOtp(user.id, user.phone);
-            return { otpRequired: true, challengeId };
+            const challengeId = await this.otpService.generateAndSendOtp(user.id, user.phone, user.firstName || 'Candidate', VerificationPurpose.LOGIN);
+            if (user.email) {
+                await this.otpService.generateAndSendEmailCode(user.id, user.email, user.firstName || 'Candidate', VerificationPurpose.LOGIN).catch(() => { });
+            }
+            return {
+                otpRequired: true,
+                challengeId,
+                phone: user.phone,
+                email: user.email ?? null,
+            };
         }
         else {
             await this.prisma.user.update({
@@ -193,28 +215,43 @@ let AuthService = class AuthService {
         return crypto.createHash('sha256').update(data).digest('hex');
     }
     async verifyEmail(userId, token) {
+        await this.otpService.verifyEmailCode(userId, token);
         await this.prisma.user.update({
             where: { id: userId },
             data: { emailVerifiedAt: new Date() },
         });
-        return { success: true };
+        return { success: true, message: 'Email verified successfully.' };
+    }
+    async sendEmailVerificationCode(userId) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user || !user.email) {
+            throw new BadRequestException('User does not have an email registered.');
+        }
+        const challengeId = await this.otpService.generateAndSendEmailCode(user.id, user.email, user.firstName || 'Candidate', VerificationPurpose.REGISTRATION);
+        return { success: true, message: 'Verification code sent to email.', challengeId };
     }
     async sendOtp(userId, phone) {
-        await this.prisma.user.update({
-            where: { id: userId },
-            data: { phone },
-        });
-        return { success: true, message: 'OTP sent to mobile (mock)' };
+        const cleanPhone = normalizePhone(phone);
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user)
+            throw new BadRequestException('User not found.');
+        if (user.phone !== cleanPhone) {
+            await this.prisma.user.update({
+                where: { id: userId },
+                data: { phone: cleanPhone },
+            });
+        }
+        const challengeId = await this.otpService.generateAndSendOtp(user.id, cleanPhone, user.firstName || 'Candidate', VerificationPurpose.REGISTRATION);
+        return { success: true, message: 'OTP sent to mobile successfully via DLT.', challengeId };
     }
     async verifyOtp(userId, phone, code) {
-        if (code !== '123456') {
-            throw new BadRequestException('Invalid OTP');
-        }
+        const cleanPhone = normalizePhone(phone);
+        await this.otpService.verifyMobileCode(userId, cleanPhone, code);
         await this.prisma.user.update({
             where: { id: userId },
             data: { mobileVerifiedAt: new Date() },
         });
-        return { success: true };
+        return { success: true, message: 'Mobile verified successfully.' };
     }
     async verifyIdentity(userId, identityReference) {
         await this.prisma.user.update({

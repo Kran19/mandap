@@ -82,6 +82,29 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                   ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Text('Verify Email'),
               ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: _isLoading
+                    ? null
+                    : () async {
+                        setState(() {
+                          _isLoading = true;
+                          _errorMessage = null;
+                        });
+                        final authRepo = context.read<AuthRepository>();
+                        final sent = await authRepo.sendEmailVerificationCode();
+                        setState(() {
+                          _isLoading = false;
+                          _errorMessage = sent ? null : 'Failed to resend email code. Please try again.';
+                        });
+                        if (sent && mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('A fresh verification code has been sent to your email.')),
+                          );
+                        }
+                      },
+                child: const Text('Resend Verification Code'),
+              ),
             ],
           ),
         ),

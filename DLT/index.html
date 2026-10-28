@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DLT SMS Dispatcher & Verification Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="container">
+    <!-- Top Navigation Header -->
+    <header class="top-nav">
+      <div class="brand-area">
+        <div class="brand-icon">💬</div>
+        <div>
+          <h1 class="brand-title">DLT SMS Dispatcher & Live Verifier</h1>
+          <p class="brand-subtitle">Sender: <strong>TXXTOO</strong> &bull; Template ID: <strong>1607100000000313742</strong></p>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <div class="badge badge-dlt" title="Principal Entity ID Registered">
+          <span class="badge-dot"></span> PE-ID: 1401805350000060162
+        </div>
+        <button id="openSettingsBtn" class="btn btn-secondary">
+          ⚙️ Gateway Settings
+        </button>
+      </div>
+    </header>
+
+    <!-- Main 2-Column Grid -->
+    <div class="main-grid">
+      <!-- Left Column: Form & Variable Inputs -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span>📝</span> Compose DLT OTP Message
+          </h2>
+          <span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59,130,246,0.3)">
+            3 Dynamic Variables
+          </span>
+        </div>
+
+        <form id="smsForm">
+          <!-- Recipient Mobile -->
+          <div class="form-group">
+            <label class="form-label" for="phoneInput">
+              <span>Recipient Mobile Number(s)</span>
+              <span class="label-hint">10 digits or comma-separated for bulk</span>
+            </label>
+            <div class="input-wrapper">
+              <input type="text" id="phoneInput" class="form-control" placeholder="e.g. 9876543210" required autocomplete="tel">
+            </div>
+            <div class="pill-list">
+              <span class="pill" onclick="setPhone('9876543210')">9876543210</span>
+              <span class="pill" onclick="setPhone('9988776655')">9988776655</span>
+              <span class="pill" onclick="setPhone('9123456789,9876543210')">Multi-Number Test</span>
+            </div>
+          </div>
+
+          <!-- 3 Dynamic Variables Box -->
+          <div class="dynamic-vars-box">
+            <div class="dynamic-vars-header">
+              <span class="dynamic-vars-title">
+                ⚡ Dynamic {#var#} Mapping
+              </span>
+              <span class="label-hint">Auto-injected into DLT Template</span>
+            </div>
+
+            <!-- Variable 1: Name -->
+            <div class="form-group">
+              <label class="form-label" for="var1Input">
+                <span>Variable 1: Recipient Name <span class="var-badge">Dear {#var#}</span></span>
+              </label>
+              <input type="text" id="var1Input" class="form-control" placeholder="e.g. Rahul Sharma / User" value="Rahul Sharma">
+            </div>
+
+            <!-- Variable 2: OTP Code -->
+            <div class="form-group">
+              <label class="form-label" for="var2Input">
+                <span>Variable 2: OTP Code <span class="var-badge">OTP is {#var#}</span></span>
+                <button type="button" id="genOtpBtn" class="btn btn-secondary btn-sm">
+                  🎲 Generate 6-Digit OTP
+                </button>
+              </label>
+              <div class="input-wrapper">
+                <input type="text" id="var2Input" class="form-control" placeholder="e.g. 492018" value="482910">
+              </div>
+            </div>
+
+            <!-- Variable 3: Regards / Brand -->
+            <div class="form-group" style="margin-bottom: 8px;">
+              <label class="form-label" for="var3Input">
+                <span>Variable 3: Sign-off / Regards <span class="var-badge">Regards {#var#}</span></span>
+              </label>
+              <input type="text" id="var3Input" class="form-control" placeholder="e.g. Team TXXTOO / Support" value="Team TXXTOO">
+            </div>
+          </div>
+
+          <!-- Send Action Button -->
+          <button type="submit" id="sendBtn" class="btn btn-primary" style="width: 100%; padding: 14px; font-size: 15px;">
+            <span id="btnText">🚀 Send & Verify SMS via Gateway</span>
+            <span id="btnSpinner" class="spinner" style="display: none;"></span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Right Column: Handset Simulator & Real-time Live Preview -->
+      <div class="preview-column">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">
+              <span>📱</span> Recipient Handset Preview
+            </h2>
+            <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">
+              Live DLT Match
+            </span>
+          </div>
+
+          <div class="phone-mockup">
+            <div class="phone-notch"></div>
+            <div class="phone-header">
+              <div class="phone-sender">
+                <span id="previewSender">TXXTOO</span>
+                <span class="phone-dlt-verified" title="DLT Verified Header">✓</span>
+              </div>
+              <div class="phone-time" id="previewTime">Today, Just now</div>
+            </div>
+
+            <!-- Message Bubble -->
+            <div class="sms-bubble" id="smsBubble">
+              <!-- Dynamically populated -->
+            </div>
+
+            <div class="sms-meta">
+              <span id="charCount">0 characters</span>
+              <span id="creditCount">1 SMS Part (GSM-7)</span>
+            </div>
+          </div>
+
+          <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-color); font-size: 12px; color: var(--text-secondary);">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span>Registered Header:</span>
+              <strong style="color: var(--text-primary);">TXXTOO</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span>Registered Template ID:</span>
+              <code style="color: #60a5fa;">1607100000000313742</code>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span>Principal Entity ID:</span>
+              <code style="color: #34d399;">1401805350000060162</code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Response & Transmission Inspector -->
+    <div class="card inspector-card" id="inspectorCard">
+      <div class="card-header">
+        <h2 class="card-title">
+          <span>📡</span> Live Delivery & Transmission Inspector
+        </h2>
+        <span id="liveStatusBadge" class="badge" style="background: rgba(148, 163, 184, 0.15); color: var(--text-muted);">
+          Awaiting Dispatch
+        </span>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-box">
+          <div class="metric-label">HTTP Status Code</div>
+          <div class="metric-value status-pending" id="metricHttpCode">—</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">Gateway Dispatch Result</div>
+          <div class="metric-value status-pending" id="metricStatusDesc">Idle</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">Gateway Round-Trip Time</div>
+          <div class="metric-value" id="metricLatency">—</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">Message / Tracking ID</div>
+          <div class="metric-value" id="metricMsgId" style="font-size: 15px; font-family: monospace;">—</div>
+        </div>
+      </div>
+
+      <!-- Raw & Parsed Response Box -->
+      <div style="margin-top: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <label class="form-label" style="margin-bottom: 0;">Gateway Raw Response & Diagnostics</label>
+          <button id="togglePayloadBtn" class="btn btn-secondary btn-sm">Show Request Payload</button>
+        </div>
+        <div class="code-box" id="responseBox">// Response from the SMS gateway will appear here in real-time...</div>
+        <div class="code-box" id="requestPayloadBox" style="display: none; margin-top: 10px; color: #a7f3d0;"></div>
+      </div>
+    </div>
+
+    <!-- Transmission History & Audit Log -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <span>📋</span> Transmission Audit Log
+        </h2>
+        <div style="display: flex; gap: 8px;">
+          <button id="refreshHistoryBtn" class="btn btn-secondary btn-sm">🔄 Refresh</button>
+          <button id="clearHistoryBtn" class="btn btn-secondary btn-sm" style="color: #fb7185;">🗑️ Clear Log</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Mobile</th>
+              <th>Dynamic Variables</th>
+              <th>HTTP Code</th>
+              <th>Gateway Result</th>
+              <th>Latency</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody">
+            <tr>
+              <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                No SMS transmission attempts logged yet.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gateway Configuration Modal -->
+  <div class="modal-backdrop" id="settingsModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">⚙️ SMS Gateway API Configuration</h3>
+        <button class="close-btn" id="closeSettingsBtn">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">
+            <span>Gateway HTTP Endpoint (URI)</span>
+            <span class="label-hint">Where the POST request is sent</span>
+          </label>
+          <input type="text" id="settingUri" class="form-control" placeholder="http://domain/sms-panel/api/http/index.php">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+          <div class="form-group">
+            <label class="form-label">SMS Panel Username</label>
+            <input type="text" id="settingUsername" class="form-control" placeholder="Enter your panel username">
+          </div>
+          <div class="form-group">
+            <label class="form-label">HTTP API Key</label>
+            <input type="text" id="settingApiKey" class="form-control" placeholder="62CEF-9A446">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+          <div class="form-group">
+            <label class="form-label">Sender ID (Header)</label>
+            <input type="text" id="settingSender" class="form-control" placeholder="TXXTOO">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Route Name</label>
+            <input type="text" id="settingRoute" class="form-control" placeholder="trans">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+          <div class="form-group">
+            <label class="form-label">DLT Template ID</label>
+            <input type="text" id="settingTemplateId" class="form-control" placeholder="1607100000000313742">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Principal Entity ID (PE_ID)</label>
+            <input type="text" id="settingEntityId" class="form-control" placeholder="1401805350000060162">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            <span>DLT Template Pattern</span>
+            <span class="label-hint">Must match TRAI DLT portal exactly</span>
+          </label>
+          <textarea id="settingTemplatePattern" class="form-control" rows="3" style="font-family: monospace; font-size: 12.5px;"></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="cancelSettingsBtn" class="btn btn-secondary">Cancel</button>
+        <button id="saveSettingsBtn" class="btn btn-primary">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

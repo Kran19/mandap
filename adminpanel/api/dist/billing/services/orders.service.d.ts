@@ -10,9 +10,9 @@ export declare class OrdersService {
         order: {
             items: {
                 id: string;
+                metadata: import("@prisma/client/runtime/library").JsonValue | null;
                 description: string;
                 orderId: string;
-                metadata: import("@prisma/client/runtime/library").JsonValue | null;
                 totalAmount: import("@prisma/client/runtime/library").Decimal;
                 quantity: number;
                 unitAmount: import("@prisma/client/runtime/library").Decimal;
@@ -21,8 +21,8 @@ export declare class OrdersService {
             id: string;
             status: import("@prisma/client").$Enums.OrderStatus;
             createdAt: Date;
-            updatedAt: Date;
             userId: string | null;
+            updatedAt: Date;
             organizationId: string;
             currency: string;
             provider: string | null;

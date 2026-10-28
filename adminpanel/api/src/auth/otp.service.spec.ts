@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { OtpService } from './otp.service.js';
 import { REDIS_CLIENT } from '../redis/redis.module.js';
+import { EmailVerificationProvider } from './email/email-verification.provider.js';
+import { PrismaService } from '../prisma.service.js';
 import { UnauthorizedException, TooManyRequestsException } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { vi } from 'vitest';
@@ -24,6 +26,20 @@ describe('OtpService', () => {
 
     mockSms = {
       sendSms: vi.fn(),
+      sendOtpSms: vi.fn().mockResolvedValue({ success: true, messageId: 'msg_1' }),
+    };
+
+    const mockEmail = {
+      sendVerificationEmail: vi.fn().mockResolvedValue({ success: true, messageId: 'email_1' }),
+    };
+
+    const mockPrisma = {
+      verificationLog: {
+        create: vi.fn().mockResolvedValue({ id: 'v1' }),
+        update: vi.fn().mockResolvedValue({ id: 'v1' }),
+        findUnique: vi.fn(),
+        findFirst: vi.fn(),
+      },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -31,6 +47,8 @@ describe('OtpService', () => {
         OtpService,
         { provide: REDIS_CLIENT, useValue: mockRedis },
         { provide: 'SMS_PROVIDER', useValue: mockSms },
+        { provide: EmailVerificationProvider, useValue: mockEmail },
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();
 
@@ -60,8 +78,8 @@ describe('OtpService', () => {
       expect(storedData.otpHash).toBe('hashed_otp');
       expect(storedData.attemptCount).toBe(0);
 
-      expect(mockSms.sendSms).toHaveBeenCalledTimes(1);
-      expect(mockSms.sendSms.mock.calls[0][0]).toBe('+14155552671');
+      expect(mockSms.sendOtpSms).toHaveBeenCalledTimes(1);
+      expect(mockSms.sendOtpSms.mock.calls[0][0]).toBe('+14155552671');
     });
   });
 

@@ -13,8 +13,8 @@ export declare class AdminMembershipsController {
         } & {
             id: string;
             createdAt: Date;
-            updatedAt: Date;
             userId: string;
+            updatedAt: Date;
             role: import("@prisma/client").$Enums.MembershipRole;
             organizationId: string;
         })[];
@@ -27,16 +27,16 @@ export declare class AdminMembershipsController {
     addMember(actor: any, orgId: string, dto: AdminAddMembershipDto): Promise<{
         id: string;
         createdAt: Date;
-        updatedAt: Date;
         userId: string;
+        updatedAt: Date;
         role: import("@prisma/client").$Enums.MembershipRole;
         organizationId: string;
     }>;
     updateMemberRole(actor: any, orgId: string, userId: string, dto: AdminUpdateMembershipDto): Promise<{
         id: string;
         createdAt: Date;
-        updatedAt: Date;
         userId: string;
+        updatedAt: Date;
         role: import("@prisma/client").$Enums.MembershipRole;
         organizationId: string;
     }>;

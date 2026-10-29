@@ -26,6 +26,7 @@ class _VerifyMobileScreenState extends State<VerifyMobileScreen> {
   }
 
   Future<void> _handleSendOtp() async {
+    if (_isLoading) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -45,6 +46,7 @@ class _VerifyMobileScreenState extends State<VerifyMobileScreen> {
   }
 
   Future<void> _handleVerifyOtp() async {
+    if (_isLoading) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;

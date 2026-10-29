@@ -60,18 +60,24 @@ describe('OtpService', () => {
   });
 
   describe('generateAndSendOtp', () => {
-    it('should generate OTP, hash it, store in redis, and send SMS', async () => {
+    it('should generate OTP, hash it, store in redis with cooldown, and send SMS', async () => {
       (argon2.hash as any).mockResolvedValue('hashed_otp');
 
       const challengeId = await service.generateAndSendOtp('u1', '+14155552671');
 
       expect(challengeId).toBeDefined();
-      expect(mockRedis.set).toHaveBeenCalledTimes(1);
+      expect(mockRedis.set).toHaveBeenCalledTimes(2);
       
       const setArgs = mockRedis.set.mock.calls[0];
       expect(setArgs[0]).toBe(`login_challenge:${challengeId}`);
       expect(setArgs[2]).toBe('EX');
       expect(setArgs[3]).toBe(300); // 5 mins TTL
+
+      const cooldownArgs = mockRedis.set.mock.calls[1];
+      expect(cooldownArgs[0]).toBe('otp_cooldown:sms:14155552671');
+      expect(cooldownArgs[1]).toBe('1');
+      expect(cooldownArgs[2]).toBe('EX');
+      expect(cooldownArgs[3]).toBe(60); // 60s cooldown
 
       const storedData = JSON.parse(setArgs[1]);
       expect(storedData.userId).toBe('u1');
@@ -80,6 +86,15 @@ describe('OtpService', () => {
 
       expect(mockSms.sendOtpSms).toHaveBeenCalledTimes(1);
       expect(mockSms.sendOtpSms.mock.calls[0][0]).toBe('+14155552671');
+    });
+
+    it('should throw HttpException 429 if cooldown is still active', async () => {
+      mockRedis.get.mockResolvedValueOnce('1'); // Cooldown active
+
+      await expect(service.generateAndSendOtp('u1', '+14155552671')).rejects.toThrow(
+        /Please wait 60 seconds/,
+      );
+      expect(mockSms.sendOtpSms).not.toHaveBeenCalled();
     });
   });
 

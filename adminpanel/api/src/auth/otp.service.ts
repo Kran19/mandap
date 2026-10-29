@@ -14,6 +14,7 @@ export class OtpService {
   
   // 5 minutes expiry for OTP
   private readonly OTP_TTL_SECONDS = 300;
+  private readonly OTP_COOLDOWN_SECONDS = 60;
   private readonly MAX_ATTEMPTS = 5;
 
   private readonly inMemoryFallback = new Map<string, { data: string; expiresAt: number }>();
@@ -24,6 +25,14 @@ export class OtpService {
     private readonly emailProvider: EmailVerificationProvider,
     private readonly prisma: PrismaService,
   ) {}
+
+  /**
+   * Identifies test numbers (for Google Play / App Store review and QA)
+   */
+  isTestPhoneNumber(phone: string): boolean {
+    const cleaned = phone.replace(/[^0-9]/g, '');
+    return cleaned === '9999999999' || cleaned === '919999999999';
+  }
 
   /**
    * Generates a 6-digit secure numeric code
@@ -41,6 +50,29 @@ export class OtpService {
     candidateName?: string,
     purpose: VerificationPurpose = VerificationPurpose.LOGIN,
   ): Promise<string> {
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    const cooldownKey = `otp_cooldown:sms:${cleanPhone}`;
+
+    // 1. Enforce 60-second cooldown per phone number to prevent rapid/duplicate dispatches
+    let isCooldownActive = false;
+    try {
+      const active = await this.redis.get(cooldownKey);
+      if (active) isCooldownActive = true;
+    } catch (_) {
+      const fallback = this.inMemoryFallback.get(cooldownKey);
+      if (fallback && fallback.expiresAt > Date.now()) {
+        isCooldownActive = true;
+      }
+    }
+
+    if (isCooldownActive) {
+      this.logger.warn(`[OTP THROTTLED] ${cleanPhone} requested OTP within 60s cooldown window.`);
+      throw new HttpException(
+        'Please wait 60 seconds before requesting another OTP.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     const challengeId = randomUUID();
     const otp = this.generateRandomCode();
     const otpHash = await argon2.hash(otp);
@@ -61,11 +93,16 @@ export class OtpService {
     const serialized = JSON.stringify(data);
     try {
       await this.redis.set(key, serialized, 'EX', this.OTP_TTL_SECONDS);
+      await this.redis.set(cooldownKey, '1', 'EX', this.OTP_COOLDOWN_SECONDS);
     } catch (err) {
       this.logger.warn(`Redis set failed, falling back to memory: ${err}`);
       this.inMemoryFallback.set(key, {
         data: serialized,
         expiresAt: expiresAt.getTime(),
+      });
+      this.inMemoryFallback.set(cooldownKey, {
+        data: '1',
+        expiresAt: Date.now() + this.OTP_COOLDOWN_SECONDS * 1000,
       });
     }
 
@@ -73,7 +110,11 @@ export class OtpService {
     let gatewayMsgId: string | undefined;
     let gatewayStatus: string | undefined;
 
-    if (this.smsProvider.sendOtpSms) {
+    // Check if designated test number (e.g. Google Play Console / reviewer test account)
+    if (this.isTestPhoneNumber(phone)) {
+      gatewayStatus = 'Test Account - SMS Bypassed';
+      this.logger.log(`[TEST ACCOUNT OTP BYPASS] Recipient: ${phone} | Challenge: ${challengeId} | Static OTP 123456 accepted`);
+    } else if (this.smsProvider.sendOtpSms) {
       const result = await this.smsProvider.sendOtpSms(phone, otp, candidateName);
       gatewayMsgId = result.messageId;
       gatewayStatus = result.statusSummary;
@@ -123,6 +164,29 @@ export class OtpService {
     candidateName?: string,
     purpose: VerificationPurpose = VerificationPurpose.REGISTRATION,
   ): Promise<string> {
+    const cleanEmail = email.trim().toLowerCase();
+    const emailCooldownKey = `otp_cooldown:email:${cleanEmail}`;
+
+    // 1. Enforce 60-second cooldown per email address
+    let isEmailCooldownActive = false;
+    try {
+      const active = await this.redis.get(emailCooldownKey);
+      if (active) isEmailCooldownActive = true;
+    } catch (_) {
+      const fallback = this.inMemoryFallback.get(emailCooldownKey);
+      if (fallback && fallback.expiresAt > Date.now()) {
+        isEmailCooldownActive = true;
+      }
+    }
+
+    if (isEmailCooldownActive) {
+      this.logger.warn(`[EMAIL OTP THROTTLED] ${cleanEmail} requested code within 60s cooldown window.`);
+      throw new HttpException(
+        'Please wait 60 seconds before requesting another verification code.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     const challengeId = randomUUID();
     const code = this.generateRandomCode();
     const codeHash = await argon2.hash(code);
@@ -145,6 +209,7 @@ export class OtpService {
     try {
       await this.redis.set(key, serialized, 'EX', this.OTP_TTL_SECONDS);
       await this.redis.set(userEmailKey, challengeId, 'EX', this.OTP_TTL_SECONDS);
+      await this.redis.set(emailCooldownKey, '1', 'EX', this.OTP_COOLDOWN_SECONDS);
     } catch (err) {
       this.logger.warn(`Redis set failed, falling back to memory: ${err}`);
       this.inMemoryFallback.set(key, {
@@ -154,6 +219,10 @@ export class OtpService {
       this.inMemoryFallback.set(userEmailKey, {
         data: challengeId,
         expiresAt: expiresAt.getTime(),
+      });
+      this.inMemoryFallback.set(emailCooldownKey, {
+        data: '1',
+        expiresAt: Date.now() + this.OTP_COOLDOWN_SECONDS * 1000,
       });
     }
 
@@ -234,9 +303,10 @@ export class OtpService {
       throw new HttpException('Maximum OTP attempts exceeded', HttpStatus.TOO_MANY_REQUESTS);
     }
 
-    // Accept real code or '123456' as development fallback
+    // Accept real code or '123456' as development/test fallback
     const isDevelopment = process.env.NODE_ENV !== 'production';
-    const isDevBypass = isDevelopment && otp === '123456';
+    const isTestNumber = data.phone ? this.isTestPhoneNumber(data.phone) : false;
+    const isDevBypass = (isDevelopment || isTestNumber) && otp === '123456';
     const isValid = isDevBypass || (await argon2.verify(data.otpHash, otp));
     
     if (!isValid) {
@@ -335,7 +405,8 @@ export class OtpService {
    */
   async verifyMobileCode(userId: string, phone: string, code: string): Promise<boolean> {
     const isDevelopment = process.env.NODE_ENV !== 'production';
-    if (isDevelopment && code === '123456') {
+    const isTestNumber = this.isTestPhoneNumber(phone);
+    if ((isDevelopment || isTestNumber) && code === '123456') {
       await this.prisma.verificationLog.updateMany({
         where: { userId, channel: VerificationChannel.SMS, status: VerificationStatus.PENDING },
         data: { status: VerificationStatus.VERIFIED, verifiedAt: new Date() },

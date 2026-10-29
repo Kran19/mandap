@@ -138,6 +138,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _handleRegister() async {
+    if (_isLoading) return;
     final phone = _phoneController.text.trim();
     final password = _passwordController.text;
 

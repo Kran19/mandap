@@ -116,6 +116,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   Future<void> _handleLogin() async {
+    if (_isLoading) return;
     final phone = _phoneController.text.trim();
     if (phone.isEmpty) {
       setState(() => _errorMessage = 'Please enter your phone number.');

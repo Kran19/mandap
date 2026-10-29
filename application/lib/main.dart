@@ -21,7 +21,7 @@ String get apiBaseUrl {
   }
   return const String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://187.127.131.178:5000/api/v1',
+    defaultValue: 'https://mandapbuilder.vardaansmartsolutions.com/api/v1',
   );
 }
 
